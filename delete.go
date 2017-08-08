@@ -26,20 +26,20 @@ func main() {
 		panic(err);
 		return;
 	}
-	stmt, err := db.Prepare("INSERT INTO content_type(name, sort, status, img, created_at, updated_at, real_name) VALUES(?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("delete FROM content_type where id=?")
 	if (nil != err) {
 		panic(err);
 		return;
 	}
-	res, err := stmt.Exec("yuyi", 20, 1, "http://www.xunlei.com/", 0,0,"yuyi")
+	res, err := stmt.Exec(1)
 	if (nil != err) {
 		panic(err);
 		return;
 	}
-	id, err := res.LastInsertId()
+	id, err := res.RowsAffected()
 	if (nil != err) {
 		panic(err);
 		return;
 	}
-	fmt.Println(id)
+	fmt.Printf("删除行数%d\r\n",id)
 }
