@@ -8,7 +8,7 @@ import (
 	//"strconv"
 	"reflect"
 	"encoding/json"
-	//"strconv"
+	"./String"
 )
 
 
@@ -28,6 +28,12 @@ func main() {
 	str, _ := json.Marshal(res)
 
 	fmt.Println(string(str))
+
+	kk :=12456
+
+	vv := String.Convert{kk}
+
+	fmt.Println("hello_"+vv.ToString())
 
 	//if (nil != err) {
 	//	panic(err);
