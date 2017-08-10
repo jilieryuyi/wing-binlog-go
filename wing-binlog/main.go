@@ -27,6 +27,7 @@ func main()  {
 		fmt.Println("进程结束\r\n")
 	}()
 
+
 	//fmt.Println(os.Getppid())
 	//if os.Getppid() != 1 {
 	//	//判断当其是否是子进程，当父进程return之后，子进程会被 系统1 号进程接管
@@ -44,7 +45,9 @@ func main()  {
 	//}
 
 	pdo := Library.Pdo{"root", "123456", "xl"}
-	fmt.Println(pdo.Database);
+	pdo.Open();
+	defer pdo.Close()
+
 	binlog := Library.Binlog{}
 	fmt.Println(binlog.GetLogs())
 

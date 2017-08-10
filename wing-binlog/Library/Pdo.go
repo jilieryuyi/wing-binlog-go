@@ -19,16 +19,17 @@ type Pdo struct {
 	Database string
 }
 
-var __handler *sql.DB = nil;
+var __handler *sql.DB = nil
 
+func (_pdo Pdo) Open() {
+	handler, _ := sql.Open("mysql", _pdo.User+":"+_pdo.Password+"@tcp(127.0.0.1:3306)/"+ _pdo.Database +"?charset=utf8")
+	__handler = handler
+}
 
-func init() {
-	var err error = nil
-	__handler, err = sql.Open("mysql", "root:123456@tcp(127.0.0.1:3306)/xl?charset=utf8")
-	if (nil != err) {
-		panic(err)
+func (_pdo Pdo) Close() {
+	if (nil != __handler) {
+		__handler.Close()
 	}
-	//fmt.Println(__handler);
 }
 
 //func (_pdo Pdo) open() *sql.DB {
