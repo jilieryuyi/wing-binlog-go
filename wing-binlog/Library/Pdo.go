@@ -1,4 +1,4 @@
-package main
+package Library
 
 import "database/sql"
 import (
@@ -7,58 +7,73 @@ import (
 	//"reflect"
 	//"strconv"
 	"reflect"
-	"encoding/json"
-	"./wing-binlog/String"
+	//"encoding/json"
+	//"../String"
 )
 
-
-func main() {
-
-	defer func(){ // 必须要先声明defer，否则不能捕获到panic异常
-		if err:=recover();err!=nil{
-			fmt.Println("发生错误\r\n")
-			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
-		}
-		fmt.Println("进程结束\r\n")
-	}()
-
-	res := query("select * from content_type where id=?", 2)
-	fmt.Println(res)
-
-	str, _ := json.Marshal(res)
-
-	fmt.Println(string(str))
-
-	kk :=12456
-
-	vv := String.Convert{kk}
-
-	fmt.Println("hello_"+vv.ToString())
-
-	//if (nil != err) {
-	//	panic(err);
-	//	return;
-	//}
-	//id, err := res.LastInsertId()
-	//if (nil != err) {
-	//	panic(err);
-	//	return;
-	//}
-	//fmt.Println(id)
+type Pdo struct {
+	User string
+	Password string
+	Database string
 }
 
-func query(_sql string, args ...interface{})  map[int]map[string]interface {} {
-	user     := "root"
-	password := "123456"
-	db, err  := sql.Open(
-		"mysql",
-		user+":"+ password+"@tcp(127.0.0.1:3306)/xl?charset=utf8")
+handler *sql.DB
 
-	if (nil != err) {
-		panic(err);
-		return nil;
-	}
-	rows, err := db.Query(_sql, args...)
+func (_pdo Pdo) init() {
+	handler, _  = sql.Open(
+		"mysql",
+		_pdo.User+":"+ _pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
+	//if (nil != err) {
+	//	panic(err)
+	//}
+}
+
+
+//
+//func main() {
+//
+//	defer func(){ // 必须要先声明defer，否则不能捕获到panic异常
+//		if err:=recover();err!=nil{
+//			fmt.Println("发生错误\r\n")
+//			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
+//		}
+//		fmt.Println("进程结束\r\n")
+//	}()
+//
+//	res := query("select * from content_type where id=?", 2)
+//	fmt.Println(res)
+//
+//	str, _ := json.Marshal(res)
+//
+//	fmt.Println(string(str))
+//
+//	kk :=12456
+//
+//	vv := String.Convert{kk}
+//
+//	fmt.Println("hello_"+vv.ToString())
+//
+//	//if (nil != err) {
+//	//	panic(err);
+//	//	return;
+//	//}
+//	//id, err := res.LastInsertId()
+//	//if (nil != err) {
+//	//	panic(err);
+//	//	return;
+//	//}
+//	//fmt.Println(id)
+//}
+
+func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]interface {} {
+	//user     := "root"
+	//password := "123456"
+	//db, err  := sql.Open(
+	//	"mysql",
+	//	_pdo.User+":"+ _pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
+
+
+	rows, err := _pdo.handler.Query(_sql, args...)
 	if (nil != err) {
 		panic(err);
 		return nil;

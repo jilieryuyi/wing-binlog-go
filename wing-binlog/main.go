@@ -1,13 +1,30 @@
 package main
 
+import "fmt"
+
 //import (
 //	"fmt"
 //	"os"
 //	"os/exec"
 //	"path/filepath"
 //)
+import (
+	 "./Library"
+)
+
+const WING_DEBUG = true
+
 
 func main()  {
+
+	defer func(){ // 必须要先声明defer，否则不能捕获到panic异常
+		if err:=recover();err!=nil{
+			fmt.Println("发生错误\r\n")
+			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
+		}
+		fmt.Println("进程结束\r\n")
+	}()
+
 	//fmt.Println(os.Getppid())
 	//if os.Getppid() != 1 {
 	//	//判断当其是否是子进程，当父进程return之后，子进程会被 系统1 号进程接管
@@ -24,6 +41,9 @@ func main()  {
 	//	return
 	//}
 
-
+	pdo := Library.Pdo{"root", "123456", "xl"}
+	fmt.Println(pdo.Database);
+	//binlog := Library.Binlog{}
+	//fmt.Println(binlog.GetLogs())
 
 }
