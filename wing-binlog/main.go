@@ -12,7 +12,7 @@ import "fmt"
 
 import (
 	 "./Library"
-	"./String"
+	//"./String"
 )
 
 
@@ -49,9 +49,10 @@ func main()  {
 	defer pdo.Close()
 
 	binlog := Library.Binlog{}
-	fmt.Println(binlog.GetLogs())
+	fmt.Println(binlog.GetLogs(), "\r\n\r\n")
 
-	str := fmt.Sprintf("%f", 0.123456);
-	fmt.Println(String.WING_DEBUG)
-	fmt.Println("hello_"+str);
+	//str := fmt.Sprintf("%f", 0.123456);
+	fmt.Println(binlog.GetFormat(), "\r\n\r\n")
+	fmt.Println(binlog.GetCurrentLogInfo(), "\r\n\r\n")
+	//fmt.Println("hello_"+str);
 }

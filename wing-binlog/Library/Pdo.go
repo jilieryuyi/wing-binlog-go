@@ -6,7 +6,7 @@ import (
 	"fmt"
 	//"reflect"
 	//"strconv"
-	"reflect"
+//	"reflect"
 	//"encoding/json"
 	//"../String"
 	"database/sql"
@@ -131,7 +131,7 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 		record := make(map[string]interface {})
 		for i, col := range values {
 			if col != nil {
-				fmt.Printf("%s的类型是：%s\r\n", columns[i], reflect.TypeOf(col))
+			//	fmt.Printf("%s的类型是：%s\r\n", columns[i], reflect.TypeOf(col))
 				//fmt.Println(reflect.TypeOf(col))
 				switch col.(type) { //多选语句switch
 				case string:

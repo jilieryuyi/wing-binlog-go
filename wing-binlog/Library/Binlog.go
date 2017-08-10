@@ -3,37 +3,30 @@ package Library
 import (
 	//"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"strings"
 )
 
 type Binlog struct {
-
+	DB Pdo
 }
 
-
+type ROWS  map[int]map[string]interface {}
+type ROW  map[string]interface {}
 /**
-     * 获取所有的logs
-     *
-     * @return array
-     */
-func (_binlog Binlog) GetLogs()   map[int]map[string]interface {} {
+ * 获取所有的logs
+ *
+ * @return array
+ */
+func (_binlog Binlog) GetLogs() ROWS {
 	sql  := "show binary logs"
-	//if (WING_DEBUG) {
-	//	fmt.Println(sql + "\r\n")
-	//}
-	pdo := Pdo{"root", "123456", "xl"}
-
-	return pdo.Query(sql)//$this->db_handler->query($sql);
+	return _binlog.DB.Query(sql)
 }
 //
-//public function getFormat()
-//{
-//$sql  = 'select @@binlog_format';
-//if (WING_DEBUG)
-//echo $sql, "\r\n";
-//
-//$data = $this->db_handler->row($sql);
-//return strtolower($data["@@binlog_format"]);
-//}
+func (_binlog Binlog) GetFormat() string {
+	sql := "select @@binlog_format"
+	data := _binlog.DB.Query(sql);
+	return strings.ToLower(string(data[0]["@@binlog_format"].(string)));
+}
 //
 ///**
 // * 获取当前正在使用的binglog日志文件信息
@@ -47,15 +40,11 @@ func (_binlog Binlog) GetLogs()   map[int]map[string]interface {} {
 // *           ["Executed_Gtid_Set"] => string(0) ""
 // *     }
 // */
-//public function getCurrentLogInfo()
-//{
-//$sql  = 'show master status';
-//if (WING_DEBUG)
-//echo $sql, "\r\n";
-//
-//$data = $this->db_handler->row($sql);
-//return $data;
-//}
+func (_binlog Binlog) GetCurrentLogInfo() ROW {
+	sql  := "show master status"
+	data := _binlog.DB.Query(sql)
+	return data[0];
+}
 //
 ///**
 // * 获取所有的binlog文件
