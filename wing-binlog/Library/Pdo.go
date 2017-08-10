@@ -1,6 +1,6 @@
 package Library
 
-import "database/sql"
+//import "database/sql"
 import (
 	_ "github.com/go-sql-driver/mysql"
 	"fmt"
@@ -9,6 +9,8 @@ import (
 	"reflect"
 	//"encoding/json"
 	//"../String"
+	"database/sql"
+	//"go/types"
 )
 
 type Pdo struct {
@@ -17,16 +19,28 @@ type Pdo struct {
 	Database string
 }
 
-handler *sql.DB
+var __handler *sql.DB = nil;
 
-func (_pdo Pdo) init() {
-	handler, _  = sql.Open(
-		"mysql",
-		_pdo.User+":"+ _pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
-	//if (nil != err) {
-	//	panic(err)
-	//}
+
+func init() {
+	var err error = nil
+	__handler, err = sql.Open("mysql", "root:123456@tcp(127.0.0.1:3306)/xl?charset=utf8")
+	if (nil != err) {
+		panic(err)
+	}
+	//fmt.Println(__handler);
 }
+
+//func (_pdo Pdo) open() *sql.DB {
+//	handler, err  := sql.Open(
+//		"mysql",
+//		_pdo.User+":"+ _pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
+//	if (nil != err) {
+//		panic(err)
+//	}
+//	//fmt.Println("pdo init");
+//	return handler
+//}
 
 
 //
@@ -70,10 +84,10 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 	//password := "123456"
 	//db, err  := sql.Open(
 	//	"mysql",
-	//	_pdo.User+":"+ _pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
+	//	user+":"+password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
 
 
-	rows, err := _pdo.handler.Query(_sql, args...)
+	rows, err := __handler.Query(_sql, args...)
 	if (nil != err) {
 		panic(err);
 		return nil;
@@ -148,5 +162,7 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 
 	}
 	fmt.Println(records)
+
+
 return records
 }

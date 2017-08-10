@@ -20,7 +20,7 @@ func (_binlog Binlog) GetLogs()   map[int]map[string]interface {} {
 	//if (WING_DEBUG) {
 	//	fmt.Println(sql + "\r\n")
 	//}
-	pdo := Pdo{"root", "123456", "xl", nil}
+	pdo := Pdo{"root", "123456", "xl"}
 
 	return pdo.Query(sql)//$this->db_handler->query($sql);
 }

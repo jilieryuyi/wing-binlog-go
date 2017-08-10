@@ -8,11 +8,13 @@ import "fmt"
 //	"os/exec"
 //	"path/filepath"
 //)
+
+
 import (
 	 "./Library"
+	"./String"
 )
 
-const WING_DEBUG = true
 
 
 func main()  {
@@ -43,7 +45,10 @@ func main()  {
 
 	pdo := Library.Pdo{"root", "123456", "xl"}
 	fmt.Println(pdo.Database);
-	//binlog := Library.Binlog{}
-	//fmt.Println(binlog.GetLogs())
+	binlog := Library.Binlog{}
+	fmt.Println(binlog.GetLogs())
 
+	str := fmt.Sprintf("%f", 0.123456);
+	fmt.Println(String.WING_DEBUG)
+	fmt.Println("hello_"+str);
 }

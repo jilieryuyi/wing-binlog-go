@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+
 )
 
 type Convert struct {
 	Data interface {}
 }
+
+const WING_DEBUG = true
 
 
 func (r Convert) ToString() string {
