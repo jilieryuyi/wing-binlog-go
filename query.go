@@ -28,6 +28,9 @@ func main() {
 	str, _ := json.Marshal(res)
 
 	fmt.Println(string(str))
+	var out  interface{}
+	json.Unmarshal(str, &out)
+	fmt.Println(out)
 
 	kk :=12456
 
