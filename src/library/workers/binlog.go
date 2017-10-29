@@ -1,4 +1,4 @@
-package binlog
+package workers
 
 import (
 	"library/base"

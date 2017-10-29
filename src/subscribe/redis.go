@@ -1,4 +1,4 @@
-package redis
+package subscribe
 
 import "fmt"
 

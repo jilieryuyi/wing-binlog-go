@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"subscribe/redis"
-	"subscribe/tcp"
-	"library/workers/binlog"
+	"subscribe"
+	"library/workers"
 	"library/base"
 )
 
@@ -19,16 +18,16 @@ func main() {
 	data["hello"] = "yuyi"
 	fmt.Println(data)
 
-	redis := &redis.Redis{}
+	redis := &subscribe.Redis{}
 	//redis.OnChange(data);
 
-	tcp := &tcp.Tcp{}
+	tcp := &subscribe.Tcp{}
 	//tcp.OnChange(data)
 
 	//subscribes
 	notify := []base.Subscribe{redis, tcp}
 
-	binlog := &binlog.Binlog{}
+	binlog := &workers.Binlog{}
 	binlog.Loop(notify);
 
 }
