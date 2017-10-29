@@ -15,6 +15,6 @@ package base
     "event_index" => $this->event_index
  ];
  */
-type subscribe interface {
+type Subscribe interface {
 	OnChange(data map[string] interface{})
 }
