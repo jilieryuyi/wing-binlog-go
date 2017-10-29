@@ -27,9 +27,7 @@
 /src/Doc/.DS_Store
 /src/.DS_Store
 /*.log
-/cache
 /cache/*
-/config/*.php
 /seals.info
 /log
 /log/*
@@ -41,7 +39,6 @@
 /logs
 /http_process_cache
 /http_process_cache/*
-/.DS_Store
 /*/.DS_Store
 /*/*/.DS_Store
 /*/*/*/.DS_Store
