@@ -43,7 +43,6 @@
 /*/*/.DS_Store
 /*/*/*/.DS_Store
 /session
-/*.sh
 /data/user/login/*.token
 /web/public/*
 /*.info
