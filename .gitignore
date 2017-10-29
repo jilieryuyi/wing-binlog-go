@@ -59,3 +59,5 @@
 /data/user/*.user
 /data/user/roles/*.role
 /composer
+/bin
+/pkg
