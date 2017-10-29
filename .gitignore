@@ -45,7 +45,6 @@
 /session
 /data/user/login/*.token
 /web/public/*
-/*.info
 /update
 /general.last
 /general.read
