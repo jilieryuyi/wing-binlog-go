@@ -16,5 +16,9 @@ package base
  ];
  */
 type Subscribe interface {
+	Init()
 	OnChange(data map[string] interface{})
+	Free()
 }
+
+const MAX_EVENT_QUEUE_LENGTH = 102400

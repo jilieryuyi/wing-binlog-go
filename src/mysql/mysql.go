@@ -30,8 +30,13 @@ func main() {
 
 	//subscribes
 	notify := []base.Subscribe{redis, tcp}
-
 	binlog := &workers.Binlog{}
-	binlog.Loop(notify);
 
+	defer func() {
+		//结束时清理资源
+		binlog.End(notify);
+	}()
+
+	binlog.Start(notify);
+	binlog.Loop(notify);
 }
