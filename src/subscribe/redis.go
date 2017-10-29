@@ -2,8 +2,10 @@ package subscribe
 
 import "fmt"
 import (
+	"library/debug"
 	"library/base"
 	"runtime"
+	"encoding/json"
 )
 
 type Redis struct {
@@ -24,6 +26,9 @@ func (r *Redis) Init() {
 					for k,v := range body  {
 						fmt.Println("redis---", k, v)
 					}
+
+					json_byte, _ := json.Marshal(body)
+					debug.Print(string(json_byte))
 				//case <-to.C://time.After(time.Second*3):
 				//	Log("发送超时...")
 				}

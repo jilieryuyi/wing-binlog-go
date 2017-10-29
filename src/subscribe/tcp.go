@@ -2,6 +2,7 @@ package subscribe
 
 import "fmt"
 import (
+	"library/debug"
 	"library/base"
 	"runtime"
 )
@@ -21,8 +22,9 @@ func (r *Tcp) Init() {
 				select {
 				case body := <-r.queue:
 					for k,v := range body  {
-						fmt.Println("tcp---", k, v)
+						debug.Print("tcp---", k, v)
 					}
+
 				//case <-to.C://time.After(time.Second*3):
 				//	Log("发送超时...")
 				}
