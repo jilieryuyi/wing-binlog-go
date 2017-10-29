@@ -5,15 +5,19 @@ import (
 	"subscribe"
 	"library/workers"
 	"library/base"
+	"library"
+	"library/path"
 )
 
-type R struct{
-
-}
-func (r *R) Test() {
-	fmt.Println("hello")
-}
 func main() {
+
+	current_path := path.GetCurrentPath();
+	fmt.Println(current_path)
+
+	config_obj := &library.Config{current_path+"/app.json"}
+	config := config_obj.Parse();
+	fmt.Println(config)
+
 	data := make(map[string] interface{})
 	data["hello"] = "yuyi"
 	fmt.Println(data)
