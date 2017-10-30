@@ -7,11 +7,18 @@ import (
 	"library/base"
 	"library"
 	"library/path"
+	"runtime"
+	"library/debug"
 )
 
 func main() {
 
-	current_path := path.GetCurrentPath();
+	cpu := runtime.NumCPU()
+	debug.Print("cpu num: ", cpu)
+	//指定cpu为多核运行
+	runtime.GOMAXPROCS(cpu)
+
+	current_path := path.GetCurrentPath()
 	fmt.Println(current_path)
 
 	config_obj := &library.Config{current_path+"/app.json"}
