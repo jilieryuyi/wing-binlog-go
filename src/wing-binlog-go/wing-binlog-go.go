@@ -9,11 +9,13 @@ import (
 	"library/path"
 	"runtime"
 	"library/debug"
-	"library/std"
+	_ "library/std"
+	"database/sql"
+	_ "mysql"
 )
 
 func main() {
-	std.Reset()
+	//std.Reset()
 	cpu := runtime.NumCPU()
 	debug.Print("cpu num: ", cpu)
 	//指定cpu为多核运行
@@ -44,6 +46,24 @@ func main() {
 		//结束时清理资源
 		binlog.End(notify);
 	}()
+
+
+
+	user     := "root"
+	password := "123456"
+	db, err  := sql.Open(
+		"mysql",
+		user+":"+ password+"@tcp(127.0.0.1:3306)/xsl?charset=utf8")
+
+	if (nil != err) {
+		panic(err);
+		return;
+	}
+
+	log := library.Binlog{db}
+	log.Register("999")
+
+
 
 	binlog.Start(notify);
 	binlog.Loop(notify);

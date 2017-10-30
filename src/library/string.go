@@ -60,5 +60,22 @@ func (str *WString) toInt() int {
 }
 
 
-//func main() {
-//	var v
+func (str *WString) toInt64() int64 {
+	//fmt.Printf("类型是：%s\r\n", reflect.TypeOf(r.Data))
+	var d int64 = 0
+	switch str.Str.(type) {
+	case string:
+		d, _ = strconv.ParseInt(string(str.Str.(string)), 10, 0)
+		return d;
+	case []uint8:
+		d, _ = strconv.ParseInt(string(str.Str.([]byte)), 10, 0)
+		return d
+	case int:
+		return int64(str.Str.(int))
+	case int64:
+		return int64(str.Str.(int64))
+	case uint:
+		return int64(str.Str.(uint))
+	}
+	return 0;
+}
