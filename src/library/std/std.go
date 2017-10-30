@@ -13,7 +13,9 @@ func Reset() {
 		os.Mkdir(dir, 0755)
 	}
 
-	handle, _ := os.OpenFile(dir+"/std.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
-	os.Stdout = handle
-	os.Stderr = handle
+	handle_stdout, _ := os.OpenFile(dir+"/stdout.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+	os.Stdout = handle_stdout
+
+	handle_stderr, _ := os.OpenFile(dir+"/stderr.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+	os.Stderr = handle_stderr
 }
