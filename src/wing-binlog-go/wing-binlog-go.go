@@ -9,10 +9,11 @@ import (
 	"library/path"
 	"runtime"
 	"library/debug"
+	"library/std"
 )
 
 func main() {
-
+	std.Reset()
 	cpu := runtime.NumCPU()
 	debug.Print("cpu num: ", cpu)
 	//指定cpu为多核运行

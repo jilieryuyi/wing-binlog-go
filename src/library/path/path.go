@@ -5,6 +5,7 @@ import (
 	"strings"
 	"path/filepath"
 	"os"
+	"library"
 )
 
 func GetCurrentPath() string {
@@ -15,15 +16,31 @@ func GetCurrentPath() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
-func substr(s string, pos, length int) string {
-	runes := []rune(s)
-	l := pos + length
-	if l > len(runes) {
-		l = len(runes)
-	}
-	return string(runes[pos:l])
+
+type WPath struct {
+	Dir string
 }
 
-func GetParentPath(dirctory string) string {
-	return substr(dirctory, 0, strings.LastIndex(dirctory, "/"))
+func (dir *WPath) GetParent() string {
+	str := library.WString{dir.Dir}
+	return str.Substr(0, strings.LastIndex(dir.Dir, "/"))
 }
+
+func (dir *WPath) GetPath() string {
+	return dir.Dir
+}
+
+func (dir *WPath) Exists() bool {
+	_, err := os.Stat(dir.Dir)
+	if err == nil {
+		return true
+	}
+
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	return false
+}
+
+
