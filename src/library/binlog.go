@@ -2,6 +2,7 @@ package library
 
 import (
 	"database/sql"
+	_ "fmt"
 	"fmt"
 )
 
@@ -45,19 +46,19 @@ func (log *Binlog) checksum() bool {
 }
 
 func (log *Binlog) Register(slave_id string) {
-	fmt.Println(log.checksum())
-	/*$this->checksum = !!$this->getCheckSum();
-//$this->slave_server_id = $slave_server_id;
-// checksum
-if ($this->checksum){
-Mysql::query("set @master_binlog_checksum=@@global.binlog_checksum");
-}
-//heart_period
-$heart = 5;
-if ($heart) {
-Mysql::query("set @master_heartbeat_period=".($heart*1000000000));
-}
+	checksum := log.checksum()
 
+	if checksum {
+		log.Db.Query("set @master_binlog_checksum=@@global.binlog_checksum");
+	}
+
+	//设置心跳
+	heart := 5;
+	if heart > 0 {
+		sql_str := fmt.Sprintf("set @master_heartbeat_period=%d", heart*1000000000)
+		log.Db.Query(sql_str);
+	}
+/*
 $data = Packet::registerSlave($slave_server_id);
 
 if (!Net::send($data)) {
