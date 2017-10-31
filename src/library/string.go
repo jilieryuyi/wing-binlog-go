@@ -10,13 +10,15 @@ type WString struct {
 	Str interface {}
 }
 
-
-
+/**
+ * 转换为字符串
+ * @return string
+ */
 func (str *WString) ToString() string {
 	//fmt.Printf("类型是：%s\r\n", reflect.TypeOf(str.Data))
 	switch str.Str.(type) {
 	case string:
-		return string(str.Str.(string));
+		return str.Str;//string(str.Str.(string));
 	case []uint8:
 		return string(str.Str.([]byte))
 	case int:
@@ -29,6 +31,12 @@ func (str *WString) ToString() string {
 	return "";
 }
 
+/**
+ * 截取字符串
+ * @param int pos 开始位置
+ * @param int length 截取长度
+ * @return string
+ */
 func (str *WString) Substr(pos int, length int) string {
 	runes := []rune(str.ToString())
 	l := pos + length
@@ -36,6 +44,14 @@ func (str *WString) Substr(pos int, length int) string {
 		l = len(runes)
 	}
 	return string(runes[pos:l])
+}
+
+/**
+ * 获取字符串的长度
+ * @return int
+ */
+func (str *WString) Length() int {
+	return len([]rune(str.ToString()))
 }
 
 
