@@ -5,6 +5,8 @@ import (
 	//"reflect"
 	"strconv"
 	//"fmt"
+	_ "reflect"
+	_ "fmt"
 )
 
 type WString struct {
@@ -16,18 +18,18 @@ type WString struct {
  * @return string
  */
 func (str *WString) ToString() string {
-	//fmt.Printf("类型是：%s\r\n", reflect.TypeOf(str.Data))
+	//fmt.Println("type======", str.Str, "=>", reflect.TypeOf(str.Str))
 	switch str.Str.(type) {
-	case string:
-		return string(str.Str.(string));
-	case []uint8:
-		return string(str.Str.([]byte))
-	case int:
-		return strconv.Itoa(int(str.Str.(int)))
-	case int64:
-		return strconv.FormatInt(int64(str.Str.(int64)),10)
-	case uint:
-		return strconv.Itoa(int(str.Str.(uint)))
+		case string:
+			return string(str.Str.(string));
+		case []uint8:
+			return string(str.Str.([]byte))
+		case int:
+			return strconv.Itoa(int(str.Str.(int)))
+		case int64:
+			return strconv.FormatInt(int64(str.Str.(int64)),10)
+		case uint:
+			return strconv.Itoa(int(str.Str.(uint)))
 	}
 	return "";
 }
@@ -57,123 +59,118 @@ func (str *WString) Length() int {
 
 
 func (str *WString) ToInt() int {
-	//fmt.Printf("类型是：%s\r\n", reflect.TypeOf(r.Data))
-	var d int = 0
 	switch str.Str.(type) {
-	case string:
-		data  := []byte(string(str.Str.(string)))
-		res   := ""
-		start := false
+		case string:
+			data  := []byte(string(str.Str.(string)))
+			res   := ""
+			start := false
 
-		for _, v := range data {
-			if (v >= 48 && v <= 57) {
-				res += string(v)
-				start = true
-			} else {
-				if start {
-					break
+			for _, v := range data {
+				if (v >= 48 && v <= 57) {
+					res += string(v)
+					start = true
+				} else {
+					if start {
+						break
+					}
 				}
 			}
-		}
 
-		if res == "" {
-			res = "0"
-		}
+			if res == "" {
+				res = "0"
+			}
 
-		d, _ = strconv.Atoi(res)
-		return d;
-	case []uint8:
-		d, _ = strconv.Atoi( string(str.Str.([]byte)))
-		return d
-	case int:
-		return int(str.Str.(int))
-	case int64:
-		return int(str.Str.(int64))
-	case uint:
-		return int(str.Str.(uint))
+			d, _ := strconv.Atoi(res)
+			return d;
+		case []uint8:
+			d, _ := strconv.Atoi( string(str.Str.([]byte)))
+			return d
+		case int:
+			return int(str.Str.(int))
+		case int64:
+			return int(str.Str.(int64))
+		case uint:
+			return int(str.Str.(uint))
 	}
 	return 0;
 }
 
 
 func (str *WString) ToInt64() int64 {
-	//fmt.Printf("类型是：%s\r\n", reflect.TypeOf(r.Data))
-	var d int64 = 0
 	switch str.Str.(type) {
-	case string:
-		data  := string(str.Str.(string))
-		res   := ""
-		start := false
+		case string:
+			data  := string(str.Str.(string))
+			res   := ""
+			start := false
 
-		for _, v := range data {
-			if (v >= 48 && v <= 57) {
-				res += string(v)
-				start = true
-			} else {
-				if start {
-					break
+			for _, v := range data {
+				if (v >= 48 && v <= 57) {
+					res += string(v)
+					start = true
+				} else {
+					if start {
+						break
+					}
 				}
 			}
-		}
 
-		if res == "" {
-			res = "0"
-		}
+			if res == "" {
+				res = "0"
+			}
 
-		d, _ = strconv.ParseInt(res, 10, 0)
-		return d;
-	case []uint8:
-		d, _ = strconv.ParseInt(string(str.Str.([]byte)), 10, 0)
-		return d
-	case int:
-		return int64(str.Str.(int))
-	case int64:
-		return int64(str.Str.(int64))
-	case uint:
-		return int64(str.Str.(uint))
+			d, _ := strconv.ParseInt(res, 10, 0)
+			return d;
+		case []uint8:
+			d, _ := strconv.ParseInt(string(str.Str.([]byte)), 10, 0)
+			return d
+		case int:
+			return int64(str.Str.(int))
+		case int64:
+			return int64(str.Str.(int64))
+		case uint:
+			return int64(str.Str.(uint))
 	}
 	return 0;
 }
 
 func (str *WString) ToFloat32() float32 {
-	//var d float32 = 0
 	switch str.Str.(type) {
-	case string:
-		data  := string(str.Str.(string))
-		res   := ""
-		start := false
+		case string:
+			data  := string(str.Str.(string))
+			res   := ""
+			start := false
 
-		for k, v := range data {
-			if (k == 0) {
-				if (v < 48 || v > 57) {
-					break
+			for k, v := range data {
+				if (k == 0) {
+					if (v < 48 || v > 57) {
+						break
+					}
+				}
+				if ((v >= 48 && v <= 57) || v == 46) {
+					res += string(v)
+					start = true
+				} else {
+					if start {
+						break
+					}
 				}
 			}
-			if ((v >= 48 && v <= 57) || v == 46) {
-				res += string(v)
-				start = true
-			} else {
-				if start {
-					break
-				}
+
+			if res == "" {
+				res = "0"
 			}
-		}
 
-		if res == "" {
-			res = "0"
-		}
-
-		d1, _ := strconv.ParseFloat(res, 32)
-		return float32(d1);
-	case []uint8:
-		d1, _ := strconv.ParseFloat(string(str.Str.([]byte)), 32)
-		return float32(d1)
-	case int:
-		return float32(str.Str.(int))
-	case int64:
-		return float32(str.Str.(int64))
-	case uint:
-		return float32(str.Str.(uint))
+			d1, _ := strconv.ParseFloat(res, 32)
+			return float32(d1);
+		case []uint8:
+			d1, _ := strconv.ParseFloat(string(str.Str.([]byte)), 32)
+			return float32(d1)
+		case int:
+			return float32(str.Str.(int))
+		case int64:
+			return float32(str.Str.(int64))
+		case uint:
+			return float32(str.Str.(uint))
 	}
 	return 0;
 }

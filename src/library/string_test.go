@@ -54,6 +54,18 @@ func TestSubstr(t *testing.T)  {
         t.Error("Substr error")
     }
 
+    str = &WString{1234}
+
+    if str.Substr(0, 3) != "123" {
+        t.Error("Substr error")
+    }
+
+    str = &WString{1234}
+
+    if str.Substr(0, 3) != "123" {
+        t.Error("Substr error -- " + str.Substr(0, 3))
+    }
+
 }
 
 /**
@@ -71,6 +83,18 @@ func TestLength(t *testing.T)  {
 
     if str.Length() != 2 {
         t.Error("Length error - 2")
+    }
+
+    str = &WString{""}
+
+    if str.Length() != 0 {
+        t.Error("Length error - 3")
+    }
+
+    str = &WString{"0"}
+
+    if str.Length() != 1 {
+        t.Error("Length error - 4")
     }
 }
 
@@ -107,6 +131,11 @@ func  TestToInt(t *testing.T) {
     if str.ToInt() != 123 {
         t.Error("ToInt error - 6")
     }
+
+    str = &WString{""}
+    if str.ToInt() != 0 {
+        t.Error("ToInt error - 7")
+    }
 }
 
 
@@ -142,6 +171,11 @@ func TestToInt64(t *testing.T)  {
     if str.ToInt64() != 123 {
         t.Error("ToInt64 error - 6")
     }
+
+    str = &WString{""}
+    if str.ToInt64() != 0 {
+        t.Error("ToInt64 error - 7")
+    }
 }
 
 func TestToFloat32(t *testing.T)  {
@@ -176,6 +210,11 @@ func TestToFloat32(t *testing.T)  {
     if str.ToFloat32() != 123 {
         t.Error("ToInt64 error - 6")
     }
+
+    str = &WString{""}
+    if str.ToFloat32() != 0 {
+        t.Error("ToInt64 error - 7")
+    }
 }
 
 func TestToFloat64(t *testing.T)  {
@@ -209,6 +248,11 @@ func TestToFloat64(t *testing.T)  {
     str = &WString{iu}
     if str.ToFloat64() != 123 {
         t.Error("ToFloat64 error - 6")
+    }
+
+    str = &WString{""}
+    if str.ToFloat64() != 0 {
+        t.Error("ToFloat64 error - 7")
     }
 }
 
