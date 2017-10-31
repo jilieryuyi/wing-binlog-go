@@ -12,6 +12,7 @@ import (
 	_ "library/std"
 	"database/sql"
 	_ "mysql"
+	//"log"
 )
 
 func main() {
@@ -60,8 +61,10 @@ func main() {
 		return;
 	}
 
-	log := library.Binlog{db}
-	log.Register("999")
+	defer db.Close();
+
+	blog := library.Binlog{db}
+	blog.Register(999)
 
 
 
