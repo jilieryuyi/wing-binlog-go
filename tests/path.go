@@ -1,19 +1,12 @@
 package main
 
 import (
-    "os"
+    //"os"
     "fmt"
 )
 
 func main() {
-    _, err := os.Stat("/")
-    if err != nil {
-        fmt.Print("error", err)
-    }
-
-    if os.IsNotExist(err) {
-        fmt.Print("/ not extists")
-    }
-
+   dir := "/usr/local/"
+    fmt.Println(string(dir[len(dir)-1]))
 
 }

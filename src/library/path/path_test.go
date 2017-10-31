@@ -36,9 +36,9 @@ func TestGetParent(t *testing.T) {
 }
 
 func TestGetPath(t *testing.T) {
-    dir := "/usr/local/"
+    dir := "\\usr\\local\\"
     path := &WPath{dir}
-    if path.GetPath() != dir {
+    if path.GetPath() != "/usr/local" {
         t.Error("GetPath error")
     }
 }
