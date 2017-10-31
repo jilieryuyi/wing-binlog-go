@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"os"
 	"library"
+	//"fmt"
 )
 
 func GetCurrentPath() string {
@@ -23,14 +24,15 @@ type WPath struct {
 
 func (dir *WPath) GetParent() string {
 	str := library.WString{dir.Dir}
-	return str.Substr(0, strings.LastIndex(dir.Dir, "/"))
+	last_index := strings.LastIndex(str.Substr(0, len(dir.Dir) - 1), "/");
+	return str.Substr(0, last_index)
 }
 
 func (dir *WPath) GetPath() string {
 	return dir.Dir
 }
 
-func (dir *WPath) Exists() bool {
+func (dir *WPath) Exists() (bool) {
 	_, err := os.Stat(dir.Dir)
 	if err == nil {
 		return true

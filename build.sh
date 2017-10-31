@@ -30,7 +30,7 @@ go build wing-binlog-go
 ##install安装
 go install wing-binlog-go
 ##删除根目录下的可执行文件
-rm wing-binlog-go
+##rm wing-binlog-go
 
 mkdir "$bin_path/config"
 
