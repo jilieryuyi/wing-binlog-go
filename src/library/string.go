@@ -179,44 +179,43 @@ func (str *WString) ToFloat32() float32 {
 }
 
 func (str *WString) ToFloat64() float64 {
-	//var d float32 = 0
 	switch str.Str.(type) {
-	case string:
-		data  := string(str.Str.(string))
-		res   := ""
-		start := false
+		case string:
+			data  := string(str.Str.(string))
+			res   := ""
+			start := false
 
-		for k, v := range data {
-			if (k == 0) {
-				if (v < 48 || v > 57) {
-					break
+			for k, v := range data {
+				if (k == 0) {
+					if (v < 48 || v > 57) {
+						break
+					}
+				}
+				if ((v >= 48 && v <= 57) || v == 46) {
+					res += string(v)
+					start = true
+				} else {
+					if start {
+						break
+					}
 				}
 			}
-			if ((v >= 48 && v <= 57) || v == 46) {
-				res += string(v)
-				start = true
-			} else {
-				if start {
-					break
-				}
+
+			if res == "" {
+				res = "0"
 			}
-		}
 
-		if res == "" {
-			res = "0"
-		}
-
-		d1, _ := strconv.ParseFloat(res, 64)
-		return d1;
-	case []uint8:
-		d1, _ := strconv.ParseFloat(string(str.Str.([]byte)), 64)
-		return d1
-	case int:
-		return float64(str.Str.(int))
-	case int64:
-		return float64(str.Str.(int64))
-	case uint:
-		return float64(str.Str.(uint))
+			d1, _ := strconv.ParseFloat(res, 64)
+			return d1;
+		case []uint8:
+			d1, _ := strconv.ParseFloat(string(str.Str.([]byte)), 64)
+			return d1
+		case int:
+			return float64(str.Str.(int))
+		case int64:
+			return float64(str.Str.(int64))
+		case uint:
+			return float64(str.Str.(uint))
 	}
 	return 0;
 }
