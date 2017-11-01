@@ -1,13 +1,20 @@
 package library
 
-import "config"
+import (
+	"config"
+	"library/debug"
+)
 
 type Ini struct {
 	Config_path string
 }
 
 func (ini *Ini) Parse() map[string] map[string] interface{} {
-
+	p := WFile{ini.Config_path}
+	if !p.Exists() {
+		debug.Print("config file "+ ini.Config_path + " does not exists");
+		return nil
+	}
 	cfg, err := config.ReadDefault(ini.Config_path)
 	if err != nil {
 		return nil
