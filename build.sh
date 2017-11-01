@@ -35,5 +35,5 @@ go install wing-binlog-go
 mkdir "$bin_path/config"
 
 ##拷贝配置文件
-cp $current_path"/src/config/app.json" $current_path"/bin/config/app.json"
+cp -rf "$current_path/src/config/" "$current_path/bin/config/"
 echo "build success"
