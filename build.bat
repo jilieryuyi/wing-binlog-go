@@ -24,5 +24,5 @@ if exist %pkg_path% (
 if not exist %vendor_path% (
  md %vendor_path%
  md %vendor_path%\src
- call %current_path%\vendor_install.bat
+ call "%current_path%\vendor_install.bat"
 )
