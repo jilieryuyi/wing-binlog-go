@@ -6,26 +6,23 @@ import (
 	"library/workers"
 	"library/base"
 	"library"
-	"library/path"
 	"runtime"
 	"library/debug"
-	_ "library/std"
 	"database/sql"
 	_ "mysql"
-	//"log"
 )
 
 func main() {
-	//std.Reset()
+	//library.Reset()
 	cpu := runtime.NumCPU()
 	debug.Print("cpu num: ", cpu)
 	//指定cpu为多核运行
 	runtime.GOMAXPROCS(cpu)
 
-	current_path := path.GetCurrentPath()
+	current_path := library.GetCurrentPath()
 	fmt.Println(current_path)
 
-	config_obj := &library.Config{current_path+"/app.json"}
+	config_obj := &library.Ini{current_path+"/app.json"}
 	config := config_obj.Parse();
 	fmt.Println(config)
 
