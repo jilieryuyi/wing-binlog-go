@@ -42,15 +42,11 @@ func (str *WString) ToString() string {
  */
 func (str *WString) Substr(pos int, length int) string {
 	runes := []rune(str.ToString())
-	var l int = 0
 	if pos < 0 {
 		pos = len(runes) + pos
 	}
 
-	l = pos + length
-
-	//fmt.Println(str, "=======>", pos, l, len(runes))
-
+	l := pos + length
 	if l > len(runes) {
 		l = len(runes)
 	}

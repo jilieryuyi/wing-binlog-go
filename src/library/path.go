@@ -21,7 +21,6 @@ type WPath struct {
 }
 
 func (dir *WPath) GetParent() string {
-	//string(dir[len(dir)-1])
 	dir.Dir = strings.Replace(dir.Dir, "\\", "/", -1)
 	str := WString{dir.Dir}
 	last_index := strings.LastIndex(str.Substr(0, len(dir.Dir) - 1), "/");
@@ -37,7 +36,7 @@ func (dir *WPath) GetPath() string {
 	return dir.Dir
 }
 
-func (dir *WPath) Exists() (bool) {
+func (dir *WPath) Exists() bool {
 	dir.Dir = strings.Replace(dir.Dir, "\\", "/", -1)
 	_, err := os.Stat(dir.Dir)
 	if err == nil {
