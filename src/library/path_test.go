@@ -2,7 +2,6 @@ package library
 
 import (
     "testing"
-    "strings"
 )
 
 func TestGetCurrentPath(t *testing.T) {
@@ -14,20 +13,15 @@ func TestGetCurrentPath(t *testing.T) {
 }
 
 func TestGetParent(t *testing.T) {
-    current_path := GetCurrentPath()
-    path := &WPath{current_path}
 
-    runes := []rune(current_path)
-    l := 0 + strings.LastIndex(current_path, "/")
-    if l > len(runes) {
-        l = len(runes)
-    }
+    dir := "/usr/local"
+    path := &WPath{dir}
 
-    if path.GetParent() != string(runes[0:l]) {
+    if path.GetParent() != "/usr" {
         t.Error("获取父目录错误")
     }
 
-    dir := "/usr/local/"
+    dir = "/usr/local/"
     path = &WPath{dir}
 
     if path.GetParent() != "/usr" {

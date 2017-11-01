@@ -36,13 +36,21 @@ func (str *WString) ToString() string {
 
 /**
  * 截取字符串
- * @param int pos 开始位置
+ * @param int pos 开始位置，如果是负数，从尾部开始截取，比如-2代表倒数第二个字符
  * @param int length 截取长度
  * @return string
  */
 func (str *WString) Substr(pos int, length int) string {
 	runes := []rune(str.ToString())
-	l := pos + length
+	var l int = 0
+	if pos < 0 {
+		pos = len(runes) + pos
+	}
+
+	l = pos + length
+
+	//fmt.Println(str, "=======>", pos, l, len(runes))
+
 	if l > len(runes) {
 		l = len(runes)
 	}

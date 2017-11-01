@@ -66,6 +66,10 @@ func TestSubstr(t *testing.T)  {
         t.Error("Substr error -- " + str.Substr(0, 3))
     }
 
+    if str.Substr(-2, 2) != "34" {
+        t.Error("Substr error")
+    }
+
 }
 
 /**

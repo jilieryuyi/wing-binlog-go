@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+
 	//library.Reset()
 	cpu := runtime.NumCPU()
 	debug.Print("cpu num: ", cpu)
