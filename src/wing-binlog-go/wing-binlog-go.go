@@ -9,9 +9,13 @@ import (
 	"library/debug"
 	"database/sql"
 	_ "mysql"
+	"strconv"
 )
 
 func main() {
+
+	//mac 输出 amd64 darwin
+	debug.Print(runtime.GOARCH, runtime.GOOS)
 
 	//library.Reset()
 	cpu := runtime.NumCPU()
@@ -34,7 +38,8 @@ func main() {
 	password := string(config["mysql"]["password"].(string))
 	port     := string(config["mysql"]["port"].(string))
 	host     := string(config["mysql"]["host"].(string))
-	slave_id := int(config["client"]["slave_id"].(int))
+	slave_id_str := string(config["client"]["slave_id"].(string))
+	slave_id, _:= strconv.Atoi(slave_id_str)
 	db_name  := string(config["mysql"]["db_name"].(string))
 	charset  := string(config["mysql"]["charset"].(string))
 	db, err  := sql.Open("mysql", user+":"+ password+"@tcp(" + host + ":" + port + ")/" + db_name + "?charset=" + charset)

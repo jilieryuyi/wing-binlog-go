@@ -4,7 +4,11 @@ all of it under development
 https://github.com/jilieryuyi/wing-binlog
 
 mac, linux or other unix system    
-run ./build.sh auto build project     
+run ./build.sh auto build project   
+run ./test.sh auto test all *_test.go in project    
+run ./vendor_install.sh auto install or update vendor      
         
 windows     
-run build.bat auto build project      
+run build.bat auto build project 
+run test.bat auto test all *_test.go in project     
+run vendor_install.bat auto install or update vendor     

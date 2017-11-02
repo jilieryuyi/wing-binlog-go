@@ -2,12 +2,18 @@ package library
 
 import (
     "testing"
+    "library/platform"
     _ "fmt"
 )
 
 func TestParse(t *testing.T) {
 
-    config_path := "/tmp/mysql.ini"
+    var config_path string = ""
+    if platform.System(platform.IS_WINDOWS) {
+        config_path = "C:\\__test_mysql.ini"
+    } else {
+        config_path = "/tmp/__test_mysql.ini"
+    }
 
     file := &WFile{config_path}
     if !file.Exists() {

@@ -87,7 +87,7 @@ func (str *WString) ToInt() int {
 			d, _ := strconv.Atoi(res)
 			return d;
 		case []uint8:
-			d, _ := strconv.Atoi( string(str.Str.([]byte)))
+			d, _ := strconv.Atoi(string(str.Str.([]byte)))
 			return d
 		case int:
 			return int(str.Str.(int))
