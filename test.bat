@@ -8,7 +8,7 @@ set ini_test_file=%current_path%\src\config\mysql.ini
 set GOPATH=%current_path%\vendor;%current_path%
 
 copy /y %ini_test_file% "C:\__test_mysql.ini"
-echo 1 > C:\__test.txt
+echo 123 > C:\__test.txt
 cd %~d0
 cd %library_ip_path%
 call go test
