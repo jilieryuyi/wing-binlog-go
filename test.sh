@@ -17,7 +17,7 @@ function getDir() {
         if [ -d $dir_or_file ]
         then
             cd $dir_or_file && go test
-            getdir $dir_or_file
+            getDir $dir_or_file
         ##else
             ##echo $dir_or_file
         fi
