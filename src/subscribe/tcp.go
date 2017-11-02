@@ -1,10 +1,9 @@
 package subscribe
 
-import "fmt"
 import (
-	"library/debug"
 	"library/base"
 	"runtime"
+	"log"
 )
 
 type Tcp struct {
@@ -22,7 +21,7 @@ func (r *Tcp) Init() {
 				select {
 				case body := <-r.queue:
 					for k,v := range body  {
-						debug.Print("tcp---", k, v)
+						log.Println("tcp---", k, v)
 					}
 
 				//case <-to.C://time.After(time.Second*3):
@@ -35,7 +34,7 @@ func (r *Tcp) Init() {
 
 func (r *Tcp) OnChange(data map[string] interface{}) {
 	r.queue <- data
-	fmt.Println("tcp", data)
+	log.Println("tcp", data)
 }
 
 func (r *Tcp) Free() {

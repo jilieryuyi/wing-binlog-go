@@ -6,33 +6,35 @@ import (
 	"library/base"
 	"library"
 	"runtime"
-	"library/debug"
+	//"library/debug"
 	"database/sql"
 	_ "mysql"
 	"strconv"
+	"log"
 )
 
 func main() {
 
-	//mac 输出 amd64 darwin
-	debug.Print(runtime.GOARCH, runtime.GOOS)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	//library.Reset()
 	cpu := runtime.NumCPU()
-	debug.Print("cpu num: ", cpu)
+	log.Println("cpu num: ", cpu)
+
 	//指定cpu为多核运行
 	runtime.GOMAXPROCS(cpu)
 
 	current_path := library.GetCurrentPath()
-	debug.Print(current_path)
+	log.Println(current_path)
 
-	config_obj := &library.Ini{current_path+"/config/mysql.ini"}
+	config_file:= current_path+"/config/mysql.ini"
+	config_obj := &library.Ini{config_file}
 	config     := config_obj.Parse();
 	if config == nil {
+		log.Println("read config file: " + config_file + " error")
 		return
 	}
-
-	debug.Print(config)
+	log.Println(config)
 
 	user     := string(config["mysql"]["user"].(string))
 	password := string(config["mysql"]["password"].(string))
@@ -45,7 +47,7 @@ func main() {
 	db, err  := sql.Open("mysql", user+":"+ password+"@tcp(" + host + ":" + port + ")/" + db_name + "?charset=" + charset)
 
 	if (nil != err) {
-		debug.Print(err);
+		log.Println(err);
 		return;
 	}
 
@@ -53,8 +55,6 @@ func main() {
 
 	blog := library.Binlog{db}
 	blog.Register(slave_id)
-
-
 
 	redis := &subscribe.Redis{}
 	tcp   := &subscribe.Tcp{}

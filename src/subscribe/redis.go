@@ -1,11 +1,10 @@
 package subscribe
 
-import "fmt"
 import (
-	"library/debug"
 	"library/base"
 	"runtime"
 	"encoding/json"
+	"log"
 )
 
 type Redis struct {
@@ -24,11 +23,11 @@ func (r *Redis) Init() {
 				select {
 				case body := <-r.queue:
 					for k,v := range body  {
-						fmt.Println("redis---", k, v)
+						log.Println("redis---", k, v)
 					}
 
 					json_byte, _ := json.Marshal(body)
-					debug.Print(string(json_byte))
+					log.Println(string(json_byte))
 				//case <-to.C://time.After(time.Second*3):
 				//	Log("发送超时...")
 				}
@@ -39,7 +38,7 @@ func (r *Redis) Init() {
 
 func (r *Redis) OnChange(data map[string] interface{}) {
 	r.queue <- data
-	fmt.Println("redis", data)
+	log.Println("redis", data)
 }
 
 func (r *Redis) Free() {
