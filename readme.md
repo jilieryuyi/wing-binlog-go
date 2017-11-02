@@ -3,4 +3,8 @@ all of it under development
 
 https://github.com/jilieryuyi/wing-binlog
 
-run ./build.sh auto build project
+mac, linux or other unix system    
+run ./build.sh auto build project     
+        
+windows     
+run build.bat auto build project      
