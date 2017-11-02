@@ -1,6 +1,7 @@
 package library
 
 import "testing"
+import "library/platform"
 
 func TestWFile_Exists(t *testing.T) {
     file := &WFile{"ertwert22ret"}
@@ -9,7 +10,11 @@ func TestWFile_Exists(t *testing.T) {
         t.Error("file exist check error - 1")
     }
 
-    file = &WFile{"/bin/sh"}
+    if platform.System(platform.IS_WINDOWS) {
+        file = &WFile{"C:\\__test.txt"}
+    } else {
+        file = &WFile{"/bin/sh"}
+    }
     if !file.Exists() {
         t.Error("file exist check error - 2")
     }
