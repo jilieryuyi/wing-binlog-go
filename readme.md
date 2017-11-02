@@ -9,7 +9,7 @@ run ./build.sh auto build project
 run ./test.sh auto test all *_test.go in project    
 run ./vendor_install.sh auto install or update vendor      
         
-windows     
+windows, notice: run *.bat as administrator   
 run build.bat auto build project 
 run test.bat auto test all *_test.go in project     
 run vendor_install.bat auto install or update vendor     
