@@ -9,6 +9,7 @@ set GOPATH=%current_path%\vendor;%current_path%
 ::遍历目录测试
 for /r  %current_path%  %%i  (*)  do (
    if exist %%i\ (
+        echo %%i
         cd %%i\
         call go test
    )
