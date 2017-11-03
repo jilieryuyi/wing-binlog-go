@@ -3,7 +3,7 @@ package library
 import (
     "os"
     "io/ioutil"
-    "log"
+   // "log"
 )
 
 type WFile struct{
@@ -34,17 +34,21 @@ func (file *WFile) ReadAll() string {
         return ""
     }
 
-    log.Println(dat)
+    //log.Println(dat)
     //去掉了尾部的换行符
     dlen := len(dat) - 1
-    if dat[dlen] == 10 {
-        dat = dat[0:dlen]
+    if dlen >= 0 {
+        if dat[dlen] == 10 {
+            dat = dat[0:dlen]
+        }
     }
 
     //去掉尾部的控制符 windows
     dlen = len(dat) - 1
-    if dat[dlen] == 13 {
-        dat = dat[0:dlen]
+    if dlen >= 0 {
+        if dat[dlen] == 13 {
+            dat = dat[0:dlen]
+        }
     }
 
     //去掉尾部的空格

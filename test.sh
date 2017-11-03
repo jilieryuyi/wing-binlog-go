@@ -21,7 +21,7 @@ ini_test_file=$current_path"/src/config/mysql.ini"
 
 export GOPATH="$current_path/vendor:$current_path"
 ##用于文件测试
-echo 123>/tmp/__test.txt
+echo 123 >/tmp/__test.txt
 ##用户配置文件测试
 cp $ini_test_file "/tmp/__test_mysql.ini"
 
