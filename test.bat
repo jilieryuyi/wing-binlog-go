@@ -6,6 +6,14 @@ set library_path=%current_path%\src\library
 set ini_test_file=%current_path%\src\config\mysql.ini
 
 set GOPATH=%current_path%\vendor;%current_path%
+::遍历目录测试
+for /r  %current_path%  %%i  (*)  do (
+   if exist %%i\ (
+        cd %%i\
+        call go test
+   )
+)
+cd %current_path%
 
 copy /y %ini_test_file% "C:\__test_mysql.ini"
 echo 123 > C:\__test.txt
