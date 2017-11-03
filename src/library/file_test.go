@@ -3,6 +3,11 @@ package library
 import "testing"
 import "library/platform"
 
+/**
+ * 需要注意的是windows下和linux下，文件末尾的换行符是不同的
+ * windows下的是 \r\n，而linux下的是 \n
+ */
+
 func TestWFile_Exists(t *testing.T) {
     file := &WFile{"ertwert22ret"}
 
