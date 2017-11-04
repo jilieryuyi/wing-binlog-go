@@ -15,12 +15,12 @@ import (
 
 func main() {
 
-	file := &library.WFile{"C:\\__test.txt"}
+	/*file := &library.WFile{"C:\\__test.txt"}
 	str := file.ReadAll()
 	//if str != "123" {
 		log.Println("ReadAll error: ==>" + str + "<==", len(str))
 	//}
-	return
+	return*/
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
