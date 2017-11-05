@@ -50,4 +50,16 @@ func (dir *WPath) Exists() bool {
 	return false
 }
 
+func (path *WPath) Mkdir() bool {
+	if path.Exists() {
+		return true
+	}
+	err := os.MkdirAll(path.Dir, 0755)
+
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 

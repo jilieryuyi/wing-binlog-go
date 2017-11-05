@@ -2,6 +2,8 @@ package library
 
 import (
     "testing"
+    "os"
+    "library/platform"
 )
 
 func TestGetCurrentPath(t *testing.T) {
@@ -12,7 +14,7 @@ func TestGetCurrentPath(t *testing.T) {
     }
 }
 
-func TestGetParent(t *testing.T) {
+func TestWPath_GetParent(t *testing.T) {
 
     dir := "/usr/local"
     path := &WPath{dir}
@@ -29,7 +31,7 @@ func TestGetParent(t *testing.T) {
     }
 }
 
-func TestGetPath(t *testing.T) {
+func TestWPath_GetPath(t *testing.T) {
     dir := "\\usr\\local\\"
     path := &WPath{dir}
     if path.GetPath() != "/usr/local" {
@@ -37,7 +39,7 @@ func TestGetPath(t *testing.T) {
     }
 }
 
-func TestExists(t *testing.T) {
+func TestWPath_Exists(t *testing.T) {
     dir := "/usr/123567567---/"
     path := &WPath{dir}
 
@@ -52,4 +54,22 @@ func TestExists(t *testing.T) {
     if !path.Exists() {
         t.Error("Exists error -2 " + dir)
     }
+}
+
+func TestWPath_Mkdir(t *testing.T) {
+    dir := "/tmp/_____________________123____"
+
+    //如果是windows平台，尝试在C盘创建一个测试的文件夹，用完就删除掉
+    if platform.System(platform.IS_WINDOWS) {
+        dir = "C:\\_____________________123____"
+    }
+    wpath := &WPath{dir}
+
+    wpath.Mkdir()
+
+    if !wpath.Exists() {
+        t.Error("mkdir error")
+    }
+
+    os.RemoveAll(dir)
 }

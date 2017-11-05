@@ -8,9 +8,9 @@ vendor_path=$current_path"/vendor"
 export GOPATH="$current_path/vendor:$current_path"
 
 ##如果bin目录存在，则删除
-if [ -d "$bin_path" ]; then
- rm -rf "$bin_path"
-fi
+##if [ -d "$bin_path" ]; then
+## rm -rf "$bin_path"
+##fi
 
 ##如果pkg目录存在，则删除
 if [ -d "$pkg_path" ]; then
@@ -32,7 +32,9 @@ go install wing-binlog-go
 ##删除根目录下的可执行文件
 rm wing-binlog-go
 
+if [ ! -d "$bin_path/config" ]; then
 mkdir "$bin_path/config"
+fi
 
 ##拷贝配置文件
 cp -rf "$current_path/src/config/" "$current_path/bin/config/"

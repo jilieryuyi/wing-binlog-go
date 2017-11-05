@@ -6,7 +6,6 @@ import (
 	"library/base"
 	"library"
 	"runtime"
-	//"library/debug"
 	"database/sql"
 	_ "mysql"
 	"strconv"
@@ -15,46 +14,46 @@ import (
 
 func main() {
 
-	file := &library.WFile{"C:\\__test.txt"}
-	str := file.ReadAll()
-	//if str != "123" {
-		log.Println("ReadAll error: ==>" + str + "<==", len(str))
-	//}
-	return
+	wing_log := library.GetLogInstance()
+	//释放日志资源
+	defer library.FreeLogInstance()
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	//标准输出重定向
 	//library.Reset()
 	cpu := runtime.NumCPU()
-	log.Println("cpu num: ", cpu)
+	wing_log.Println("cpu num: ", cpu)
 
 	//指定cpu为多核运行
 	runtime.GOMAXPROCS(cpu)
 
 	current_path := library.GetCurrentPath()
-	log.Println(current_path)
+	wing_log.Println(current_path)
 
 	config_file:= current_path+"/config/mysql.ini"
 	config_obj := &library.Ini{config_file}
 	config     := config_obj.Parse();
 	if config == nil {
-		log.Println("read config file: " + config_file + " error")
+		wing_log.Println("read config file: " + config_file + " error")
 		return
 	}
-	log.Println(config)
+	wing_log.Println(config)
 
 	user     := string(config["mysql"]["user"].(string))
 	password := string(config["mysql"]["password"].(string))
 	port     := string(config["mysql"]["port"].(string))
 	host     := string(config["mysql"]["host"].(string))
-	slave_id_str := string(config["client"]["slave_id"].(string))
-	slave_id, _:= strconv.Atoi(slave_id_str)
-	db_name  := string(config["mysql"]["db_name"].(string))
+
+    slave_id_str := string(config["client"]["slave_id"].(string))
+	slave_id, _  := strconv.Atoi(slave_id_str)
+
+    db_name  := string(config["mysql"]["db_name"].(string))
 	charset  := string(config["mysql"]["charset"].(string))
 	db, err  := sql.Open("mysql", user+":"+ password+"@tcp(" + host + ":" + port + ")/" + db_name + "?charset=" + charset)
 
 	if (nil != err) {
-		log.Println(err);
+		wing_log.Println(err);
 		return;
 	}
 

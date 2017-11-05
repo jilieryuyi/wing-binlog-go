@@ -14,9 +14,9 @@ set vendor_path=%current_path%\vendor
 set GOPATH=%current_path%\vendor;%current_path%
 
 ::如果bin目录存在，直接删除掉
-if exist %bin_path% (
- rd %bin_path% /S /Q
- )
+::if exist %bin_path% (
+:: rd %bin_path% /S /Q
+:: )
 
 ::如果pkg目录存在，直接删除
 if exist %pkg_path% (
@@ -40,7 +40,9 @@ call go install wing-binlog-go
 ::删除根目录下的可执行文件
 del %current_path%\wing-binlog-go.exe
 
+if not exist %bin_path%\config (
 md %bin_path%\config
+)
 
 ::拷贝配置文件
 xcopy  %current_path%\src\config\*.* %current_path%\bin\config\ /s /e
