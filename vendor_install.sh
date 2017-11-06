@@ -16,4 +16,4 @@ go get github.com/siddontang/go-mysql/replication
 go get github.com/siddontang/go-mysql/mysql
 go get github.com/BurntSushi/toml
 
-cp -rf "$vendor_path/src/*" "$vendor_path"
+cp -rf $vendor_path/src/* $vendor_path
