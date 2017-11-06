@@ -11,7 +11,7 @@ set vendor_path=%current_path%\vendor
 ::echo %vendor_path%
 
 ::添加环境变量,即在原来的环境变量后加上英文状态下的分号和路径
-set GOPATH=%current_path%\vendor;%current_path%
+set GOPATH=%current_path%\vendor;%current_path%;%GOPATH%
 
 ::如果bin目录存在，直接删除掉
 ::if exist %bin_path% (

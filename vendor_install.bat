@@ -1,42 +1,20 @@
 @echo off
 set current_path=%cd%
-set vendor_path=%current_path%\vendor\src
+set vendor_path=%current_path%\vendor
 
-set mysql_path=%vendor_path%\mysql
-set config_path=%vendor_path%\config
+::添加当前目录和当前目录下的vendor目录到GOPATH环境变量
+set GOPATH=%current_path%\vendor;%current_path%;%GOPATH%
 
-::https://github.com/siddontang/go-mysql.git
-set go_mysql=%vendor_path%\go-mysql
-
-if exist %mysql_path% (
- rd %mysql_path% /S /Q
+if not exist %vendor_path% (
+ md %vendor_path%
+ md %vendor_path%\src
 )
 
-if not exist %mysql_path% (
- md %mysql_path%
-)
+call go get github.com/go-sql-driver/mysql
+call go get github.com/larspensjo/config
+call go get github.com/siddontang/go-mysql/canal
+call go get github.com/siddontang/go-mysql/replication
+call go get github.com/siddontang/go-mysql/mysql
+call go get github.com/BurntSushi/toml
 
-if exist %config_path% (
- rd %config_path% /S /Q
-)
-
-if not exist %config_path% (
- md %config_path%
-)
-
-if exist %go_mysql% (
- rd %go_mysql% /S /Q
-)
-
-if not exist %go_mysql% (
- md %go_mysql%
-)
-
-call git clone https://github.com/go-sql-driver/mysql.git %mysql_path%
-rd %mysql_path%\.git  /S /Q
-
-call git clone https://github.com/larspensjo/config.git %config_path%
-rd %config_path%\.git  /S /Q
-
-call git clone https://github.com/siddontang/go-mysql.git %go_mysql%
-rd %go_mysql%\.git  /S /Q
+xcopy  %vendor_path%\src\*.* %vendor_path% /s /e
