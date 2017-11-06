@@ -45,5 +45,5 @@ md %bin_path%\config
 )
 
 ::拷贝配置文件
-xcopy  %current_path%\src\config\*.* %current_path%\bin\config\ /s /e
+xcopy  %current_path%\src\config\*.* %current_path%\bin\config\ /s /e /y
 echo "build success"
