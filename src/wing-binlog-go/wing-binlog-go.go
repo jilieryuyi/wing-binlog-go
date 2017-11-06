@@ -1,7 +1,7 @@
 package main
 
 import (
-	"database/sql"
+	//"database/sql"
 	"library"
 	//"library/base"
 	//"library/workers"
@@ -38,14 +38,27 @@ func main() {
 	current_path := library.GetCurrentPath()
 	wing_log.Println(current_path)
 
-	config_file := current_path + "/config/mysql.ini"
-	config_obj := &library.Ini{config_file}
-	config := config_obj.Parse()
-	if config == nil {
-		wing_log.Println("read config file: " + config_file + " error")
+	config_file := current_path + "/config/mysql.toml"
+
+	//config_obj := &library.Ini{config_file}
+	//config := config_obj.Parse()
+	//if config == nil {
+	//	wing_log.Println("read config file: " + config_file + " error")
+	//	return
+	//}
+	//wing_log.Println(config)
+
+
+	//config_file := "/tmp/__test_mysql.toml"
+	config := &library.WConfig{config_file}
+
+	app_config, err:= config.Parse()
+
+	if err != nil {
+		log.Println(err)
 		return
 	}
-	wing_log.Println(config)
+
 
 	//user := string(config["mysql"]["user"].(string))
 	//password := string(config["mysql"]["password"].(string))
@@ -66,7 +79,7 @@ func main() {
 
 	//defer db.Close()
 
-	blog := library.Binlog{config}
+	blog := library.Binlog{app_config}
 	blog.Start()
 
 	//redis := &subscribe.Redis{}

@@ -2,13 +2,13 @@ package library
 
 import (
 	_ "fmt"
-	"library/platform"
+	//"library/platform"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
 
-	var config_path string = ""
+	/*var config_path string = ""
 	if platform.System(platform.IS_WINDOWS) {
 		config_path = "C:\\__test_mysql.ini"
 	} else {
@@ -32,5 +32,5 @@ func TestParse(t *testing.T) {
 	slave_id := string(data["client"]["slave_id"].(string))
 	if slave_id != "9999" {
 		t.Error("get client slave_id error")
-	}
+	}*/
 }

@@ -1,0 +1,13 @@
+[client]
+slave_id     = 9999
+ignore_table = ["Test.abc", "Test.123"]
+bin_file     = ""
+bin_pos      = 0
+
+[mysql]
+host     = "127.0.0.1"
+user     = "root"
+password = "123456"
+port     = 3306
+charset  = "utf8"
+    
