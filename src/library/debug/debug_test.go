@@ -1,8 +1,9 @@
 package debug
+
 import (
-    "testing"
+	"testing"
 )
 
 func TestPrint(t *testing.T) {
-    Print("hello word ", 1, 2, 3)
+	Print("hello word ", 1, 2, 3)
 }

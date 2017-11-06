@@ -10,23 +10,26 @@ type Binlog struct {
 	DB Pdo
 }
 
-type ROWS  map[int]map[string]interface {}
-type ROW  map[string]interface {}
+type ROWS map[int]map[string]interface{}
+type ROW map[string]interface{}
+
 /**
  * 获取所有的logs
  *
  * @return array
  */
 func (_binlog Binlog) GetLogs() ROWS {
-	sql  := "show binary logs"
+	sql := "show binary logs"
 	return _binlog.DB.Query(sql)
 }
+
 //
 func (_binlog Binlog) GetFormat() string {
 	sql := "select @@binlog_format"
-	data := _binlog.DB.Query(sql);
-	return strings.ToLower(string(data[0]["@@binlog_format"].(string)));
+	data := _binlog.DB.Query(sql)
+	return strings.ToLower(string(data[0]["@@binlog_format"].(string)))
 }
+
 //
 ///**
 // * 获取当前正在使用的binglog日志文件信息
@@ -41,10 +44,11 @@ func (_binlog Binlog) GetFormat() string {
 // *     }
 // */
 func (_binlog Binlog) GetCurrentLogInfo() ROW {
-	sql  := "show master status"
+	sql := "show master status"
 	data := _binlog.DB.Query(sql)
-	return data[0];
+	return data[0]
 }
+
 //
 ///**
 // * 获取所有的binlog文件

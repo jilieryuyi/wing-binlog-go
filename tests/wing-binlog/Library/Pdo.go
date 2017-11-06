@@ -2,11 +2,11 @@ package Library
 
 //import "database/sql"
 import (
-	_ "github.com/go-sql-driver/mysql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	//"reflect"
 	//"strconv"
-//	"reflect"
+	//	"reflect"
 	//"encoding/json"
 	//"../String"
 	"database/sql"
@@ -14,7 +14,7 @@ import (
 )
 
 type Pdo struct {
-	User string
+	User     string
 	Password string
 	Database string
 }
@@ -22,12 +22,12 @@ type Pdo struct {
 var __handler *sql.DB = nil
 
 func (_pdo Pdo) Open() {
-	handler, _ := sql.Open("mysql", _pdo.User+":"+_pdo.Password+"@tcp(127.0.0.1:3306)/"+ _pdo.Database +"?charset=utf8")
+	handler, _ := sql.Open("mysql", _pdo.User+":"+_pdo.Password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
 	__handler = handler
 }
 
 func (_pdo Pdo) Close() {
-	if (nil != __handler) {
+	if nil != __handler {
 		__handler.Close()
 	}
 }
@@ -42,7 +42,6 @@ func (_pdo Pdo) Close() {
 //	//fmt.Println("pdo init");
 //	return handler
 //}
-
 
 //
 //func main() {
@@ -80,20 +79,19 @@ func (_pdo Pdo) Close() {
 //	//fmt.Println(id)
 //}
 
-func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]interface {} {
+func (_pdo Pdo) Query(_sql string, args ...interface{}) map[int]map[string]interface{} {
 	//user     := "root"
 	//password := "123456"
 	//db, err  := sql.Open(
 	//	"mysql",
 	//	user+":"+password+"@tcp(127.0.0.1:3306)/"+_pdo.Database+"?charset=utf8")
 
-
 	rows, err := __handler.Query(_sql, args...)
-	if (nil != err) {
-		panic(err);
-		return nil;
+	if nil != err {
+		panic(err)
+		return nil
 	}
-	defer rows.Close();
+	defer rows.Close()
 	//fmt.Println(rows);
 	//records := make(map[int]map[string]string)
 	//index:=0;
@@ -122,16 +120,16 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 	}
 
 	//fmt.Println(scanArgs)
-	records := make(map[int]map[string]interface {})
-	index :=0
+	records := make(map[int]map[string]interface{})
+	index := 0
 	for rows.Next() {
 		//将行数据保存到record字典
 		err = rows.Scan(scanArgs...)
 		//fmt.Println(values)
-		record := make(map[string]interface {})
+		record := make(map[string]interface{})
 		for i, col := range values {
 			if col != nil {
-			//	fmt.Printf("%s的类型是：%s\r\n", columns[i], reflect.TypeOf(col))
+				//	fmt.Printf("%s的类型是：%s\r\n", columns[i], reflect.TypeOf(col))
 				//fmt.Println(reflect.TypeOf(col))
 				switch col.(type) { //多选语句switch
 				case string:
@@ -146,11 +144,11 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 				case int:
 					//是整数时做的事情
 					//fmt.Printf("%s是int=%d\r\n", columns[i], col)
-					record[columns[i]] = int(col.(int));//strconv.Itoa(int(col.(int)))
+					record[columns[i]] = int(col.(int)) //strconv.Itoa(int(col.(int)))
 				case int64:
 					//fmt.Printf("%s是int64=%d\r\n", columns[i], col)
 					//_id := int64(col.([]int64));
-					record[columns[i]] = int64(col.(int64));//strconv.FormatInt(int64(col.(int64)),10)
+					record[columns[i]] = int64(col.(int64)) //strconv.FormatInt(int64(col.(int64)),10)
 				}
 
 				//record[columns[i]] = string(col.([]byte))
@@ -164,6 +162,5 @@ func (_pdo Pdo) Query(_sql string, args ...interface{})  map[int]map[string]inte
 	}
 	fmt.Println(records)
 
-
-return records
+	return records
 }

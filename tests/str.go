@@ -1,11 +1,11 @@
 package main
 
 import (
-    //"reflect"
-    "fmt"
+	//"reflect"
+	"fmt"
 )
 
 func main() {
 
-    fmt.Println(12)
+	fmt.Println(12)
 }
