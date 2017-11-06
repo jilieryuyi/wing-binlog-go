@@ -16,5 +16,6 @@ go get github.com/siddontang/go-mysql/replication
 go get github.com/siddontang/go-mysql/mysql
 go get github.com/BurntSushi/toml
 #go get golang.org/x/crypto/ssh/terminal
+#https://go.googlesource.com/crypto
 
 cp -rf $vendor_path/src/* $vendor_path
