@@ -17,21 +17,4 @@ go get github.com/siddontang/go-mysql/mysql
 go get github.com/BurntSushi/toml
 
 cp -rf $vendor_path/src/* $vendor_path
-
-
-function rmGit()
-{
-    for element in `ls $1`
-    do
-        dir_or_file=$1"/"$element
-        if [ -d $dir_or_file ]
-        then
-            rm -rf $dir_or_file"/.git"
-            rm -rf $dir_or_file"/.gitignore"
-            rmGit $dir_or_file
-        fi
-    done
-}
-
-rmGit $vendor_path
-rmGit $vendor_path
+find $vendor_path/src -name '*.git*' | xargs rm -rf
