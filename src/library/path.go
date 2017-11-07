@@ -2,9 +2,9 @@ package library
 
 import (
 	"log"
-	"strings"
-	"path/filepath"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 func GetCurrentPath() string {
@@ -15,7 +15,6 @@ func GetCurrentPath() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
-
 type WPath struct {
 	Dir string
 }
@@ -23,7 +22,7 @@ type WPath struct {
 func (dir *WPath) GetParent() string {
 	dir.Dir = strings.Replace(dir.Dir, "\\", "/", -1)
 	str := WString{dir.Dir}
-	last_index := strings.LastIndex(str.Substr(0, len(dir.Dir) - 1), "/");
+	last_index := strings.LastIndex(str.Substr(0, len(dir.Dir)-1), "/")
 	return str.Substr(0, last_index)
 }
 
@@ -50,4 +49,14 @@ func (dir *WPath) Exists() bool {
 	return false
 }
 
+func (path *WPath) Mkdir() bool {
+	if path.Exists() {
+		return true
+	}
+	err := os.MkdirAll(path.Dir, 0755)
 
+	if err != nil {
+		return false
+	}
+	return true
+}

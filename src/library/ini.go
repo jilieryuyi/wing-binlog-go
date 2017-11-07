@@ -1,7 +1,7 @@
 package library
 
 import (
-	"config"
+	"github.com/larspensjo/config"
 	"library/debug"
 )
 
@@ -9,10 +9,12 @@ type Ini struct {
 	Config_path string
 }
 
-func (ini *Ini) Parse() map[string] map[string] interface{} {
+type Config map[string]map[string]interface{}
+
+func (ini *Ini) Parse() Config {
 	p := WFile{ini.Config_path}
 	if !p.Exists() {
-		debug.Print("config file "+ ini.Config_path + " does not exists");
+		debug.Print("config file " + ini.Config_path + " does not exists")
 		return nil
 	}
 	cfg, err := config.ReadDefault(ini.Config_path)
@@ -21,21 +23,21 @@ func (ini *Ini) Parse() map[string] map[string] interface{} {
 	}
 
 	sections := []string{"client", "mysql"}
-	res := make(map[string] map[string] interface{})
+	res := make(map[string]map[string]interface{})
 
 	for _, tv := range sections {
 		section, err := cfg.SectionOptions(tv)
 		if err == nil {
-			s1 := make(map[string] interface{})
+			s1 := make(map[string]interface{})
 			for _, v := range section {
 				options, err := cfg.String(tv, v)
 				if err == nil {
 					s1[v] = options
 				}
 			}
-			res[tv] = s1;
+			res[tv] = s1
 		}
 	}
 
-	return res;
+	return res
 }

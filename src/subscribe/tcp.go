@@ -2,37 +2,37 @@ package subscribe
 
 import (
 	"library/base"
-	"runtime"
 	"log"
+	"runtime"
 )
 
 type Tcp struct {
 	base.Subscribe
-	queue chan map[string] interface{}
+	queue chan map[string]interface{}
 }
 
 func (r *Tcp) Init() {
-	r.queue = 	make(chan map[string] interface{}, base.MAX_EVENT_QUEUE_LENGTH)
+	r.queue = make(chan map[string]interface{}, base.MAX_EVENT_QUEUE_LENGTH)
 	//to := time.NewTimer(time.Second*3)
 	cpu := runtime.NumCPU()
-	for i := 0; i < cpu; i ++ {
+	for i := 0; i < cpu; i++ {
 		go func() {
 			for {
 				select {
 				case body := <-r.queue:
-					for k,v := range body  {
+					for k, v := range body {
 						log.Println("tcp---", k, v)
 					}
 
-				//case <-to.C://time.After(time.Second*3):
-				//	Log("发送超时...")
+					//case <-to.C://time.After(time.Second*3):
+					//	Log("发送超时...")
 				}
 			}
-		} ()
+		}()
 	}
 }
 
-func (r *Tcp) OnChange(data map[string] interface{}) {
+func (r *Tcp) OnChange(data map[string]interface{}) {
 	r.queue <- data
 	log.Println("tcp", data)
 }

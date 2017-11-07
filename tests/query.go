@@ -2,20 +2,19 @@ package main
 
 import "database/sql"
 import (
-	_ "github.com/go-sql-driver/mysql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	//"reflect"
 	//"strconv"
-	"reflect"
-	"encoding/json"
 	"./wing-binlog/String"
+	"encoding/json"
+	"reflect"
 )
-
 
 func main() {
 
-	defer func(){ // 必须要先声明defer，否则不能捕获到panic异常
-		if err:=recover();err!=nil{
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
 			fmt.Println("发生错误\r\n")
 			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
 		}
@@ -28,15 +27,15 @@ func main() {
 	str, _ := json.Marshal(res)
 
 	fmt.Println(string(str))
-	var out  interface{}
+	var out interface{}
 	json.Unmarshal(str, &out)
 	fmt.Println(out)
 
-	kk :=12456
+	kk := 12456
 
 	vv := String.Convert{kk}
 
-	fmt.Println("hello_"+vv.ToString())
+	fmt.Println("hello_" + vv.ToString())
 
 	//if (nil != err) {
 	//	panic(err);
@@ -50,23 +49,23 @@ func main() {
 	//fmt.Println(id)
 }
 
-func query(_sql string, args ...interface{})  map[int]map[string]interface {} {
-	user     := "root"
+func query(_sql string, args ...interface{}) map[int]map[string]interface{} {
+	user := "root"
 	password := "123456"
-	db, err  := sql.Open(
+	db, err := sql.Open(
 		"mysql",
-		user+":"+ password+"@tcp(127.0.0.1:3306)/xl?charset=utf8")
+		user+":"+password+"@tcp(127.0.0.1:3306)/xl?charset=utf8")
 
-	if (nil != err) {
-		panic(err);
-		return nil;
+	if nil != err {
+		panic(err)
+		return nil
 	}
 	rows, err := db.Query(_sql, args...)
-	if (nil != err) {
-		panic(err);
-		return nil;
+	if nil != err {
+		panic(err)
+		return nil
 	}
-	defer rows.Close();
+	defer rows.Close()
 	//fmt.Println(rows);
 	//records := make(map[int]map[string]string)
 	//index:=0;
@@ -95,13 +94,13 @@ func query(_sql string, args ...interface{})  map[int]map[string]interface {} {
 	}
 
 	//fmt.Println(scanArgs)
-	records := make(map[int]map[string]interface {})
-	index :=0
+	records := make(map[int]map[string]interface{})
+	index := 0
 	for rows.Next() {
 		//将行数据保存到record字典
 		err = rows.Scan(scanArgs...)
 		//fmt.Println(values)
-		record := make(map[string]interface {})
+		record := make(map[string]interface{})
 		for i, col := range values {
 			if col != nil {
 				fmt.Printf("%s的类型是：%s\r\n", columns[i], reflect.TypeOf(col))
@@ -119,11 +118,11 @@ func query(_sql string, args ...interface{})  map[int]map[string]interface {} {
 				case int:
 					//是整数时做的事情
 					//fmt.Printf("%s是int=%d\r\n", columns[i], col)
-					record[columns[i]] = int(col.(int));//strconv.Itoa(int(col.(int)))
+					record[columns[i]] = int(col.(int)) //strconv.Itoa(int(col.(int)))
 				case int64:
 					//fmt.Printf("%s是int64=%d\r\n", columns[i], col)
 					//_id := int64(col.([]int64));
-					record[columns[i]] = int64(col.(int64));//strconv.FormatInt(int64(col.(int64)),10)
+					record[columns[i]] = int64(col.(int64)) //strconv.FormatInt(int64(col.(int64)),10)
 				}
 
 				//record[columns[i]] = string(col.([]byte))
@@ -136,5 +135,5 @@ func query(_sql string, args ...interface{})  map[int]map[string]interface {} {
 
 	}
 	fmt.Println(records)
-return records
+	return records
 }

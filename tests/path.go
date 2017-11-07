@@ -1,12 +1,12 @@
 package main
 
 import (
-    //"os"
-    "fmt"
+	//"os"
+	"fmt"
 )
 
 func main() {
-   dir := "/usr/local/"
-    fmt.Println(string(dir[len(dir)-1]))
+	dir := "/usr/local/"
+	fmt.Println(string(dir[len(dir)-1]))
 
 }

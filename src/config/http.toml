@@ -1,0 +1,22 @@
+##mode 支持广播和权重的方式，广播意味着，事件发生的时候会通知到所有的url
+##权重意味着依据权重自动负载均衡，如果为0或者想等，则自动平均负载
+##权重值范围为0-100
+##设定mode模式为广播时weight值无效
+[groups]
+    [groups.1]
+     mode = "broadcast" ##(广播)broadcast or  (权重)weight
+        [node1]
+        url = "http://www.baidu.com/"
+        weight = 0 ##如果mode为广播，则此值无效
+        [node2]
+        url = "http://www.google.com/"
+        wight = 0
+
+     [groups.2]
+      mode = "weight"
+         [node1]
+         url = "http://test1.com"
+         weight = 80
+         [node2]
+         url = "http://test2.com"
+         weight = 20

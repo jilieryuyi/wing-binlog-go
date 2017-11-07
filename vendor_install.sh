@@ -1,28 +1,37 @@
 #!/usr/bin/env bash
 current_path=$(cd `dirname $0`; pwd)
-vendor_path=$current_path"/vendor/src"
+vendor_path=$current_path"/vendor"
 
-mysql_path=$vendor_path"/mysql"
-config_path=$vendor_path"/config"
-
-if [ -d "$mysql_path" ]; then
- rm -rf "$mysql_path"
+##添加当前目录和当前目录下的vendor目录到GOPATH环境变量
+export GOPATH="$current_path/vendor:$current_path"
+if [ ! -d "$vendor_path" ]; then
+ mkdir "$vendor_path"
+ mkdir "$vendor_path/src"
 fi
 
-if [ ! -d "$mysql_path" ]; then
- mkdir "$mysql_path"
-fi
+go get github.com/go-sql-driver/mysql
+go get github.com/larspensjo/config
+go get github.com/siddontang/go-mysql/canal
+go get github.com/siddontang/go-mysql/replication
+go get github.com/siddontang/go-mysql/mysql
+go get github.com/BurntSushi/toml
 
-if [ -d "$config_path" ]; then
- rm -rf "$config_path"
-fi
+cp -rf $vendor_path/src/* $vendor_path
 
-if [ ! -d "$config_path" ]; then
- mkdir "$config_path"
-fi
 
-git clone https://github.com/go-sql-driver/mysql.git $mysql_path
-rm -rf $mysql_path"/.git"
+function rmGit()
+{
+    for element in `ls $1`
+    do
+        dir_or_file=$1"/"$element
+        if [ -d $dir_or_file ]
+        then
+            rm -rf $dir_or_file"/.git"
+            rm -rf $dir_or_file"/.gitignore"
+            rmGit $dir_or_file
+        fi
+    done
+}
 
-git clone https://github.com/larspensjo/config.git $config_path
-rm -rf $config_path"/.git"
+rmGit $vendor_path
+rmGit $vendor_path

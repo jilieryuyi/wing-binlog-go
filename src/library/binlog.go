@@ -1,120 +1,94 @@
 package library
 
 import (
-	"database/sql"
-	_ "fmt"
+	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	"log"
 	"fmt"
-)
-const (
- 	COM_REGISTER_SLAVE        = 21;
+	"os"
+	//"os/signal"
+	//"syscall"
+	//"strings"
+	"time"
+	//"strconv"
 )
 
 type Binlog struct {
-	Db *sql.DB
+	DB_Config *AppConfig
 }
 
-func (log *Binlog) registerSlave(slave_id int) []byte {
-	data := make([]byte, 22)
+type binlogHandler struct{
+	canal.DummyEventHandler
+}
 
-    //COM_BINLOG_DUMP
-	data[4]  = byte(COM_REGISTER_SLAVE);
-	data[5] = byte(slave_id)
-	data[6] = byte(slave_id >> 8)
-	data[7] = byte(slave_id >> 16)
-	data[8] = byte(slave_id >> 24)
+func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
+	log.Printf("%s %v\n", e.Action, e.Rows)
+	return nil
+}
 
-
-	data[9]  = byte(0)
-	data[10] = byte(0)
-	data[11] = byte(0)
-
-	data[12] = byte(0);
-	data[13] = byte(0 >> 8);
-
-	data[14] = byte(0)
-	data[15] = byte(0 >> 8)
-	data[16] = byte(0 >> 16)
-	data[17] = byte(0 >> 24)
-
-	data[18] = byte(1)
-	data[19] = byte(1 >> 8)
-	data[20] = byte(1 >> 16)
-	data[21] = byte(1 >> 24)
-
-	return data;
+func (h *binlogHandler) String() string {
+	return "binlogHandler"
 }
 
 
-func (log *Binlog) checksum() bool {
-	sql_str := "SHOW GLOBAL VARIABLES LIKE 'BINLOG_CHECKSUM'"
-	rows, err := log.Db.Query(sql_str)
-	if (nil != err) {
-		return false;
-	}
-	defer rows.Close();
+func (h *Binlog) Start() {
 
-	columns, err := rows.Columns()
+	//user     := string(h.DB_Config["mysql"]["user"].(string))
+	//password := string(h.DB_Config["mysql"]["password"].(string))
+	//port     := string(h.DB_Config["mysql"]["port"].(string))
+	//host     := string(h.DB_Config["mysql"]["host"].(string))
+    //
+	//bin_file     := string(h.DB_Config["client"]["bin_file"].(string))
+	//bin_pos_str  := string(h.DB_Config["client"]["bin_pos"].(string))
+	////ignore_table := string(h.DB_Config["client"]["ignore_table"].(string))
+	//bin_pos, _   := strconv.Atoi(bin_pos_str)
+    //
+	//slave_id_str := string(h.DB_Config["client"]["slave_id"].(string))
+	//slave_id, _  := strconv.Atoi(slave_id_str)
+
+	//db_name := string(config["mysql"]["db_name"].(string))
+	//charset := string(config["mysql"]["charset"].(string))
+	//db, err := sql.Open("mysql", user+":"+password+"@tcp("+host+":"+port+")/"+db_name+"?charset="+charset)
+
+	cfg         := canal.NewDefaultConfig()
+	cfg.Addr     = fmt.Sprintf("%s:%s", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
+	cfg.User     = h.DB_Config.Mysql.User
+	cfg.Password = h.DB_Config.Mysql.Password//"123456"
+	cfg.Flavor   = "mysql"
+
+	cfg.ReadTimeout        = 90*time.Second//*readTimeout
+	cfg.HeartbeatPeriod    = 10*time.Second//*heartbeatPeriod
+	cfg.ServerID           = uint32(h.DB_Config.Client.Slave_id)
+	cfg.Dump.ExecutionPath = ""//mysqldump" 不支持mysqldump写为空
+	cfg.Dump.DiscardErr    = false
+
+	c, err := canal.NewCanal(cfg)
 	if err != nil {
-		return false
+		fmt.Printf("create canal err %v", err)
+		os.Exit(1)
 	}
 
-	clen := len(columns)
-	scanArgs := make([]interface{}, clen)
-	values   := make([]interface{}, clen)
+	//c.AddDumpIgnoreTables(seps[0], seps[1]) 设置忽略的数据库和表
 
-	for i := range values {
-		scanArgs[i] = &values[i]
+	//if len(*tables) > 0 && len(*tableDB) > 0 {
+	//	subs := strings.Split(*tables, ",")
+	//	c.AddDumpTables(*tableDB, subs...)
+	//} else if len(*dbs) > 0 {
+	//	subs := strings.Split(*dbs, ",")
+	//	c.AddDumpDatabases(subs...)
+	//}
+
+	c.SetEventHandler(&binlogHandler{})
+
+	startPos := mysql.Position{
+		Name: h.DB_Config.Client.Bin_file,
+		Pos:  uint32(h.DB_Config.Client.Bin_pos),
 	}
 
-	for rows.Next() {
-		err = rows.Scan(scanArgs...)
-		for i, col := range values {
-			if col != nil {
-				if columns[i] == "Value" {
-					return string(col.([]byte)) != ""
-				}
-			}
+	go func() {
+		err = c.RunFrom(startPos)
+		if err != nil {
+			log.Printf("start canal err %v", err)
 		}
-	}
-
-	return false
-}
-
-func (log *Binlog) Register(slave_id int) {
-	checksum := log.checksum()
-
-	if checksum {
-		log.Db.Query("set @master_binlog_checksum=@@global.binlog_checksum");
-	}
-
-	//设置心跳
-	heart := 5;
-	if heart > 0 {
-		sql_str := fmt.Sprintf("set @master_heartbeat_period=%d", heart*1000000000)
-		log.Db.Query(sql_str);
-	}
-
-	//data := log.registerSlave(slave_id)
-	//log.Db;
-/*
-data = Packet::registerSlave($slave_server_id);
-
-if (!Net::send(data)) {
-return false;
-}
-
-$result = Net::readPacket();
-Packet::success($result);
-
-//封包
-data = Packet::binlogDump($this->binlog_file, $this->last_pos, $slave_server_id);
-
-if (!Net::send(data)) {
-return false;
-}
-
-//认证
-$result = Net::readPacket();
-Packet::success($result);
-return true;*/
+	}()
 }

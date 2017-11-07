@@ -1,8 +1,8 @@
 package workers
 
 import (
-	"library/base"
 	"fmt"
+	"library/base"
 	"time"
 )
 
@@ -15,8 +15,8 @@ type Binlog struct {
  * @param []base.Subscribe notify
  */
 func (log *Binlog) Start(notify []base.Subscribe) {
-	for _,obj := range notify {
-		obj.Init();
+	for _, obj := range notify {
+		obj.Init()
 	}
 }
 
@@ -25,8 +25,8 @@ func (log *Binlog) Start(notify []base.Subscribe) {
  * @param []base.Subscribe notify
  */
 func (log *Binlog) End(notify []base.Subscribe) {
-	for _,obj := range notify {
-		obj.Free();
+	for _, obj := range notify {
+		obj.Free()
 	}
 }
 
@@ -35,10 +35,10 @@ func (log *Binlog) End(notify []base.Subscribe) {
  */
 func (log *Binlog) Loop(notify []base.Subscribe) {
 
-	data := make(map[string] interface{})
+	data := make(map[string]interface{})
 	data["hello2"] = "yuyi2"
 
-	for ; ; {
+	for {
 		for _, obj := range notify {
 			obj.OnChange(data)
 		}

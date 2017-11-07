@@ -9,24 +9,20 @@ import "fmt"
 //	"path/filepath"
 //)
 
-
 import (
-	 "./Library"
+	"./Library"
 	//"./String"
 )
 
+func main() {
 
-
-func main()  {
-
-	defer func(){ // 必须要先声明defer，否则不能捕获到panic异常
-		if err:=recover();err!=nil{
+	defer func() { // 必须要先声明defer，否则不能捕获到panic异常
+		if err := recover(); err != nil {
 			fmt.Println("发生错误\r\n")
 			fmt.Println(err) // 这里的err其实就是panic传入的内容，55
 		}
 		fmt.Println("进程结束\r\n")
 	}()
-
 
 	//fmt.Println(os.Getppid())
 	//if os.Getppid() != 1 {
@@ -45,7 +41,7 @@ func main()  {
 	//}
 
 	pdo := Library.Pdo{"root", "123456", "xl"}
-	pdo.Open();
+	pdo.Open()
 	defer pdo.Close()
 
 	binlog := Library.Binlog{}
