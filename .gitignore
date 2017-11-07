@@ -7,3 +7,4 @@
 /*/*/*.log
 /bin
 /pkg
+/vendor/pkg/
