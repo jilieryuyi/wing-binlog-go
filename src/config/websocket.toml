@@ -6,10 +6,10 @@
 ##当组的名称对应的mode为广播时，权重无效
 ##当组的mode为权重时，将依据设定的权重自动负载均衡
 [groups]
-    [group1]
+    [groups.1]
      mode = "broadcast" ##(广播)broadcast or  (权重)weight
      name = "group1"
 
-    [group2]
+    [groups.2]
      mode = "weight"
      name = "group2"

@@ -3,7 +3,7 @@
 ##权重值范围为0-100
 ##设定mode模式为广播时weight值无效
 [groups]
-    [group1]
+    [groups.1]
      mode = "broadcast" ##(广播)broadcast or  (权重)weight
         [node1]
         url = "http://www.baidu.com/"
@@ -12,7 +12,7 @@
         url = "http://www.google.com/"
         wight = 0
 
-     [group2]
+     [groups.2]
       mode = "weight"
          [node1]
          url = "http://test1.com"
