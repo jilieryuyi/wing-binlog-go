@@ -5,7 +5,7 @@ pkg_path=$current_path"/pkg"
 vendor_path=$current_path"/vendor"
 
 ##添加当前目录和当前目录下的vendor目录到GOPATH环境变量
-export GOPATH="$current_path/vendor:$current_path:$GOPATH"
+export GOPATH="$current_path/vendor:$current_path"
 
 ##如果bin目录存在，则删除
 ##if [ -d "$bin_path" ]; then
