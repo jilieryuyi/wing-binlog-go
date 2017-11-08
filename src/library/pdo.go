@@ -21,7 +21,7 @@ type PDO struct {
 
     db_handler    *sql.DB
     is_connected  bool
-    columns_cache map[string] cloumns_cache_st//map[string] []Column
+    columns_cache map[string] cloumns_cache_st
 }
 
 type cloumns_cache_st struct {
@@ -53,8 +53,9 @@ type Column struct {
     GENERATION_EXPRESSION    string
 }
 
-func NewPDO(user string, password string,
-host string, port int, db_name string, charset string) *PDO {
+func NewPDO(user    string, password string,
+            host    string, port     int,
+            db_name string, charset  string) *PDO {
 
     dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", user, password, host, port, db_name, charset)
     db, err := sql.Open("mysql",dns)
@@ -64,17 +65,38 @@ host string, port int, db_name string, charset string) *PDO {
         os.Exit(1)
     }
 
-    instance := &PDO{user, password, host, port, db_name, charset, db, true, make(map[string] cloumns_cache_st)}
-    //instance.db_handler = db
-    //instance.is_connected = true
-    //instance.columns_cache = make(map[string] []Column)
+    instance := &PDO{user, password, host, port,
+        db_name, charset, db, true, make(map[string] cloumns_cache_st)}
     return instance
 }
+
+func (pdo *PDO) Close() {
+    if !pdo.is_connected {
+        return
+    }
+    pdo.db_handler.Close()
+    pdo.is_connected = false
+}
+
 
 func (pdo *PDO) connect() {
     if pdo.is_connected {
         return
     }
+
+    pdo.Close()
+
+    dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", pdo.User, pdo.Password, pdo.Host, pdo.Port, pdo.DbName, pdo.Charset)
+    db, err := sql.Open("mysql",dns)
+
+    if err != nil {
+        log.Println(err)
+        pdo.is_connected = false
+    } else {
+        pdo.is_connected = true
+    }
+
+    pdo.db_handler = db
 }
 
 func (pdo *PDO) setColumnsCache(key string, col []Column) {
@@ -105,10 +127,15 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
         return cache, nil
     }
 
+    //如果当前状态为断开会尝试重新连接
+    pdo.connect()
+
     sql_str := "SELECT * FROM information_schema.columns WHERE table_schema = '" + db_name +
         "' AND table_name = '" + table_name + "'"
     rows, err:= pdo.db_handler.Query(sql_str)
     if err != nil {
+        //查询出错直接close
+        pdo.Close()
         return nil, err
     }
 
@@ -145,22 +172,10 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
             switch field_type {
             case "string":
                 if col == nil {
-                    if columns[i] == "IS_NULLABLE" {
-                        field.SetBool(false)
-                    } else {
-                        field.SetString("")
-                    }
+                    field.SetString("")
                 } else {
                     str_val := string(col.([]uint8))
-                    if columns[i] == "IS_NULLABLE" {
-                        if str_val == "YES" {
-                            field.SetBool(true)
-                        } else {
-                            field.SetBool(false)
-                        }
-                    } else {
-                        field.SetString(str_val)
-                    }
+                    field.SetString(str_val)
                 }
 
             case "int":
@@ -193,7 +208,6 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
                 log.Println("unknow type: " + field_type, col)
             }
 
-           // log.Print("\n\n\n")
         }
 
         columns_res = append(columns_res, column)
