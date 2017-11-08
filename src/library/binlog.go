@@ -196,6 +196,22 @@ func (h *Binlog) Close() {
 	close(h.binlog_handler.chan_save_position)
 }
 
+func (h *Binlog) GetBinlogPostionCache() (string, int64) {
+	wfile := WFile{GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+	str := wfile.ReadAll()
+
+	if str == "" {
+		return "", int64(0)
+	}
+
+	res := strings.Split(str, ":")
+
+	wstr := WString{res[1]}
+	pos := wstr.ToInt64()
+
+	return res[0], pos
+}
+
 func (h *Binlog) Start() {
 
 	cfg         := canal.NewDefaultConfig()
@@ -231,12 +247,34 @@ func (h *Binlog) Start() {
 	h.is_connected = true
 	//这里要启动一个协程去保存postion
 
-	startPos := mysql.Position{
-		Name: h.DB_Config.Client.Bin_file,
-		Pos:  uint32(h.DB_Config.Client.Bin_pos),
+	bin_file := h.DB_Config.Client.Bin_file
+	bin_pos  := h.DB_Config.Client.Bin_pos
+
+	f,p := h.GetBinlogPostionCache()
+
+	if f != "" {
+		bin_file = f
 	}
 
+	if p > 0 {
+		bin_pos = p
+	}
 
+	startPos := mysql.Position{
+		Name: bin_file,
+		Pos:  uint32(bin_pos),
+	}
+
+	go func() {
+		wfile := WFile{GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+		for {
+			select {
+			case pos := <-h.binlog_handler.chan_save_position:
+				log.Println(pos)
+				wfile.Write(fmt.Sprintf("%s:%d", pos.Name, pos.Pos), false)
+			}
+		}
+	}()
 	go func() {
 		err = h.handler.RunFrom(startPos)
 		if err != nil {
