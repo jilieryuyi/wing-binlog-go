@@ -27,7 +27,7 @@ type AppConfig struct {
 
 type ClientConfig struct {
     Slave_id int
-    Ignore_table []string// = ["Test.abc", "Test.123"]
+    Ignore_tables []string// = ["Test.abc", "Test.123"]
     Bin_file string//     = ""
     Bin_pos int64//      = 0
 }
@@ -38,6 +38,7 @@ type MysqlConfig struct {
     Password string// = "123456"
     Port int//     = 3306
     Charset string//  = "utf8"
+    DbName string
 }
 
 func (config *WConfig) Parse() (*AppConfig, error) {

@@ -16,5 +16,5 @@ go get github.com/siddontang/go-mysql/replication
 go get github.com/siddontang/go-mysql/mysql
 go get github.com/BurntSushi/toml
 
-cp -rf $vendor_path/src/* $vendor_path
 find $vendor_path -name '*.git*' | xargs rm -rf
+cp -rf $vendor_path/src/* $vendor_path

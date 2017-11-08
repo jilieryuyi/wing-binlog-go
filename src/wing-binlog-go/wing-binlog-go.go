@@ -10,9 +10,21 @@ import (
 	"runtime"
 	//"strconv"
 	//"subscribe"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
+
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc,
+		os.Kill,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 
 	wing_log := library.GetLogInstance()
 	//释放日志资源
@@ -81,6 +93,8 @@ func main() {
 
 	blog := library.Binlog{app_config}
 	blog.Start()
+
+	<-sc
 
 	//redis := &subscribe.Redis{}
 	//tcp := &subscribe.Tcp{}

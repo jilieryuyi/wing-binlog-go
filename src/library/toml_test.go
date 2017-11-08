@@ -27,10 +27,10 @@ func TestWConfig_Parse(t *testing.T) {
         t.Error("config parse error - 1")
     }
 
-    log.Println(reflect.TypeOf(app_config.Client.Ignore_table))
+    log.Println("===>", reflect.TypeOf(app_config.Client.Ignore_tables).String(), "<===")
     //switch  {
     //case []string:
-        for _, v := range  app_config.Client.Ignore_table {
+        for _, v := range  app_config.Client.Ignore_tables {
             //log.Println(v)
             if v != "Test.abc" && v != "Test.123" {
                 t.Error("config parse error - 2")
@@ -70,5 +70,9 @@ func TestWConfig_Parse(t *testing.T) {
     }
     if app_config.Mysql.Charset != "utf8" {
         t.Error("config parse error - 10")
+    }
+
+    if app_config.Mysql.DbName != "wordpress" {
+        t.Error("config parse error - 11")
     }
 }

@@ -11,6 +11,9 @@ import (
 	//"strings"
 	"time"
 	//"strconv"
+	"strings"
+	"sync/atomic"
+	//"database/sql"
 )
 
 type Binlog struct {
@@ -18,11 +21,31 @@ type Binlog struct {
 }
 
 type binlogHandler struct{
+	Event_index int64
 	canal.DummyEventHandler
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
-	log.Printf("%s %v\n", e.Action, e.Rows)
+
+	atomic.AddInt64(&h.Event_index, int64(1))
+	log.Printf("%s %d %v\n", e.Action, len(e.Rows), e.Rows)
+
+	//sql := "show columns from "+e.Table
+
+	//log.Println(h.Event_index, e.Table, e)
+	//发生变化的数据表e.Table，如xsl.x_reports
+	//发生的操作类型e.Action，如update、insert、delete
+	//如update的数据，update的数据以双数出现前面为更新前的数据，后面的为更新后的数据
+	//0，2，4偶数的为更新前的数据，奇数的为更新后的数据
+	//[[1 1 3074961 [115 102 103 98 114]   1 1485739538 1485739538]
+	// [1 1 3074961 [115 102 103 98 114] 1 1 1485739538 1485739538]]
+
+	//delete一次返回一条数据
+	//delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
+
+	//一次插入多条的时候，同时返回
+	//insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
+
 	return nil
 }
 
@@ -51,7 +74,7 @@ func (h *Binlog) Start() {
 	//db, err := sql.Open("mysql", user+":"+password+"@tcp("+host+":"+port+")/"+db_name+"?charset="+charset)
 
 	cfg         := canal.NewDefaultConfig()
-	cfg.Addr     = fmt.Sprintf("%s:%s", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
+	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
 	cfg.User     = h.DB_Config.Mysql.User
 	cfg.Password = h.DB_Config.Mysql.Password//"123456"
 	cfg.Flavor   = "mysql"
@@ -64,10 +87,16 @@ func (h *Binlog) Start() {
 
 	c, err := canal.NewCanal(cfg)
 	if err != nil {
-		fmt.Printf("create canal err %v", err)
+		log.Printf("create canal err %v", err)
 		os.Exit(1)
 	}
 
+	//ingore_tables := strings.Split(AppConfig.Client.Ignore_table, ",")
+	log.Println(h.DB_Config.Client.Ignore_tables)
+	for _, v := range h.DB_Config.Client.Ignore_tables {
+		db_table := strings.Split(v, ".")
+		c.AddDumpIgnoreTables(db_table[0], db_table[1])
+	}
 	//c.AddDumpIgnoreTables(seps[0], seps[1]) 设置忽略的数据库和表
 
 	//if len(*tables) > 0 && len(*tableDB) > 0 {
@@ -78,7 +107,23 @@ func (h *Binlog) Start() {
 	//	c.AddDumpDatabases(subs...)
 	//}
 
-	c.SetEventHandler(&binlogHandler{})
+	//db, err := sql.Open("mysql",
+	//	h.DB_Config.Mysql.User + ":" +
+	//	h.DB_Config.Mysql.Password + "@tcp(" +
+	//	h.DB_Config.Mysql.Host + ":" + h.DB_Config.Mysql.Port + ")/" +
+	//	h.DB_Config.Mysql.DbName + "?charset=" +
+	//	h.DB_Config.Mysql.Charset)
+    //
+	//if nil != err {
+	//	log.Println(err)
+	//	os.Exit(1)
+	//}
+
+	//defer db.Close()
+
+	c.SetEventHandler(&binlogHandler{
+		int64(0),
+		canal.DummyEventHandler{}})
 
 	startPos := mysql.Position{
 		Name: h.DB_Config.Client.Bin_file,
