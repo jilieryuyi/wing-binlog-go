@@ -19,6 +19,7 @@ import (
 	//"syscall"
 	//"strings"
 	//"database/sql"
+	"reflect"
 )
 
 func init() {
@@ -275,7 +276,12 @@ func (h *Binlog) Start() {
 			select {
 			case pos := <-h.binlog_handler.chan_save_position:
 				log.Println(pos)
-				wfile.Write(fmt.Sprintf("%s:%d", pos.Name, pos.Pos), false)
+				v := reflect.ValueOf(pos)
+				if v.IsValid() {
+					if pos.Name != "" && pos.Pos > 0 {
+						wfile.Write(fmt.Sprintf("%s:%d", pos.Name, pos.Pos), false)
+					}
+				}
 			}
 		}
 	}()
