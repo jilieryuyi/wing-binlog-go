@@ -27,7 +27,18 @@ func TestPDO_GetColumns(t *testing.T) {
 
     log.Println(columns)
     for _, v := range columns {
-        log.Println(v.COLUMN_NAME)
+        log.Println(v.TABLE_SCHEMA, v.TABLE_NAME, v.COLUMN_NAME)
+    }
+
+    columns, err = instance.GetColumns("xsl", "x_fee")
+
+    if err != nil {
+        t.Error("get columns error happened - 2")
+    }
+
+    log.Println(columns)
+    for _, v := range columns {
+        log.Println(v.TABLE_SCHEMA, v.TABLE_NAME, v.COLUMN_NAME)
     }
 
 }
