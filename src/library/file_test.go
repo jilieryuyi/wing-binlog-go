@@ -1,7 +1,10 @@
 package library
 
 import "testing"
-import "library/platform"
+import (
+	"library/platform"
+	//"log"
+)
 
 /**
  * 需要注意的是windows下和linux下，文件末尾的换行符是不同的
@@ -96,5 +99,35 @@ func TestWFile_Length(t *testing.T) {
 
 	if file.Length() != int64(3+append_len) {
 		t.Error("Length error")
+	}
+}
+
+func TestWFile_Write(t *testing.T) {
+	file := &WFile{"/tmp/__test123.txt"}
+	file.Delete()
+	n := file.Write("123", true)
+	if n != 3 {
+		t.Error("write error - 1")
+	}
+
+	n = file.Write("456", true)
+	if n != 3 {
+		t.Error("write error - 2")
+	}
+
+	str := file.Read(0, 6)
+	if str != "123456" {
+		t.Error("write error - 3")
+	}
+
+	n = file.Write("123", false)
+	if n != 3 {
+		t.Error("write error - 4")
+	}
+
+	str = file.Read(0, 3)
+	//log.Println("==>"+str+"<==")
+	if str != "123" {
+		t.Error("write error - 5")
 	}
 }

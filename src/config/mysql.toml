@@ -1,8 +1,8 @@
 [client]
 slave_id      = 9999
 ignore_tables = ["Test.abc", "Test.123"] ##这里必须是个数组，为空请写成[]
-bin_file      = ""
-bin_pos       = 0
+bin_file      = "mysql-bin.000011"
+bin_pos       = 4176
 
 [mysql]
 host     = "127.0.0.1"

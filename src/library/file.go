@@ -4,6 +4,9 @@ import (
 	"io/ioutil"
 	"os"
 	// "log"
+	//"path/filepath"
+	//"io"
+	"time"
 )
 
 type WFile struct {
@@ -130,4 +133,57 @@ func (file *WFile) Length() int64 {
 
 	return length
 
+}
+
+func (file *WFile) Delete() bool  {
+	err := os.Remove(file.File_path)
+	return err == nil
+}
+
+func (file *WFile) Write(data string, append bool) int {
+	dir := WPath{file.File_path}
+	dir = WPath{dir.GetParent()}
+	dir.Mkdir()
+
+	flag := os.O_WRONLY|os.O_CREATE|os.O_SYNC
+	if append {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+	}
+
+	handle, err := os.OpenFile(file.File_path, flag , 0755)
+	if err != nil {
+		return 0
+	}
+	defer handle.Close()
+
+	wdata := []byte(data)
+	n, err := handle.Write(wdata)
+
+	if err != nil {
+		return 0
+	}
+	dlen := len(data)
+	start := time.Now().Unix()
+	for {
+		if (time.Now().Unix() - start) > 1 {
+			break
+		}
+
+		if n >= dlen {
+			break
+		}
+
+		wdata = wdata[n:dlen-n]
+		m, err := handle.Write(wdata)
+		if err != nil {
+			break
+		}
+		n += m
+	}
+
+	//io.WriteString(handle, data)
+	//ioutil.WriteFile(file.File_path, []byte(data), 0755)
+	return n
 }

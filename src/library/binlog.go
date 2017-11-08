@@ -3,32 +3,56 @@ package library
 import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
-	"log"
+	"github.com/siddontang/go-mysql/replication"
+	"github.com/siddontang/go-mysql/schema"
+
+	"sync/atomic"
 	"fmt"
+	"time"
 	"os"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
+
+	//"log"
 	//"os/signal"
 	//"syscall"
 	//"strings"
-	"time"
-	//"strconv"
-	"strings"
-	"sync/atomic"
 	//"database/sql"
 )
 
+func init() {
+	fmt.Println("binlog init")
+	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+		ForceColors:true,
+		QuoteEmptyFields:true, FullTimestamp:true})
+}
+
 type Binlog struct {
 	DB_Config *AppConfig
+	handler *canal.Canal
+	is_connected bool
+	binlog_handler binlogHandler
 }
+
+const (
+	MAX_CHAN_FOR_SAVE_POSITION = 10240
+)
 
 type binlogHandler struct{
 	Event_index int64
 	canal.DummyEventHandler
+	chan_save_position chan mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 
-	atomic.AddInt64(&h.Event_index, int64(1))
-	log.Printf("%s %d %v\n", e.Action, len(e.Rows), e.Rows)
+	log.Println(e.Table.Schema, e.Table.Name,
+	e.Table.Columns,
+	e.Table.Indexes,
+	e.Table.PKColumns)
+
+	log.Printf("OnRow ==>%s %d %v\n", e.Action, len(e.Rows), e.Rows)
 
 	//sql := "show columns from "+e.Table
 
@@ -46,6 +70,89 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	//一次插入多条的时候，同时返回
 	//insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
 
+	if e.Action == "update" {
+		for i := 0; i < len(e.Rows); i+=2 {
+			atomic.AddInt64(&h.Event_index, int64(1))
+
+			res1 := make(map[string] interface{})
+			res2 := make(map[string] interface{})
+			for k, col := range e.Table.Columns {
+				//log.Println(col.Name, "==>", col.Type, e.Rows[i][k])
+
+				if col.Type == schema.TYPE_STRING {
+					wstr1 := WString{e.Rows[i][k]}
+					wstr2 := WString{e.Rows[i+1][k]}
+
+					// old data
+					res1[col.Name] = wstr1.ToString()
+					// new data
+					res2[col.Name] = wstr2.ToString()
+				} else {
+				    //old data
+					res1[col.Name] = e.Rows[i][k]
+					//new data
+					res2[col.Name] = e.Rows[i+1][k]
+				}
+			}
+
+			event := make(map[string] interface{})
+
+			event["event_type"] = e.Action                     //事件类型
+			event["time"]       = time.Now().Unix()            //发生事件的时间戳
+			event["data"]       = make(map[string] interface{})//事件数据
+
+			event["data"].(map[string] interface{})["old_data"] = res1                   //更新前的数据
+			event["data"].(map[string] interface{})["new_data"] = res2                   //更新后的数据
+
+			result := make(map[string] interface{})
+			result["database"]    = e.Table.Schema             //发生事件的数据库
+			result["table"]       = e.Table.Name               //发生事件的数据表
+			result["event"]       = event                      //事件数据
+			result["event_index"] = h.Event_index              //事件原子索引，类型为int64
+
+			//result 就是一个完整的update事件数据
+			log.Println(result)
+		}
+
+
+
+	} else {
+		for i := 0; i < len(e.Rows); i+=1 {
+
+			res := make(map[string] interface{})
+			for k, col := range e.Table.Columns {
+				atomic.AddInt64(&h.Event_index, int64(1))
+
+				//log.Println(col.Name, "==>", col.Type, e.Rows[i][k])
+
+				if col.Type == schema.TYPE_STRING {
+					wstr := WString{e.Rows[i][k]}
+					res[col.Name] = wstr.ToString()
+				} else {
+					res[col.Name] = e.Rows[i][k]
+				}
+			}
+			event := make(map[string] interface{})
+
+			event["event_type"] = e.Action                     //事件类型
+			event["time"]       = time.Now().Unix()            //发生事件的时间戳
+			event["data"]       = make(map[string] interface{})//事件数据
+			event["data"]       = res                          //删除的数据
+
+			result := make(map[string] interface{})
+
+			result["database"]    = e.Table.Schema             //发生事件的数据库
+			result["table"]       = e.Table.Name               //发生事件的数据表
+			result["event"]       = event                      //事件数据
+			result["event_index"] = h.Event_index              //事件原子索引，类型为int64
+
+			//result 就是一个完整的update事件数据
+			log.Println(result)
+		}
+
+
+	}
+
 	return nil
 }
 
@@ -54,24 +161,42 @@ func (h *binlogHandler) String() string {
 }
 
 
+func (h *binlogHandler) OnRotate(e *replication.RotateEvent) error {
+	log.Println("OnRotate ==>", e.Position, string(e.NextLogName))
+	return nil
+}
+func (h *binlogHandler) OnDDL(p mysql.Position, e *replication.QueryEvent) error {
+	log.Println("OnDDL ==>",
+		p.Name, p.Pos, e)
+	return nil
+}
+func (h *binlogHandler) OnXID(p mysql.Position) error {
+	log.Println("OnXID ==>", p)
+	return nil
+}
+func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
+	log.Println("OnGTID ==>", g)
+	return nil
+}
+func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
+	//在这里保存pos的位置和bin_file
+	log.Println("OnPosSynced ==>", p, b)
+	h.chan_save_position <- p
+	return nil
+}
+
+
+
+func (h *Binlog) Close() {
+	if !h.is_connected  {
+		return
+	}
+	h.handler.Close()
+	h.is_connected = false
+	close(h.binlog_handler.chan_save_position)
+}
+
 func (h *Binlog) Start() {
-
-	//user     := string(h.DB_Config["mysql"]["user"].(string))
-	//password := string(h.DB_Config["mysql"]["password"].(string))
-	//port     := string(h.DB_Config["mysql"]["port"].(string))
-	//host     := string(h.DB_Config["mysql"]["host"].(string))
-    //
-	//bin_file     := string(h.DB_Config["client"]["bin_file"].(string))
-	//bin_pos_str  := string(h.DB_Config["client"]["bin_pos"].(string))
-	////ignore_table := string(h.DB_Config["client"]["ignore_table"].(string))
-	//bin_pos, _   := strconv.Atoi(bin_pos_str)
-    //
-	//slave_id_str := string(h.DB_Config["client"]["slave_id"].(string))
-	//slave_id, _  := strconv.Atoi(slave_id_str)
-
-	//db_name := string(config["mysql"]["db_name"].(string))
-	//charset := string(config["mysql"]["charset"].(string))
-	//db, err := sql.Open("mysql", user+":"+password+"@tcp("+host+":"+port+")/"+db_name+"?charset="+charset)
 
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
@@ -85,53 +210,35 @@ func (h *Binlog) Start() {
 	cfg.Dump.ExecutionPath = ""//mysqldump" 不支持mysqldump写为空
 	cfg.Dump.DiscardErr    = false
 
-	c, err := canal.NewCanal(cfg)
+	var err error
+	h.handler, err = canal.NewCanal(cfg)
 	if err != nil {
 		log.Printf("create canal err %v", err)
 		os.Exit(1)
 	}
 
-	//ingore_tables := strings.Split(AppConfig.Client.Ignore_table, ",")
 	log.Println(h.DB_Config.Client.Ignore_tables)
+
 	for _, v := range h.DB_Config.Client.Ignore_tables {
 		db_table := strings.Split(v, ".")
-		c.AddDumpIgnoreTables(db_table[0], db_table[1])
+		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
 	}
-	//c.AddDumpIgnoreTables(seps[0], seps[1]) 设置忽略的数据库和表
 
-	//if len(*tables) > 0 && len(*tableDB) > 0 {
-	//	subs := strings.Split(*tables, ",")
-	//	c.AddDumpTables(*tableDB, subs...)
-	//} else if len(*dbs) > 0 {
-	//	subs := strings.Split(*dbs, ",")
-	//	c.AddDumpDatabases(subs...)
-	//}
+	h.binlog_handler = binlogHandler{Event_index: int64(0)}
+	h.binlog_handler.chan_save_position = make(chan mysql.Position, MAX_CHAN_FOR_SAVE_POSITION)
 
-	//db, err := sql.Open("mysql",
-	//	h.DB_Config.Mysql.User + ":" +
-	//	h.DB_Config.Mysql.Password + "@tcp(" +
-	//	h.DB_Config.Mysql.Host + ":" + h.DB_Config.Mysql.Port + ")/" +
-	//	h.DB_Config.Mysql.DbName + "?charset=" +
-	//	h.DB_Config.Mysql.Charset)
-    //
-	//if nil != err {
-	//	log.Println(err)
-	//	os.Exit(1)
-	//}
-
-	//defer db.Close()
-
-	c.SetEventHandler(&binlogHandler{
-		int64(0),
-		canal.DummyEventHandler{}})
+	h.handler.SetEventHandler(&h.binlog_handler)
+	h.is_connected = true
+	//这里要启动一个协程去保存postion
 
 	startPos := mysql.Position{
 		Name: h.DB_Config.Client.Bin_file,
 		Pos:  uint32(h.DB_Config.Client.Bin_pos),
 	}
 
+
 	go func() {
-		err = c.RunFrom(startPos)
+		err = h.handler.RunFrom(startPos)
 		if err != nil {
 			log.Printf("start canal err %v", err)
 		}

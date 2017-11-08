@@ -3,6 +3,8 @@ package main
 import (
 	//"database/sql"
 	"library"
+	//"github.com/siddontang/go-mysql/canal"
+
 	//"library/base"
 	//"library/workers"
 	"log"
@@ -91,7 +93,8 @@ func main() {
 
 	//defer db.Close()
 
-	blog := library.Binlog{app_config}
+	blog := library.Binlog{DB_Config:app_config}
+	defer blog.Close()
 	blog.Start()
 
 	<-sc

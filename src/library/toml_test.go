@@ -40,13 +40,13 @@ func TestWConfig_Parse(t *testing.T) {
       //  t.Error("config parse error - 3")
     //}
 
-    if app_config.Client.Bin_file != "" {
-        t.Error("config parse error - 4")
-    }
+    //if app_config.Client.Bin_file != "" {
+    //    t.Error("config parse error - 4")
+    //}
 
-    if app_config.Client.Bin_pos != 0 {
-        t.Error("config parse error - 5")
-    }
+    //if app_config.Client.Bin_pos != 0 {
+    //    t.Error("config parse error - 5")
+    //}
 
 
     /**
