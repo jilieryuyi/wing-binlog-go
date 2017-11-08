@@ -206,6 +206,10 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64) {
 
 	res := strings.Split(str, ":")
 
+	if len(res) < 2 {
+		return res[0], int64(0)
+	}
+
 	wstr := WString{res[1]}
 	pos := wstr.ToInt64()
 
