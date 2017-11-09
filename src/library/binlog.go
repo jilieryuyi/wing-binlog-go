@@ -36,14 +36,19 @@ type Binlog struct {
 	binlog_handler binlogHandler
 }
 
+type positionCache struct {
+	pos mysql.Position
+	index int64
+}
+
 const (
-	MAX_CHAN_FOR_SAVE_POSITION = 10240
+	MAX_CHAN_FOR_SAVE_POSITION = 128
 )
 
 type binlogHandler struct{
 	Event_index int64
 	canal.DummyEventHandler
-	chan_save_position chan mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
+	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
@@ -173,6 +178,7 @@ func (h *binlogHandler) OnDDL(p mysql.Position, e *replication.QueryEvent) error
 }
 func (h *binlogHandler) OnXID(p mysql.Position) error {
 	log.Println("OnXID ==>", p)
+	//h.SaveBinlogPostionCache(p)
 	return nil
 }
 func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
@@ -182,11 +188,10 @@ func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
 func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	//在这里保存pos的位置和bin_file
 	log.Println("OnPosSynced ==>", p, b)
-	h.chan_save_position <- p
+
+	h.SaveBinlogPostionCache(p)
 	return nil
 }
-
-
 
 func (h *Binlog) Close() {
 	if !h.is_connected  {
@@ -197,24 +202,38 @@ func (h *Binlog) Close() {
 	close(h.binlog_handler.chan_save_position)
 }
 
-func (h *Binlog) GetBinlogPostionCache() (string, int64) {
+func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
+	if len(h.chan_save_position) >= MAX_CHAN_FOR_SAVE_POSITION - 10 {
+		for k := 0; k <= MAX_CHAN_FOR_SAVE_POSITION - 10; k++ {
+			<-h.chan_save_position //丢弃掉未写入的部分数据，优化性能，这里丢弃的pos并不影响最终的结果
+		}
+	}
+
+	//cap 返回容量
+	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
+}
+
+func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 	wfile := WFile{GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
 	str := wfile.ReadAll()
 
 	if str == "" {
-		return "", int64(0)
+		return "", int64(0), int64(0)
 	}
 
 	res := strings.Split(str, ":")
 
-	if len(res) < 2 {
-		return res[0], int64(0)
+	if len(res) < 3 {
+		return "", int64(0), int64(0)
 	}
 
 	wstr := WString{res[1]}
 	pos := wstr.ToInt64()
 
-	return res[0], pos
+	wstr2 := WString{res[2]}
+	index := wstr2.ToInt64()
+
+	return res[0], pos, index
 }
 
 func (h *Binlog) Start() {
@@ -245,8 +264,10 @@ func (h *Binlog) Start() {
 		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
 	}
 
-	h.binlog_handler = binlogHandler{Event_index: int64(0)}
-	h.binlog_handler.chan_save_position = make(chan mysql.Position, MAX_CHAN_FOR_SAVE_POSITION)
+	f,p,index := h.GetBinlogPostionCache()
+
+	h.binlog_handler = binlogHandler{Event_index: index}
+	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 
 	h.handler.SetEventHandler(&h.binlog_handler)
 	h.is_connected = true
@@ -254,8 +275,6 @@ func (h *Binlog) Start() {
 
 	bin_file := h.DB_Config.Client.Bin_file
 	bin_pos  := h.DB_Config.Client.Bin_pos
-
-	f,p := h.GetBinlogPostionCache()
 
 	if f != "" {
 		bin_file = f
@@ -278,8 +297,8 @@ func (h *Binlog) Start() {
 				log.Println(pos)
 				v := reflect.ValueOf(pos)
 				if v.IsValid() {
-					if pos.Name != "" && pos.Pos > 0 {
-						wfile.Write(fmt.Sprintf("%s:%d", pos.Name, pos.Pos), false)
+					if pos.pos.Name != "" && pos.pos.Pos > 0 {
+						wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
 					}
 				}
 			}

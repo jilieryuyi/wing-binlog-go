@@ -7,6 +7,7 @@ import (
 	//"path/filepath"
 	//"io"
 	"time"
+	"log"
 )
 
 type WFile struct {
@@ -86,10 +87,34 @@ func (file *WFile) Read(offset int64, length int64) string {
 	//    SEEK_END int = 2 // seek relative to the end
 	//)
 
+	nf1, err := handle.Seek(0, os.SEEK_END)
+	if err != nil {
+		log.Println(err)
+	}
+	//log.Printf("=====>new offset: %d => %d" , nf1, offset)
+
+	if length > nf1 {
+		length = nf1
+	}
+
 	if offset >= 0 {
-		handle.Seek(offset, os.SEEK_SET)
+		if offset > nf1 {
+			offset = nf1
+		}
+		_, err := handle.Seek(offset, os.SEEK_SET)
+		if err != nil {
+			log.Println(err)
+		}
+		//log.Printf("new offset: %d => %d" , nf, offset)
 	} else {
-		handle.Seek(offset, os.SEEK_END)
+		if offset < 0 - nf1 {
+			offset = 0 - nf1
+		}
+		_, err := handle.Seek(offset, os.SEEK_END)
+		if err != nil {
+			log.Println(err)
+		}
+		//log.Printf("new offset: %d => %d" , nf, offset)
 	}
 	buf := make([]byte, length)
 	bytes, err := handle.Read(buf)
@@ -102,6 +127,15 @@ func (file *WFile) Read(offset int64, length int64) string {
 	if buf[blen] == 10 {
 		buf = buf[0:blen]
 	}
+
+	//kl := len(buf) - 1
+	//for k := kl; k >= 0; k-- {
+	//	if buf[k] == 0 {
+	//		buf = buf[0:k]
+	//	}  else {
+	//		break
+	//	}
+	//}
 
 	return string(buf)
 }

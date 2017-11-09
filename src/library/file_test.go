@@ -3,7 +3,7 @@ package library
 import "testing"
 import (
 	"library/platform"
-	//"log"
+	"log"
 )
 
 /**
@@ -125,9 +125,15 @@ func TestWFile_Write(t *testing.T) {
 		t.Error("write error - 4")
 	}
 
-	str = file.Read(0, 3)
-	//log.Println("==>"+str+"<==")
+	str = file.Read(0, 6)
+	log.Println("==>"+str+"<==", len(str), []byte(str))
 	if str != "123" {
 		t.Error("write error - 5")
+	}
+
+	str = file.Read(-6, 6)
+	log.Println("==>"+str+"<==", len(str), []byte(str))
+	if str != "123" {
+		t.Error("write error - 6")
 	}
 }

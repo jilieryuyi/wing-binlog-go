@@ -15,10 +15,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	_"net/http/pprof"
+	"net/http"
 )
 
 func main() {
-
+	go func() {
+		//http://localhost:6060/debug/pprof/  内存性能分析工具
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
 		os.Kill,
