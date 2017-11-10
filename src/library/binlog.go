@@ -12,9 +12,9 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	//log "github.com/sirupsen/logrus"
 
-	//"log"
+	"log"
 	//"os/signal"
 	//"syscall"
 	//"strings"
@@ -23,10 +23,10 @@ import (
 )
 
 func init() {
-	fmt.Println("binlog init")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true})
+	//fmt.Println("binlog init")
+	//log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+	//	ForceColors:true,
+	//	QuoteEmptyFields:true, FullTimestamp:true})
 }
 
 type Binlog struct {
@@ -53,12 +53,12 @@ type binlogHandler struct{
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 
-	log.Println(e.Table.Schema, e.Table.Name,
-	e.Table.Columns,
-	e.Table.Indexes,
-	e.Table.PKColumns)
+	//log.Println(e.Table.Schema, e.Table.Name,
+	//e.Table.Columns,
+	//e.Table.Indexes,
+	//e.Table.PKColumns)
 
-	log.Printf("OnRow ==>%s %d %v\n", e.Action, len(e.Rows), e.Rows)
+	//log.Printf("OnRow ==>%s %d %v\n", e.Action, len(e.Rows), e.Rows)
 
 	//sql := "show columns from "+e.Table
 

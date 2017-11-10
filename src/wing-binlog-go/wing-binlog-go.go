@@ -22,6 +22,14 @@ import (
 func main() {
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
+		//go tool pprof logDemo.exe --text a.prof
+		//go tool pprof your-executable-name profile-filename
+		//go tool pprof your-executable-name http://localhost:6060/debug/pprof/heap
+		//go tool pprof wing-binlog-go http://localhost:6060/debug/pprof/heap
+		//https://lrita.github.io/2017/05/26/golang-memory-pprof/
+		//然后执行 text
+		//go tool pprof -alloc_space http://127.0.0.1:6060/debug/pprof/heap
+		//top20 -cum
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 	sc := make(chan os.Signal, 1)
