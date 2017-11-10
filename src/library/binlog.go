@@ -4,7 +4,7 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
-	"github.com/siddontang/go-mysql/schema"
+	//"github.com/siddontang/go-mysql/schema"
 
 	"sync/atomic"
 	"fmt"
@@ -12,21 +12,23 @@ import (
 	"os"
 	"strings"
 
-	//log "github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
-	"log"
+	//"log"
 	//"os/signal"
 	//"syscall"
 	//"strings"
 	//"database/sql"
-	"reflect"
+	//"reflect"
+	//"encoding/json"
+	"strconv"
 )
 
 func init() {
 	//fmt.Println("binlog init")
-	//log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-	//	ForceColors:true,
-	//	QuoteEmptyFields:true, FullTimestamp:true})
+	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+		ForceColors:true,
+		QuoteEmptyFields:true, FullTimestamp:true})
 }
 
 type Binlog struct {
@@ -43,12 +45,15 @@ type positionCache struct {
 
 const (
 	MAX_CHAN_FOR_SAVE_POSITION = 128
+    defaultBufSize = 4096
+	DEFAULT_FLOAT_PREC = 6
 )
 
 type binlogHandler struct{
 	Event_index int64
 	canal.DummyEventHandler
 	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
+	buf     []byte
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
@@ -76,88 +81,200 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	//一次插入多条的时候，同时返回
 	//insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
 
+	clen := len(e.Table.Columns)
+
+	//{"database":"new_yonglibao_c","event":{"data":{"new_data":{"affirm_money":100,"created":1416887067,"days":0,"id":1,"invest_id":11,"pay_type":1,"payback_at":1416887067,"payout_money":100,"user_id":523},
+	// "old_data":{"affirm_money":100,"created":1416887067,"days":0,"id":1,"invest_id":111,"pay_type":1,"payback_at":1416887067,"payout_money":100,"user_id":523}}
+	// ,"event_type":"update","time":1510309349},"event_index":253131297,"table":"bw_active_payout"}
+	buf := h.buf[:0]
+	log.Println(e.Rows)
+
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i+=2 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 
-			res1 := make(map[string] interface{})
-			res2 := make(map[string] interface{})
+			buf = append(buf, "{\"database\":\""...)
+			buf = append(buf, e.Table.Schema...)
+			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
+
+
 			for k, col := range e.Table.Columns {
-				//log.Println(col.Name, "==>", col.Type, e.Rows[i][k])
+				buf = append(buf, "\""...)
+				buf = append(buf, col.Name...)
+				buf = append(buf, "\":"...)
+				edata := e.Rows[i][k]
+				//log.Println(reflect.TypeOf(edata))
+				switch edata.(type) {
+				case string:
+					buf = append(buf, "\""...)
+					for _, v := range edata.([]byte){
+						if v == 34 {
+							buf = append(buf, "\\"...)
+						}
+						buf = append(buf, v)
+					}
+					buf = append(buf, "\""...)
+				case []uint8:
+					buf = append(buf, "\""...)
+					buf = append(buf, edata.([]byte)...)
+					buf = append(buf, "\""...)
+				case int:
+					buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
+				case int8:
+					buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
+				case int64:
+					buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
+				case int32:
+					buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
+				case uint:
+					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
+				case float64:
+					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
+				case float32:
+					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
 
-				if col.Type == schema.TYPE_STRING {
-					wstr1 := WString{e.Rows[i][k]}
-					wstr2 := WString{e.Rows[i+1][k]}
-
-					// old data
-					res1[col.Name] = wstr1.ToString()
-					// new data
-					res2[col.Name] = wstr2.ToString()
-				} else {
-				    //old data
-					res1[col.Name] = e.Rows[i][k]
-					//new data
-					res2[col.Name] = e.Rows[i+1][k]
+				default:
+					buf = append(buf, "\"--unkonw type--\""...)
 				}
+
+				if k < clen - 1 {
+					buf = append(buf, ","...)
+				}
+
 			}
 
-			event := make(map[string] interface{})
+			buf = append(buf, "},\"new_data\":{"...)
 
-			event["event_type"] = e.Action                     //事件类型
-			event["time"]       = time.Now().Unix()            //发生事件的时间戳
-			event["data"]       = make(map[string] interface{})//事件数据
+			for k, col := range e.Table.Columns {
+				//res1[col.Name] = e.Rows[i][k]
+				buf = append(buf, "\""...)
+				buf = append(buf, col.Name...)
+				buf = append(buf, "\":"...)
+				edata := e.Rows[i+1][k]
+				switch edata.(type) {
+				case string:
+					buf = append(buf, "\""...)
+					for _, v := range edata.([]byte){
+						if v == 34 {
+							buf = append(buf, "\\"...)
+						}
+						buf = append(buf, v)
+					}
+					buf = append(buf, "\""...)
+				case []uint8:
+					buf = append(buf, "\""...)
+					buf = append(buf, edata.([]byte)...)
+					buf = append(buf, "\""...)
+				case int:
+					buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
+				case int8:
+					buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
+				case int64:
+					buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
+				case int32:
+					buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
+				case uint:
+					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
+				case float64:
+					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
+				case float32:
+					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
 
-			event["data"].(map[string] interface{})["old_data"] = res1                   //更新前的数据
-			event["data"].(map[string] interface{})["new_data"] = res2                   //更新后的数据
+				default:
+					buf = append(buf, "\"--unkonw type--\""...)
+				}
 
-			result := make(map[string] interface{})
-			result["database"]    = e.Table.Schema             //发生事件的数据库
-			result["table"]       = e.Table.Name               //发生事件的数据表
-			result["event"]       = event                      //事件数据
-			result["event_index"] = h.Event_index              //事件原子索引，类型为int64
+				if k < clen - 1 {
+					buf = append(buf, ","...)
+				}
 
-			//result 就是一个完整的update事件数据
-			log.Println(result)
+			}
+
+			buf = append(buf, "}},\"event_type\":\""...)
+			buf = append(buf, e.Action...)
+			buf = append(buf, "\",\"time\":"...)
+			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
+			buf = append(buf, "},\"event_index\":"...)
+			buf = strconv.AppendInt(buf, h.Event_index, 10)
+			buf = append(buf, ",\"table\":\""...)
+			buf = append(buf, e.Table.Name...)
+			buf = append(buf, "\"}"...)
+
+			fmt.Println(string(buf))
 		}
-
-
-
 	} else {
-		for i := 0; i < len(e.Rows); i+=1 {
+		for i := 0; i < len(e.Rows); i += 1 {
+			atomic.AddInt64(&h.Event_index, int64(1))
 
-			res := make(map[string] interface{})
+			buf = append(buf, "{\"database\":\""...)
+			buf = append(buf, e.Table.Schema...)
+			buf = append(buf, "\",\"event\":{\"data\":{"...)
+
 			for k, col := range e.Table.Columns {
-				atomic.AddInt64(&h.Event_index, int64(1))
+				buf = append(buf, "\""...)
+				buf = append(buf, col.Name...)
+				buf = append(buf, "\":"...)
 
-				//log.Println(col.Name, "==>", col.Type, e.Rows[i][k])
+				edata := e.Rows[i][k]
 
-				if col.Type == schema.TYPE_STRING {
-					wstr := WString{e.Rows[i][k]}
-					res[col.Name] = wstr.ToString()
-				} else {
-					res[col.Name] = e.Rows[i][k]
+				//log.Println(reflect.TypeOf(edata))
+				switch edata.(type) {
+				case string:
+					buf = append(buf, "\""...)
+					for _, v := range []byte(edata.(string)){
+						if v == 34 {
+							buf = append(buf, "\\"...)
+						}
+						buf = append(buf, v)
+					}
+					buf = append(buf, "\""...)
+
+				case []uint8:
+
+					buf = append(buf, "\""...)
+					buf = append(buf, string(edata.([]byte))...)
+					buf = append(buf, "\""...)
+
+				case int:
+					buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
+				case int8:
+					buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
+
+				case int64:
+					buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
+				case int32:
+					buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
+				case uint:
+					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
+				case float64:
+					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
+				case float32:
+					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
+
+				default:
+					buf = append(buf, "\"--unkonw type--\""...)
 				}
+
+				if k < clen - 1 {
+					buf = append(buf, ","...)
+				}
+
 			}
-			event := make(map[string] interface{})
 
-			event["event_type"] = e.Action                     //事件类型
-			event["time"]       = time.Now().Unix()            //发生事件的时间戳
-			event["data"]       = make(map[string] interface{})//事件数据
-			event["data"]       = res                          //删除的数据
+			buf = append(buf, "},\"event_type\":\""...)
+			buf = append(buf, e.Action...)
+			buf = append(buf, "\",\"time\":"...)
+			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
+			buf = append(buf, "},\"event_index\":"...)
+			buf = strconv.AppendInt(buf, h.Event_index, 10)
+			buf = append(buf, ",\"table\":\""...)
+			buf = append(buf, e.Table.Name...)
+			buf = append(buf, "\"}"...)
 
-			result := make(map[string] interface{})
-
-			result["database"]    = e.Table.Schema             //发生事件的数据库
-			result["table"]       = e.Table.Name               //发生事件的数据表
-			result["event"]       = event                      //事件数据
-			result["event_index"] = h.Event_index              //事件原子索引，类型为int64
-
-			//result 就是一个完整的update事件数据
-			log.Println(result)
+			fmt.Println(string(buf))
 		}
-
-
 	}
+
 
 	return nil
 }
@@ -267,6 +384,9 @@ func (h *Binlog) Start() {
 	f,p,index := h.GetBinlogPostionCache()
 
 	h.binlog_handler = binlogHandler{Event_index: index}
+	var b [defaultBufSize]byte
+	h.binlog_handler.buf = b[:]
+
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 
 	h.handler.SetEventHandler(&h.binlog_handler)
@@ -294,13 +414,13 @@ func (h *Binlog) Start() {
 		for {
 			select {
 			case pos := <-h.binlog_handler.chan_save_position:
-				log.Println(pos)
-				v := reflect.ValueOf(pos)
-				if v.IsValid() {
+				//log.Println(pos)
+				//v := reflect.ValueOf(pos)
+				//if v.IsValid() {
 					if pos.pos.Name != "" && pos.pos.Pos > 0 {
 						wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
 					}
-				}
+				//}
 			}
 		}
 	}()
