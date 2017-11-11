@@ -20,6 +20,8 @@ import (
 )
 
 func main() {
+	//标准输出重定向
+	//library.Reset()
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
 		//go tool pprof logDemo.exe --text a.prof
@@ -54,8 +56,7 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	//标准输出重定向
-	//library.Reset()
+
 	cpu := runtime.NumCPU()
 	wing_log.Println("cpu num: ", cpu)
 

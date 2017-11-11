@@ -391,7 +391,6 @@ func (h *Binlog) Start() {
 
 	h.handler.SetEventHandler(&h.binlog_handler)
 	h.is_connected = true
-	//这里要启动一个协程去保存postion
 
 	bin_file := h.DB_Config.Client.Bin_file
 	bin_pos  := h.DB_Config.Client.Bin_pos
@@ -402,11 +401,6 @@ func (h *Binlog) Start() {
 
 	if p > 0 {
 		bin_pos = p
-	}
-
-	startPos := mysql.Position{
-		Name: bin_file,
-		Pos:  uint32(bin_pos),
 	}
 
 	go func() {
@@ -425,6 +419,10 @@ func (h *Binlog) Start() {
 		}
 	}()
 	go func() {
+		startPos := mysql.Position{
+			Name: bin_file,
+			Pos:  uint32(bin_pos),
+		}
 		err = h.handler.RunFrom(startPos)
 		if err != nil {
 			log.Printf("start canal err %v", err)
