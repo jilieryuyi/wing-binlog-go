@@ -22,6 +22,8 @@ import (
 	//"reflect"
 	//"encoding/json"
 	"strconv"
+	"library/services"
+
 )
 
 func init() {
@@ -54,6 +56,11 @@ type binlogHandler struct{
 	canal.DummyEventHandler
 	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
 	buf     []byte
+	tcp_service *services.TcpService
+}
+
+func (h *binlogHandler) notify(msg []byte) {
+	h.tcp_service.SendAll(msg)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
@@ -200,7 +207,8 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, e.Table.Name...)
 			buf = append(buf, "\"}"...)
 
-			fmt.Println(string(buf))
+			//fmt.Println(string(buf))
+			h.notify(buf)
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
@@ -271,7 +279,8 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, e.Table.Name...)
 			buf = append(buf, "\"}"...)
 
-			fmt.Println(string(buf))
+			//fmt.Println(string(buf))
+			h.notify(buf)
 		}
 	}
 
@@ -353,7 +362,7 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 	return res[0], pos, index
 }
 
-func (h *Binlog) Start() {
+func (h *Binlog) Start(tcp_service *services.TcpService) {
 
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
@@ -386,6 +395,7 @@ func (h *Binlog) Start() {
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:]
+	h.binlog_handler.tcp_service = tcp_service;
 
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 

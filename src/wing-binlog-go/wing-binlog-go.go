@@ -3,6 +3,7 @@ package main
 import (
 	//"database/sql"
 	"library"
+	"library/services"
 	//"github.com/siddontang/go-mysql/canal"
 
 	//"library/base"
@@ -17,9 +18,35 @@ import (
 	"syscall"
 	_"net/http/pprof"
 	"net/http"
+	"fmt"
+	"io/ioutil"
+	"strconv"
 )
 
+
+func writePid() {
+	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
+	ioutil.WriteFile(library.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
+}
+
+func killPid() {
+	dat, _ := ioutil.ReadFile(library.GetCurrentPath() + "/wing-binlog-go.pid")
+	fmt.Print(string(dat))
+	pid, _ := strconv.Atoi(string(dat))
+	log.Println("给进程发送终止信号：", pid)
+	err := syscall.Kill(pid, syscall.SIGTERM)
+	log.Println(err)
+}
+
 func main() {
+
+	if (os.Args[1] == "stop") {
+		killPid()
+		return
+	}
+
+	writePid()
+
 	//标准输出重定向
 	//library.Reset()
 	go func() {
@@ -107,9 +134,12 @@ func main() {
 
 	//defer db.Close()
 
+
+	tcp_service := services.NewTcpService("0.0.0.0", 9998)
+
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()
-	blog.Start()
+	blog.Start(tcp_service)
 
 	<-sc
 
