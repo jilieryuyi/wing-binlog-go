@@ -16,18 +16,19 @@ const (
 )
 
 const (
-	CMD_SET_PRO = 1 << iota
-	CMD_AUTH
+	CMD_SET_PRO = 1 //<< iota
+	CMD_AUTH = 2
+	CMD_OK = 3
+	CMD_ERROR = 4
+	CMD_TICK = 5
+	CMD_EVENT = 6
 )
 
 const (
-	CMD_OK    = 1
-	CMD_ERROR = 2
-
-	TCP_MAX_SEND_QUEUE = 4096
-	TCP_DEFAULT_CLIENT_SIZE = 64
+	TCP_MAX_SEND_QUEUE           = 4096
+	TCP_DEFAULT_CLIENT_SIZE      = 64
 	TCP_DEFAULT_READ_BUFFER_SIZE = 1024
-	TCP_RECV_DEFAULT_SIZE = 4096
+	TCP_RECV_DEFAULT_SIZE        = 4096
 )
 
 type tcp_client_node struct {
@@ -57,25 +58,26 @@ type TcpService struct {
 }
 
 func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
-
 	tcp := &TcpService{
 		Ip:ip,
 		Port:port,
 		clients_count:int32(0),
+		lock:new(sync.Mutex),
 	}
 
-	tcp.groups = make(map[string][]*tcp_client_node)
+	tcp.send_queue  = make(chan []byte, TCP_MAX_SEND_QUEUE)
+	tcp.groups      = make(map[string][]*tcp_client_node)
+	tcp.groups_mode = make(map[string] int)
+
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node
-		tcp.groups[v.Name] = con[:0]
+		tcp.groups[v.Name]      = con[:0]
 		tcp.groups_mode[v.Name] = v.Mode
 	}
 
-	tcp.recv_times = 0
-	tcp.send_times = 0
+	tcp.recv_times         = 0
+	tcp.send_times         = 0
 	tcp.send_failure_times = 0
-	tcp.send_queue = make(chan []byte, TCP_MAX_SEND_QUEUE)
-	tcp.lock = new(sync.Mutex)
 	return tcp
 }
 
@@ -88,7 +90,7 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		log.Println("tcp发送缓冲区满...")
 		return false
 	}
-	tcp.send_queue <- msg
+	tcp.send_queue <- tcp.pack(CMD_EVENT, string(msg))
 	return true
 }
 
@@ -113,6 +115,27 @@ func (tcp *TcpService) broadcast() {
 							}
 						} else {
 							// todo 根据已经send_times的次数负载均衡
+							target := clients[0]
+							//将发送次数/权重 作为负载基数，每次选择最小的发送
+							js := atomic.LoadInt64(&target.send_times)/int64(target.weight)
+
+							for _, conn := range clients {
+								stimes := atomic.LoadInt64(&conn.send_times)
+								//conn.send_queue <- msg
+								if stimes == 0 {
+									//优先发送没有发过的
+									target = conn
+									break
+								}
+
+								_js := stimes/int64(conn.weight)
+								if _js < js {
+									js = _js
+									target = conn
+								}
+							}
+
+							target.send_queue <- msg
 						}
 					}
 				case <-tou.C://time.After(time.Second*3):
@@ -138,10 +161,10 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 // 收到消息回调函数
 func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
 	conn.recv_buf = append(conn.recv_buf, msg...)
-	if len(conn.recv_buf) < 10 {
+	if len(conn.recv_buf) < 4 {
 		return
 	} else if len(conn.recv_buf) > TCP_RECV_DEFAULT_SIZE {
-		//清除所有的读缓存，防止发送的脏数据不断的累计
+		// 清除所有的读缓存，防止发送的脏数据不断的累计
 		var nb [TCP_RECV_DEFAULT_SIZE]byte
 		conn.recv_buf = nb[:0]
 		return
@@ -154,6 +177,9 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
 
 	switch cmd {
 	case CMD_SET_PRO:
+		if len(conn.recv_buf) < 10 {
+			return
+		}
 		//2字节 mode
 		mode := int(msg[4])+ int(msg[5] << 8)
 		//4字节 weight
@@ -190,12 +216,42 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
 			conn.group = group
 			conn.mode = mode
 			conn.weight = weight
+
+
+
+
+
 			//数据移动
 			copy(conn.recv_buf[:0], conn.recv_buf[content_len:])
 			atomic.AddInt32(&tcp.clients_count, int32(1))
 			tcp.groups[group] = append(tcp.groups[group], conn)
+
+
+			//weight 合理性格式化，保证所有的weight的和是100
+			all_weight := 0
+			for _, _conn := range tcp.groups[group] {
+				w := _conn.weight
+				if w <= 0 {
+					w = 100
+				}
+				all_weight += w
+			}
+
+			gl := len(tcp.groups[group])
+			yg := 0
+			for k, _conn := range tcp.groups[group] {
+				if k == gl - 1 {
+					_conn.weight = 100 - yg
+				} else {
+					_conn.weight = int(_conn.weight*100/all_weight)
+					yg += _conn.weight
+				}
+			}
+
 			tcp.lock.Unlock()
 		}
+	case CMD_TICK:
+		//心跳包
 	default:
 		conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 	}
