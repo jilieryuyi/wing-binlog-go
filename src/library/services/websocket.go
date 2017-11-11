@@ -6,48 +6,105 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"strings"
-	"bytes"
-	"os"
-	"os/signal"
-	"syscall"
-	"path/filepath"
-	"io/ioutil"
-	"strconv"
+	"sync"
+	"time"
+	"runtime"
+	"sync/atomic"
 )
+
+type websocket_client_node struct {
+	conn *websocket.Conn
+	is_connected bool
+	send_queue chan []byte
+	send_failure_times int64
+}
 
 const (
-	readBufferSize  = 10240
-	writeBufferSize = 10240
+	WEBSOCKET_MAX_SEND_QUEUE = 4096
+	WEBSOCKET_DEFAULT_CLIENT_SIZE = 64
+	WEBSOCKET_DEFAULT_READ_BUFFER_SIZE  = 4096
+	WEBSOCKET_DEFAULT_WRITE_BUFFER_SIZE = 4096
 )
 
-type BODY struct {
-	conn *websocket.Conn
-	msg bytes.Buffer
+
+type WebSocketService struct {
+	Ip string
+	Port int
+	clients []*tcp_client_node
+	recv_times int64
+	send_times int64
+	send_failure_times int64
+	send_queue chan []byte
+	lock *sync.Mutex
 }
 
-type SEND_BODY struct {
-	conn *websocket.Conn
-	msg string
+func NewWebSocketService(ip string, port int) *WebSocketService {
+	tcp := &WebSocketService{
+		Ip:ip,
+		Port:port,
+	}
+
+	var con [WEBSOCKET_DEFAULT_CLIENT_SIZE]*tcp_client_node
+	tcp.clients = con[:]
+	tcp.recv_times = 0
+	tcp.send_times = 0
+	tcp.send_failure_times = 0
+	tcp.send_queue = make(chan []byte, WEBSOCKET_MAX_SEND_QUEUE)
+	tcp.lock = new(sync.Mutex)
+	return tcp
 }
 
-//所有的连接进来的客户端
-var clients map[int]*websocket.Conn = make(map[int]*websocket.Conn)
-//所有的连接进来的客户端数量
-var clients_count int    = 0
-const MAX_SEND_QUEUE int = 102400
-var send_msg_chan  chan SEND_BODY =  make(chan SEND_BODY, MAX_SEND_QUEUE)
-var msg_split string     = "\r\n\r\n\r\n";
-var DEBUG bool         = true
-var send_times int       = 0
-var send_error_times int = 0
+/**
+ * 对外的广播发送接口
+ */
+func (ws *WebSocketService) SendAll(msg []byte) bool {
+	if len(ws.send_queue >= cap(ws.send_queue)) {
+		log.Println("websocket发送缓冲区满...")
+		return false
+	}
+	ws.send_queue <- msg
+	return true
+}
 
-func OnConnect(conn *websocket.Conn) {
+func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
+	to := time.NewTimer(time.Second*1)
 
-	clients[clients_count] = conn
-	clients_count++
-	var buffer bytes.Buffer
-	body := BODY{conn, buffer}
+	for {
+		if !node.is_connected {
+			break
+		}
+
+		select {
+		case  msg := <-node.send_queue:
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
+			err := (*node.conn).WriteMessage(1, msg)
+			if err != nil {
+				atomic.AddInt64(&tcp.send_failure_times, int64(1))
+				atomic.AddInt64(&node.send_failure_times, int64(1))
+
+				log.Println("失败次数：", tcp.send_failure_times, node.conn, node.send_failure_times)
+			}
+		case <-to.C://time.After(time.Second*3):
+		//log.Println("发送超时...", tcp)
+		}
+	}
+}
+
+func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
+
+	//clients[clients_count] = conn
+	//clients_count++
+	//var buffer bytes.Buffer
+	//body := BODY{conn, buffer}
+	ws.lock.Lock()
+	cnode := &websocket_client_node{&conn, true, make(chan []byte, WEBSOCKET_MAX_SEND_QUEUE), 0}
+	ws.clients = append(ws.clients, cnode)
+	ws.lock.Unlock()
+
+
+	go ws.clientSendService(cnode)
+
+	//var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
 	for {
 		_, message, err := conn.ReadMessage()
@@ -55,181 +112,67 @@ func OnConnect(conn *websocket.Conn) {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 			}
-
-			for key, client := range clients {
-				if (conn.RemoteAddr().String() == client.RemoteAddr().String()) {
-					delete(clients, key)
-					//delete(msg_buffer, conn.RemoteAddr().String())
-				}
-			}
-
+			ws.onClose(conn)
 			conn.Close();
 			break
 		}
-		msg := fmt.Sprintf("%s", message)
-		Log("收到消息：", msg)
-		body.msg.Write(message)
-		OnMessage(&body)
+		ws.onMessage(message)
 	}
 }
 
-func OnMessage(conn *BODY) {
-
-	//html := 		"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Type: text/html\r\n\r\nhello"
-	//粘包处理
-	temp     := strings.Split(conn.msg.String(), msg_split)
-	temp_len := len(temp)
-
-	if (temp_len >= 2) {
-		conn.msg.Reset()
-		conn.msg.WriteString(temp[temp_len - 1])
-
-		for _, v := range temp {
-			if strings.EqualFold(v, "") {
-				continue
-			}
-
-			v += "\r\n\r\n\r\n"
-			send_times++;
-			Log("广播次数：", send_times)
-
-			for _, client := range clients {
-				if (conn.conn.RemoteAddr().String() == client.RemoteAddr().String()) {
-					Log("不给自己发广播...")
-					continue
-				}
-				if (len(send_msg_chan) >= MAX_SEND_QUEUE) {
-					Log("发送缓冲区满")
-				} else {
-					send_msg_chan <- SEND_BODY{client, v}
-				}
-			}
-
+func (ws *WebSocketService) onClose(conn *websocket.Conn) {
+	//移除conn
+	//查实查找位置
+	ws.lock.Lock()
+	for index, con := range ws.clients {
+		if con.conn == conn {
+			con.is_connected = false
+			ws.clients = append(ws.clients[:index], ws.clients[index+1:]...)
+			break
 		}
 	}
+	ws.lock.Unlock()
 }
 
-func MainThread() {
-	go func() {
-		for {
-			select {
-			case body := <-send_msg_chan:
-				//body.conn.SetWriteDeadline(time.Now().Add(time.Second * 3))
-				Log("发送：", body.msg)
-				err := body.conn.WriteMessage(1, []byte(body.msg))
-				if err != nil {
-					send_error_times++
-					Log("发送失败次数：", send_error_times)
-					Log(err)
+func (ws *WebSocketService) onMessage(msg []byte) {
+
+}
+
+/**
+ * 广播服务
+ */
+func (ws *WebSocketService) broadcast() {
+	to := time.NewTimer(time.Second*1)
+	cpu := runtime.NumCPU()
+	for i := 0; i < cpu; i ++ {
+		tou := to
+		go func() {
+			for {
+				select {
+				case  msg := <-ws.send_queue:
+					for _, conn := range ws.clients {
+						conn.send_queue <- msg
+					}
+				case <-tou.C://time.After(time.Second*3):
 				}
-			//case <-to.C://time.After(time.Second*3):
-			//	Log("发送超时...")
 			}
-		}
-	}()
-}
-
-
-func Log(v ...interface{}) {
-	if (DEBUG) {
-		log.Println(v...)
+		} ()
 	}
 }
 
-func SignalHandle() {
-	c := make(chan os.Signal)
-	signal.Notify(c, syscall.SIGTERM)
+func (ws *WebSocketService) Start() {
 
-	//当调用了该方法后，下面的for循环内<-c接收到一个信号就退出了。
-	signal.Stop(c)
-
-	for {
-		s := <-c
-		Log("进程收到退出信号",s)
-		os.Exit(0)
-	}
-}
-
-func ResetStd() {
-	dir := GetParentPath(GetCurrentPath())
-	handle, _ := os.OpenFile(dir+"/logs/websocket.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
-	os.Stdout = handle
-	os.Stderr = handle
-}
-
-func GetCurrentPath() string {
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.Replace(dir, "\\", "/", -1)
-}
-
-func substr(s string, pos, length int) string {
-	runes := []rune(s)
-	l := pos + length
-	if l > len(runes) {
-		l = len(runes)
-	}
-	return string(runes[pos:l])
-}
-func GetParentPath(dirctory string) string {
-	return substr(dirctory, 0, strings.LastIndex(dirctory, "/"))
-}
-
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("请使用如下模式启动")
-		fmt.Println("1、指定端口为9998：websocket 9998")
-		fmt.Println("2、指定端口为9998并且启用debug模式：websocket 9998 --debug")
-		return
-	}
-
-	if (os.Args[1] == "stop") {
-		dat, _ := ioutil.ReadFile(GetCurrentPath() + "/websocket.pid")
-		fmt.Print(string(dat))
-		pid, _ := strconv.Atoi(string(dat))
-		Log("给进程发送终止信号：", pid)
-
-		err := syscall.Kill(pid, syscall.SIGTERM)
-		Log(err)
-		return
-	}
-
-	Log(GetParentPath(GetCurrentPath()))
-	Log(os.Getpid())
-
-	//写入pid
-	Log("写入pid", os.Getpid(), "---",fmt.Sprintf("%d", os.Getpid()))
-	//handle, _ := os.OpenFile(GetCurrentPath() + "/websocket.pid", os.O_WRONLY | os.O_CREATE | os.O_SYNC, 0755)
-	//io.WriteString(handle, fmt.Sprintf("%d ", os.Getpid()))
-
-	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
-	ioutil.WriteFile(GetCurrentPath() + "/websocket.pid", data_str, 0777)  //写入文件(字节数组)
-
-	if len(os.Args) == 3 {
-		if os.Args[2] == "debug" || os.Args[2] == "--debug" {
-			DEBUG = true
-		}
-	}
-	Log(DEBUG)
-	if !DEBUG {
-		ResetStd()
-	} else {
-		Log("debug模式")
-	}
-
-	go MainThread()
-	go SignalHandle()
+	go ws.broadcast()
 
 	m := martini.Classic()
 
 	m.Get("/", func(res http.ResponseWriter, req *http.Request) {
 		// res and req are injected by Martini
 
-		u := websocket.Upgrader{ReadBufferSize: readBufferSize, WriteBufferSize: writeBufferSize}
+		u := websocket.Upgrader{ReadBufferSize: WEBSOCKET_DEFAULT_READ_BUFFER_SIZE,
+			WriteBufferSize: WEBSOCKET_DEFAULT_WRITE_BUFFER_SIZE}
 		u.Error = func(w http.ResponseWriter, r *http.Request, status int, reason error) {
-			Log(w, r, status, reason)
+			log.Println(w, r, status, reason)
 			// don't return errors to maintain backwards compatibility
 		}
 		u.CheckOrigin = func(r *http.Request) bool {
@@ -243,9 +186,10 @@ func main() {
 			return
 		}
 
-		Log("新的连接：" + conn.RemoteAddr().String())
-		go OnConnect(conn)
+		log.Println("新的连接：" + conn.RemoteAddr().String())
+		go ws.onConnect(conn)
 	})
 
-	m.RunOnAddr(":" + os.Args[1])
+	dns := fmt.Sprintf(":%d", ws.Port)
+	m.RunOnAddr(dns)
 }

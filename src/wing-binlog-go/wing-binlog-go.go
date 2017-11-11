@@ -136,10 +136,11 @@ func main() {
 
 
 	tcp_service := services.NewTcpService("0.0.0.0", 9998)
+	websocket_service := services.NewWebSocketService("0.0.0.0", 9997)
 
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()
-	blog.Start(tcp_service)
+	blog.Start(tcp_service, websocket_service)
 
 	<-sc
 

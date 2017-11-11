@@ -57,10 +57,12 @@ type binlogHandler struct{
 	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
 	buf     []byte
 	tcp_service *services.TcpService
+	websocket_service *services.WebsocketService
 }
 
 func (h *binlogHandler) notify(msg []byte) {
 	h.tcp_service.SendAll(msg)
+	h.websocket_service.SendAll(msg)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
@@ -362,7 +364,7 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 	return res[0], pos, index
 }
 
-func (h *Binlog) Start(tcp_service *services.TcpService) {
+func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *services.NewWebSocketService) {
 
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
@@ -395,7 +397,8 @@ func (h *Binlog) Start(tcp_service *services.TcpService) {
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:]
-	h.binlog_handler.tcp_service = tcp_service;
+	h.binlog_handler.tcp_service = tcp_service
+	h.binlog_handler.websocket_service = websocket_service
 
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 
