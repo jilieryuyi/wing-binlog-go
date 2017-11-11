@@ -57,7 +57,7 @@ type binlogHandler struct{
 	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
 	buf     []byte
 	tcp_service *services.TcpService
-	websocket_service *services.WebsocketService
+	websocket_service *services.WebSocketService
 }
 
 func (h *binlogHandler) notify(msg []byte) {
@@ -96,7 +96,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	// "old_data":{"affirm_money":100,"created":1416887067,"days":0,"id":1,"invest_id":111,"pay_type":1,"payback_at":1416887067,"payout_money":100,"user_id":523}}
 	// ,"event_type":"update","time":1510309349},"event_index":253131297,"table":"bw_active_payout"}
 	buf := h.buf[:0]
-	log.Println(e.Rows)
+	//log.Println(e.Rows)
 
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i+=2 {
@@ -116,7 +116,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
-					for _, v := range edata.([]byte){
+					for _, v := range []byte(edata.(string)) {
 						if v == 34 {
 							buf = append(buf, "\\"...)
 						}
@@ -138,9 +138,9 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case uint:
 					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
 				case float64:
-					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
+					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
 				case float32:
-					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
+					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 
 				default:
 					buf = append(buf, "\"--unkonw type--\""...)
@@ -163,7 +163,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
-					for _, v := range edata.([]byte){
+					for _, v := range []byte(edata.(string)) {
 						if v == 34 {
 							buf = append(buf, "\\"...)
 						}
@@ -185,9 +185,9 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case uint:
 					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
 				case float64:
-					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
+					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
 				case float32:
-					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
+					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 
 				default:
 					buf = append(buf, "\"--unkonw type--\""...)
@@ -294,29 +294,29 @@ func (h *binlogHandler) String() string {
 	return "binlogHandler"
 }
 
-
 func (h *binlogHandler) OnRotate(e *replication.RotateEvent) error {
-	log.Println("OnRotate ==>", e.Position, string(e.NextLogName))
+	log.Println("OnRotate")
 	return nil
 }
+
 func (h *binlogHandler) OnDDL(p mysql.Position, e *replication.QueryEvent) error {
-	log.Println("OnDDL ==>",
-		p.Name, p.Pos, e)
+	log.Println("OnDDL")
 	return nil
 }
+
 func (h *binlogHandler) OnXID(p mysql.Position) error {
-	log.Println("OnXID ==>", p)
+	log.Println("OnXID")
 	//h.SaveBinlogPostionCache(p)
 	return nil
 }
+
 func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
 	log.Println("OnGTID ==>", g)
 	return nil
 }
-func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
-	//在这里保存pos的位置和bin_file
-	log.Println("OnPosSynced ==>", p, b)
 
+func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
+	log.Println("OnPosSynced ==>", p, b)
 	h.SaveBinlogPostionCache(p)
 	return nil
 }
@@ -336,8 +336,6 @@ func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
 			<-h.chan_save_position //丢弃掉未写入的部分数据，优化性能，这里丢弃的pos并不影响最终的结果
 		}
 	}
-
-	//cap 返回容量
 	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
 }
 
@@ -364,7 +362,7 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 	return res[0], pos, index
 }
 
-func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *services.NewWebSocketService) {
+func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *services.WebSocketService) {
 
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
@@ -396,7 +394,7 @@ func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *serv
 
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
-	h.binlog_handler.buf = b[:]
+	h.binlog_handler.buf = b[:0]
 	h.binlog_handler.tcp_service = tcp_service
 	h.binlog_handler.websocket_service = websocket_service
 

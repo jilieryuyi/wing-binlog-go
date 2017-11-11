@@ -10,7 +10,7 @@ func TestWConfig_Parse(t *testing.T) {
     config_file := "/tmp/__test_mysql.toml"
     config := &WConfig{config_file}
 
-    app_config, err:= config.Parse()
+    app_config, err:= config.GetMysql()
 
     if err != nil {
         t.Error(err)
@@ -75,4 +75,12 @@ func TestWConfig_Parse(t *testing.T) {
     if app_config.Mysql.DbName != "wordpress" {
         t.Error("config parse error - 11")
     }
+}
+
+func TestWConfig_GetTcp(t *testing.T) {
+    config := "/Users/yuyi/Code/go/wing-binlog-go/src/config/tcp.toml"
+    wconfig := &WConfig{config}
+
+    tcp,_ := wconfig.GetTcp()
+    log.Println(tcp)
 }

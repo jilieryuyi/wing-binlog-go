@@ -30,7 +30,7 @@ const (
 type WebSocketService struct {
 	Ip string
 	Port int
-	clients []*tcp_client_node
+	clients []*websocket_client_node
 	recv_times int64
 	send_times int64
 	send_failure_times int64
@@ -44,8 +44,8 @@ func NewWebSocketService(ip string, port int) *WebSocketService {
 		Port:port,
 	}
 
-	var con [WEBSOCKET_DEFAULT_CLIENT_SIZE]*tcp_client_node
-	tcp.clients = con[:]
+	var con [WEBSOCKET_DEFAULT_CLIENT_SIZE]*websocket_client_node
+	tcp.clients = con[:0]
 	tcp.recv_times = 0
 	tcp.send_times = 0
 	tcp.send_failure_times = 0
@@ -58,8 +58,12 @@ func NewWebSocketService(ip string, port int) *WebSocketService {
  * 对外的广播发送接口
  */
 func (ws *WebSocketService) SendAll(msg []byte) bool {
-	if len(ws.send_queue >= cap(ws.send_queue)) {
-		log.Println("websocket发送缓冲区满...")
+	clen := len(ws.clients)
+	if clen <=0 {
+		return false
+	}
+	if len(ws.send_queue) >= cap(ws.send_queue) {
+		log.Println("websocket发送缓冲区满...", clen)
 		return false
 	}
 	ws.send_queue <- msg
@@ -97,7 +101,7 @@ func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
 	//var buffer bytes.Buffer
 	//body := BODY{conn, buffer}
 	ws.lock.Lock()
-	cnode := &websocket_client_node{&conn, true, make(chan []byte, WEBSOCKET_MAX_SEND_QUEUE), 0}
+	cnode := &websocket_client_node{conn, true, make(chan []byte, WEBSOCKET_MAX_SEND_QUEUE), 0}
 	ws.clients = append(ws.clients, cnode)
 	ws.lock.Unlock()
 
@@ -116,6 +120,7 @@ func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
 			conn.Close();
 			break
 		}
+		log.Println("收到websocket消息：", string(message))
 		ws.onMessage(message)
 	}
 }
@@ -190,6 +195,6 @@ func (ws *WebSocketService) Start() {
 		go ws.onConnect(conn)
 	})
 
-	dns := fmt.Sprintf(":%d", ws.Port)
+	dns := fmt.Sprintf("%s:%d", ws.Ip, ws.Port)
 	m.RunOnAddr(dns)
 }

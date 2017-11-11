@@ -22,4 +22,16 @@ func main() {
     fmt.Println("==>"+string(s2)+"<==", "==>"+string(s.buf)+"<==", string(b))
 
     fmt.Println("==" +string([]byte{34})+ "==")
+
+
+    bbb := make([]byte, 128)
+    aaaa:= []byte("sdfsdf")
+    ccc := bbb[:2]
+    copy(ccc, aaaa)
+    fmt.Println("len=", len(ccc), string(ccc) , string(ccc[8:20]))
+
+
+    var nb [len(ccc)]byte
+    copy(nb, aaaa)
+    fmt.Println(nb)
 }

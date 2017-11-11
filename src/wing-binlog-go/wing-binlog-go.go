@@ -40,7 +40,7 @@ func killPid() {
 
 func main() {
 
-	if (os.Args[1] == "stop") {
+	if len(os.Args) > 1 && os.Args[1] == "stop" {
 		killPid()
 		return
 	}
@@ -94,6 +94,7 @@ func main() {
 	wing_log.Println(current_path)
 
 	config_file := current_path + "/config/mysql.toml"
+	tcp_config_file := current_path + "/config/tcp.toml"
 
 	//config_obj := &library.Ini{config_file}
 	//config := config_obj.Parse()
@@ -107,14 +108,19 @@ func main() {
 	//config_file := "/tmp/__test_mysql.toml"
 	config := &library.WConfig{config_file}
 
-	app_config, err:= config.Parse()
+	app_config, err:= config.GetMysql()
 
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-
+	wtcp_config := &library.WConfig{tcp_config_file}
+	tcp_config, err := wtcp_config.GetTcp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	//user := string(config["mysql"]["user"].(string))
 	//password := string(config["mysql"]["password"].(string))
 	//port := string(config["mysql"]["port"].(string))
@@ -134,8 +140,7 @@ func main() {
 
 	//defer db.Close()
 
-
-	tcp_service := services.NewTcpService("0.0.0.0", 9998)
+	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port)
 	websocket_service := services.NewWebSocketService("0.0.0.0", 9997)
 
 	blog := library.Binlog{DB_Config:app_config}

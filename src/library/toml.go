@@ -1,13 +1,11 @@
 package library
 
 import (
-    //"fmt"
     "github.com/BurntSushi/toml"
     "log"
     "github.com/juju/errors"
 )
 
-//import "time"
 var (
     ErrorFileNotFound = errors.New("config file not fount")
     ErrorFileParse = errors.New("parse config error")
@@ -41,7 +39,21 @@ type MysqlConfig struct {
     DbName string
 }
 
-func (config *WConfig) Parse() (*AppConfig, error) {
+type tcpGroup struct {
+    Mode int// "1 broadcast" ##(广播)broadcast or  2 (权重)weight
+    Name string// = "group1"
+}
+type __tcpConfig struct {
+    Listen string
+    Port int
+}
+type TcpConfig struct {
+    Groups map[string]tcpGroup
+    Tcp __tcpConfig
+}
+
+// 获取mysql配置
+func (config *WConfig) GetMysql() (*AppConfig, error) {
     var app_config AppConfig
 
     wfile := WFile{config.Config_file}
@@ -54,19 +66,21 @@ func (config *WConfig) Parse() (*AppConfig, error) {
         log.Println(err)
         return nil, ErrorFileParse
     }
-
-    //fmt.Printf("Title: %s\n", config.Title)
-    //fmt.Printf("Owner: %s (%s, %s), Born: %s\n",
-    //    config.Owner.Name, config.Owner.Org, config.Owner.Bio,
-    //    config.Owner.DOB)
-    //fmt.Printf("Database: %s %v (Max conn. %d), Enabled? %v\n",
-    //    config.DB.Server, config.DB.Ports, config.DB.ConnMax,
-    //    config.DB.Enabled)
-    //for serverName, server := range config.Servers {
-    //    fmt.Printf("Server: %s (%s, %s)\n", serverName, server.IP, server.DC)
-    //}
-    //fmt.Printf("Client data: %v\n", config.Clients.Data)
-    //fmt.Printf
     return &app_config, nil
 }
 
+func (config *WConfig) GetTcp() (*TcpConfig, error) {
+    var tcp_config TcpConfig
+
+    wfile := WFile{config.Config_file}
+    if !wfile.Exists() {
+        log.Printf("config file %s does not exists", config.Config_file)
+        return nil, ErrorFileNotFound
+    }
+
+    if _, err := toml.DecodeFile(config.Config_file, &tcp_config); err != nil {
+        log.Println(err)
+        return nil, ErrorFileParse
+    }
+    return &tcp_config, nil
+}
