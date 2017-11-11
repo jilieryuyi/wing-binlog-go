@@ -23,52 +23,44 @@ const (
 const (
 	CMD_OK    = 1
 	CMD_ERROR = 2
-)
 
-
-type tcp_client_node struct {
-	conn *net.Conn
-	is_connected bool
-	send_queue chan []byte
-	send_failure_times int64
-	mode int //broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight int
-	group string
-	recv_buf []byte
-	connect_time int64
-	send_times int64
-}
-
-const (
 	TCP_MAX_SEND_QUEUE = 4096
 	TCP_DEFAULT_CLIENT_SIZE = 64
 	TCP_DEFAULT_READ_BUFFER_SIZE = 1024
 	TCP_RECV_DEFAULT_SIZE = 4096
 )
 
+type tcp_client_node struct {
+	conn *net.Conn           // 客户端连接进来的资源句柄
+	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
+	send_queue chan []byte   // 发送channel
+	send_failure_times int64 // 发送失败次数
+	mode int                 // broadcast = 1 weight = 2 支持两种方式，广播和权重
+	weight int               // 权重 0 - 100
+	group string             // 所属分组
+	recv_buf []byte          // 读缓冲区
+	connect_time int64       // 连接成功的时间戳
+	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
+}
+
 type TcpService struct {
-	Ip string
-	Port int
-	//clients []*tcp_client_node
-	recv_times int64
-	send_times int64
-	send_failure_times int64
-	send_queue chan []byte
-	lock *sync.Mutex
-	groups map[string][]*tcp_client_node
-	groups_mode map[string] int
-	config *TcpConfig
-	clients_count int32
+	Ip string                             // 监听ip
+	Port int                              // 监听端口
+	recv_times int64                      // 收到消息的次数
+	send_times int64                      // 发送消息的次数
+	send_failure_times int64              // 发送失败的次数
+	send_queue chan []byte                // 发送队列-广播
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	groups map[string][]*tcp_client_node  // 客户端分组，现在支持两种分组，广播组合负载均衡组
+	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
+	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
 func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
 
-	//l := len(config.Groups)
-
 	tcp := &TcpService{
 		Ip:ip,
 		Port:port,
-		config:config,
 		clients_count:int32(0),
 	}
 
@@ -78,9 +70,6 @@ func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
 		tcp.groups[v.Name] = con[:0]
 		tcp.groups_mode[v.Name] = v.Mode
 	}
-
-	//var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node
-	//tcp.clients = con[:0]
 
 	tcp.recv_times = 0
 	tcp.send_times = 0
@@ -184,7 +173,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
 
 			group := string(conn.recv_buf[9:content_len])
 			is_find := false
-			for _, g := range tcp.groups {
+			for g, _ := range tcp.groups {
 				if g == group {
 					is_find = true
 					break
@@ -194,14 +183,15 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
 				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
 				return
 			}
-
+			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- tcp.pack(CMD_OK, "ok")
+
+			tcp.lock.Lock()
 			conn.group = group
 			conn.mode = mode
 			conn.weight = weight
 			//数据移动
 			copy(conn.recv_buf[:0], conn.recv_buf[content_len:])
-			tcp.lock.Lock()
 			atomic.AddInt32(&tcp.clients_count, int32(1))
 			tcp.groups[group] = append(tcp.groups[group], conn)
 			tcp.lock.Unlock()
@@ -220,7 +210,7 @@ func (tcp *TcpService) onClose(conn *tcp_client_node) {
 	//查实查找位置
 	tcp.lock.Lock()
 	for index, con := range tcp.groups[conn.group] {
-		if con.conn == conn {
+		if con.conn == conn.conn {
 			con.is_connected = false
 			tcp.groups[conn.group] = append(tcp.groups[conn.group][:index], tcp.groups[conn.group][index+1:]...)
 			break
@@ -282,7 +272,8 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
-	conn.SetDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	//conn.SetDeadline(time.Now().Add(time.Second*3))
 	for {
 		rbuf := read_buffer[:0]
 		size, err := conn.Read(rbuf)
@@ -298,7 +289,6 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 
 		tcp.onMessage(cnode, rbuf)
-		conn.SetDeadline(0)
 	}
 
 }
