@@ -116,6 +116,7 @@ func main() {
 	}
 
 	wtcp_config := &library.WConfig{tcp_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
 	tcp_config, err := wtcp_config.GetTcp()
 	if err != nil {
 		log.Println(err)
@@ -140,7 +141,7 @@ func main() {
 
 	//defer db.Close()
 
-	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port)
+	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
 	websocket_service := services.NewWebSocketService("0.0.0.0", 9997)
 
 	blog := library.Binlog{DB_Config:app_config}

@@ -54,12 +54,24 @@ type TcpService struct {
 	send_queue chan []byte
 	lock *sync.Mutex
 	groups []string
+	config *TcpConfig
 }
 
-func NewTcpService(ip string, port int) *TcpService {
+func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
+
+	l := len(config.Groups)
+
 	tcp := &TcpService{
 		Ip:ip,
 		Port:port,
+		config:config,
+	}
+
+	tcp.groups = make([]string, l)
+	i := 0
+	for _, v := range config.Groups {
+		tcp.groups[i] = v.Name
+		i++
 	}
 
 	var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node

@@ -4,6 +4,7 @@ import (
     "github.com/BurntSushi/toml"
     "log"
     "github.com/juju/errors"
+    "library/services"
 )
 
 var (
@@ -39,19 +40,6 @@ type MysqlConfig struct {
     DbName string
 }
 
-type tcpGroup struct {
-    Mode int// "1 broadcast" ##(广播)broadcast or  2 (权重)weight
-    Name string// = "group1"
-}
-type __tcpConfig struct {
-    Listen string
-    Port int
-}
-type TcpConfig struct {
-    Groups map[string]tcpGroup
-    Tcp __tcpConfig
-}
-
 // 获取mysql配置
 func (config *WConfig) GetMysql() (*AppConfig, error) {
     var app_config AppConfig
@@ -69,8 +57,8 @@ func (config *WConfig) GetMysql() (*AppConfig, error) {
     return &app_config, nil
 }
 
-func (config *WConfig) GetTcp() (*TcpConfig, error) {
-    var tcp_config TcpConfig
+func (config *WConfig) GetTcp() (*services.TcpConfig, error) {
+    var tcp_config services.TcpConfig
 
     wfile := WFile{config.Config_file}
     if !wfile.Exists() {
