@@ -137,6 +137,7 @@ func main() {
 	websocket_service := services.NewWebSocketService(websocket_config.Tcp.Listen, websocket_config.Tcp.Port, websocket_config)
 
 	tcp_service.Start()
+	websocket_service.Start()
 
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()

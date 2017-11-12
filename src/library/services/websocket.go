@@ -356,35 +356,38 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 }
 
 func (tcp *WebSocketService) Start() {
+	log.Println("等待新的连接...")
 
 	go tcp.broadcast()
 
-	m := martini.Classic()
+	go func() {
+		m := martini.Classic()
 
-	m.Get("/", func(res http.ResponseWriter, req *http.Request) {
-		// res and req are injected by Martini
+		m.Get("/", func(res http.ResponseWriter, req *http.Request) {
+			// res and req are injected by Martini
 
-		u := websocket.Upgrader{ReadBufferSize: TCP_DEFAULT_READ_BUFFER_SIZE,
-			WriteBufferSize: TCP_DEFAULT_WRITE_BUFFER_SIZE}
-		u.Error = func(w http.ResponseWriter, r *http.Request, status int, reason error) {
-			log.Println(w, r, status, reason)
-			// don't return errors to maintain backwards compatibility
-		}
-		u.CheckOrigin = func(r *http.Request) bool {
-			// allow all connections by default
-			return true
-		}
-		conn, err := u.Upgrade(res, req, nil)
+			u := websocket.Upgrader{ReadBufferSize: TCP_DEFAULT_READ_BUFFER_SIZE,
+				WriteBufferSize: TCP_DEFAULT_WRITE_BUFFER_SIZE}
+			u.Error = func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+				log.Println(w, r, status, reason)
+				// don't return errors to maintain backwards compatibility
+			}
+			u.CheckOrigin = func(r *http.Request) bool {
+				// allow all connections by default
+				return true
+			}
+			conn, err := u.Upgrade(res, req, nil)
 
-		if err != nil {
-			log.Println(err)
-			return
-		}
+			if err != nil {
+				log.Println(err)
+				return
+			}
 
-		log.Println("新的连接：" + conn.RemoteAddr().String())
-		go tcp.onConnect(conn)
-	})
+			log.Println("新的连接：" + conn.RemoteAddr().String())
+			go tcp.onConnect(conn)
+		})
 
-	dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
-	m.RunOnAddr(dns)
+		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
+		m.RunOnAddr(dns)
+	} ()
 }
