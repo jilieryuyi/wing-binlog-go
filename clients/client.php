@@ -129,7 +129,7 @@ function start_service()
     //权重值 0 - 100，当然也只有分组模式为 MODE_WEIGHT 时有效，为广播时此值会被忽略
     //最后一个值得意思是要注册到那个分组
     //3秒之内不发送加入到分组将被强制断开
-    $pack = pack_set_pro("group1", 100);
+    $pack = pack_set_pro("group1", 50);
     socket_write($socket, $pack);
 
     //测试

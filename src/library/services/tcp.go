@@ -115,6 +115,7 @@ func (tcp *TcpService) broadcast() {
 						if !conn.is_connected {
 							continue
 						}
+						log.Println("发送广播消息")
 						conn.send_queue <- msg
 					}
 				} else {
@@ -138,6 +139,7 @@ func (tcp *TcpService) broadcast() {
 							target = conn
 						}
 					}
+					log.Println("发送权重消息，", (*target.conn).RemoteAddr().String())
 					target.send_queue <- msg
 				}
 			}
@@ -365,7 +367,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 			tcp.lock.Unlock()
 
 		case CMD_TICK:
-			log.Println("收到心跳消息")
+			//log.Println("收到心跳消息")
 			conn.send_queue <- tcp.pack(CMD_OK, "ok")
 		//心跳包
 		default:
