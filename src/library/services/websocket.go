@@ -33,14 +33,13 @@ type WebSocketService struct {
 	send_failure_times int64              // 发送失败的次数
 	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	groups map[string][]*websocket_client_node
-										  // 客户端分组，现在支持两种分组，广播组合负载均衡组
+	groups map[string][]*websocket_client_node // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
 func NewWebSocketService(ip string, port int, config *TcpConfig) *WebSocketService {
-	ws := &WebSocketService {
+	tcp := &WebSocketService {
 		Ip                 : ip,
 		Port               : port,
 		clients_count      : int32(0),
@@ -55,40 +54,40 @@ func NewWebSocketService(ip string, port int, config *TcpConfig) *WebSocketServi
 
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocket_client_node
-		ws.groups[v.Name]      = con[:0]
-		ws.groups_mode[v.Name] = v.Mode
+		tcp.groups[v.Name]      = con[:0]
+		tcp.groups_mode[v.Name] = v.Mode
 	}
 
-	return ws
+	return tcp
 }
 
 // 对外的广播发送接口
-func (ws *WebSocketService) SendAll(msg []byte) bool {
-	cc := atomic.LoadInt32(&ws.clients_count)
+func (tcp *WebSocketService) SendAll(msg []byte) bool {
+	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
 		return false
 	}
-	if len(ws.send_queue) >= cap(ws.send_queue) {
+	if len(tcp.send_queue) >= cap(tcp.send_queue) {
 		log.Println("websocket发送缓冲区满...")
 		return false
 	}
-	ws.send_queue <- ws.pack(CMD_EVENT, string(msg))
+	tcp.send_queue <- tcp.pack(CMD_EVENT, string(msg))
 	return true
 }
 
-func (ws *WebSocketService) broadcast() {
+func (tcp *WebSocketService) broadcast() {
 	to := time.NewTimer(time.Second*1)
 	for {
 		select {
-		case  msg := <-ws.send_queue:
-			ws.lock.Lock()
-			for group_name, clients := range ws.groups {
+		case  msg := <-tcp.send_queue:
+			tcp.lock.Lock()
+			for group_name, clients := range tcp.groups {
 				// 如果分组里面没有客户端连接，跳过
 				if len(clients) <= 0 {
 					continue
 				}
 				// 分组的模式
-				mode := ws.groups_mode[group_name]
+				mode := tcp.groups_mode[group_name]
 				// 如果不等于权重，即广播模式
 				if mode != MODEL_WEIGHT {
 					for _, conn := range clients {
@@ -123,14 +122,14 @@ func (ws *WebSocketService) broadcast() {
 					target.send_queue <- msg
 				}
 			}
-			ws.lock.Unlock()
+			tcp.lock.Unlock()
 		case <-to.C://time.After(time.Second*3):
 		}
 	}
 }
 
 // 打包tcp响应包 格式为 [包长度-2字节，大端序][指令-2字节][内容]
-func (ws *WebSocketService) pack(cmd int, msg string) []byte {
+func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
 	r := make([]byte, l + 6)
@@ -149,35 +148,35 @@ func (ws *WebSocketService) pack(cmd int, msg string) []byte {
 	return r
 }
 
-func (ws *WebSocketService) onClose(conn *websocket_client_node) {
+func (tcp *WebSocketService) onClose(conn *websocket_client_node) {
 	if conn.group == "" {
-		ws.lock.Lock()
+		tcp.lock.Lock()
 		conn.is_connected = false
 		close(conn.send_queue)
-		ws.lock.Unlock()
+		tcp.lock.Unlock()
 		return
 	}
 	//移除conn
 	//查实查找位置
-	ws.lock.Lock()
+	tcp.lock.Lock()
 	close(conn.send_queue)
-	for index, con := range ws.groups[conn.group] {
+	for index, con := range tcp.groups[conn.group] {
 		if con.conn == conn.conn {
 			con.is_connected = false
-			ws.groups[conn.group] = append(ws.groups[conn.group][:index], ws.groups[conn.group][index+1:]...)
+			tcp.groups[conn.group] = append(tcp.groups[conn.group][:index], tcp.groups[conn.group][index+1:]...)
 			break
 		}
 	}
-	ws.lock.Unlock()
-	atomic.AddInt32(&ws.clients_count, int32(-1))
-	log.Println("当前连输的客户端：", len(ws.groups[conn.group]), ws.groups[conn.group])
+	tcp.lock.Unlock()
+	atomic.AddInt32(&tcp.clients_count, int32(-1))
+	log.Println("当前连输的客户端：", len(tcp.groups[conn.group]), tcp.groups[conn.group])
 }
 
-func (ws *WebSocketService) clientSendService(node *websocket_client_node) {
+func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
 	to := time.NewTimer(time.Second*1)
 	for {
 		if !node.is_connected {
-			log.Println("ws-clientSendService退出")
+			log.Println("websocket-clientSendService退出")
 			break
 		}
 
@@ -190,10 +189,10 @@ func (ws *WebSocketService) clientSendService(node *websocket_client_node) {
 			atomic.AddInt64(&node.send_times, int64(1))
 
 			if (err != nil) {
-				atomic.AddInt64(&ws.send_failure_times, int64(1))
+				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 
-				log.Println("ws-失败次数：", ws.send_failure_times, node.conn, node.send_failure_times)
+				log.Println("websocket-失败次数：", tcp.send_failure_times, node.conn, node.send_failure_times)
 			}
 		case <-to.C://time.After(time.Second*3):
 		//log.Println("发送超时...", tcp)
@@ -201,7 +200,7 @@ func (ws *WebSocketService) clientSendService(node *websocket_client_node) {
 	}
 }
 
-func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
+func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 
 	log.Println("新的连接：",conn.RemoteAddr().String())
 	cnode := &websocket_client_node {
@@ -219,7 +218,7 @@ func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
 	}
 
 
-	go ws.clientSendService(cnode)
+	go tcp.clientSendService(cnode)
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	conn.SetReadDeadline(time.Now().Add(time.Second*3))
 	for {
@@ -229,21 +228,21 @@ func (ws *WebSocketService) onConnect(conn *websocket.Conn) {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				log.Printf("error: %v", err)
 			}
-			ws.onClose(cnode)
+			tcp.onClose(cnode)
 			conn.Close();
 			return
 		}
 		log.Println("收到websocket消息：", string(message))
 
 		size := len(message)
-		atomic.AddInt64(&ws.recv_times, int64(1))
+		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
-		ws.onMessage(cnode, message, size)
+		tcp.onMessage(cnode, message, size)
 	}
 }
 
 // 收到消息回调函数
-func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
+func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
 	conn.recv_buf = append(conn.recv_buf[:conn.recv_bytes - size], msg[0:size]...)
 
 	for {
@@ -283,7 +282,7 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 
 			//log.Println("weight：", weight)
 			if weight < 0 || weight > 100 {
-				conn.send_queue <- ws.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
+				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
 				return
 			}
 
@@ -291,9 +290,9 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 			group := string(conn.recv_buf[10:content_len + 4])
 			//log.Println("group：", group)
 
-			ws.lock.Lock()
+			tcp.lock.Lock()
 			is_find := false
-			for g, _ := range ws.groups {
+			for g, _ := range tcp.groups {
 				//log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
 				if g == group {
 					is_find = true
@@ -301,24 +300,24 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 				}
 			}
 			if !is_find {
-				conn.send_queue <- ws.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
-				ws.lock.Unlock()
+				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
+				tcp.lock.Unlock()
 				return
 			}
 
 			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- ws.pack(CMD_SET_PRO, "ok")
+			conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
 
 			conn.group  = group
-			conn.mode   = ws.groups_mode[group]
+			conn.mode   = tcp.groups_mode[group]
 			conn.weight = weight
 
-			ws.groups[group] = append(ws.groups[group], conn)
+			tcp.groups[group] = append(tcp.groups[group], conn)
 
 			if conn.mode == MODEL_WEIGHT {
 				//weight 合理性格式化，保证所有的weight的和是100
 				all_weight := 0
-				for _, _conn := range ws.groups[group] {
+				for _, _conn := range tcp.groups[group] {
 					w := _conn.weight
 					if w <= 0 {
 						w = 100
@@ -326,9 +325,9 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 					all_weight += w
 				}
 
-				gl := len(ws.groups[group])
+				gl := len(tcp.groups[group])
 				yg := 0
-				for k, _conn := range ws.groups[group] {
+				for k, _conn := range tcp.groups[group] {
 					if k == gl - 1 {
 						_conn.weight = 100 - yg
 					} else {
@@ -337,15 +336,15 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 					}
 				}
 			}
-			atomic.AddInt32(&ws.clients_count, int32(1))
-			ws.lock.Unlock()
+			atomic.AddInt32(&tcp.clients_count, int32(1))
+			tcp.lock.Unlock()
 
 		case CMD_TICK:
 			//log.Println("收到心跳消息")
-			conn.send_queue <- ws.pack(CMD_OK, "ok")
+			conn.send_queue <- tcp.pack(CMD_OK, "ok")
 		//心跳包
 		default:
-			conn.send_queue <- ws.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 
 		//数据移动
@@ -356,9 +355,9 @@ func (ws *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, s
 	}
 }
 
-func (ws *WebSocketService) Start() {
+func (tcp *WebSocketService) Start() {
 
-	go ws.broadcast()
+	go tcp.broadcast()
 
 	m := martini.Classic()
 
@@ -383,9 +382,9 @@ func (ws *WebSocketService) Start() {
 		}
 
 		log.Println("新的连接：" + conn.RemoteAddr().String())
-		go ws.onConnect(conn)
+		go tcp.onConnect(conn)
 	})
 
-	dns := fmt.Sprintf("%s:%d", ws.Ip, ws.Port)
+	dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 	m.RunOnAddr(dns)
 }

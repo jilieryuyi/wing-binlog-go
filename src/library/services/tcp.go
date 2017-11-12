@@ -4,32 +4,9 @@ import (
 	"fmt"
 	"net"
 	"log"
-	//"runtime"
 	"time"
 	"sync/atomic"
 	"sync"
-)
-
-const (
-	MODEL_BROADCAST = 1  // 广播
-	MODEL_WEIGHT    = 2  // 权重
-)
-
-const (
-	CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
-	CMD_AUTH    = 2 // 认证（暂未使用）
-	CMD_OK      = 3 // 正常响应
-	CMD_ERROR   = 4 // 错误响应
-	CMD_TICK    = 5 // 心跳包
-	CMD_EVENT   = 6 // 事件
-)
-
-const (
-	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
-	TCP_DEFAULT_CLIENT_SIZE       = 64
-	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
-	TCP_RECV_DEFAULT_SIZE         = 4096
-	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
 )
 
 type tcp_client_node struct {
@@ -157,7 +134,6 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	r := make([]byte, l + 6)
 
 	cl := l + 2
-	//log.Println("发送消息：", l, msg)
 
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -167,8 +143,6 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 	copy(r[6:], m)
-
-	//log.Println(r)
 
 	return r
 }
