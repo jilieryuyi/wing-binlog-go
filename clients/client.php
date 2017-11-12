@@ -122,6 +122,7 @@ function start_service()
                 break;
             }
 
+            // 包长度4字节
             $len = (ord($recv_buf[0])) + (ord($recv_buf[1]) << 8) +
                 (ord($recv_buf[2]) << 16) + (ord($recv_buf[3]) << 32);
 
@@ -130,10 +131,10 @@ function start_service()
                 break;
             }
 
+            // cmd长度2字节
             $cmd      = (ord($recv_buf[4])) + (ord($recv_buf[5]) << 8);
             // 开始的4字节是长度，接下来的2字节是cmd，所有内容从6开始，长度为 $len - 2字节的cmd长度
             $content  = substr($recv_buf, 6, $len - 2);
-
             // 删除掉已经读取的数据
             $recv_buf = substr($recv_buf, $len + 4);
 
