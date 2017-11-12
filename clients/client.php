@@ -131,6 +131,12 @@ function start_service()
     $pack = pack_set_pro("group1", 100);
     socket_write($socket, $pack);
 
+    //测试
+    //echo "连接关闭\r\n";
+//    socket_shutdown($socket);
+//    socket_close($socket);
+//    return;
+
     clog("连接成功");
     $child = fork_child($socket);
 
@@ -213,7 +219,6 @@ function start_service()
 }
 
 //打开while 1，断开将自动重连
-//while (1)
-{
+while (1) {
     start_service();
 }
