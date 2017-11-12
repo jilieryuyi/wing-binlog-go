@@ -134,9 +134,9 @@ function start_service()
 
     //测试
     //echo "连接关闭\r\n";
-//    socket_shutdown($socket);
-//    socket_close($socket);
-//    return;
+    //socket_shutdown($socket);
+    //socket_close($socket);
+    //return;
 
     clog("连接成功");
     $child = fork_child($socket);
@@ -161,7 +161,7 @@ function start_service()
             $len = (ord($recv_buf[0])) + (ord($recv_buf[1]) << 8) +
                 (ord($recv_buf[2]) << 16) + (ord($recv_buf[3]) << 32);
 
-            // 接收到的包好不完整，继续等待
+            // 接收到的包还不完整，继续等待
             if (strlen($recv_buf) < $len + 4) {
                 break;
             }
@@ -201,7 +201,7 @@ function start_service()
         echo $content;
     }
 
-    echo "连接关闭\r\n";
+    clog("连接关闭");
     socket_shutdown($socket);
     socket_close($socket);
 
