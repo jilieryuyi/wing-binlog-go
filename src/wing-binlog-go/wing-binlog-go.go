@@ -95,6 +95,7 @@ func main() {
 
 	config_file := current_path + "/config/mysql.toml"
 	tcp_config_file := current_path + "/config/tcp.toml"
+	websocket_config_file := current_path + "/config/websocket.toml"
 
 	//config_obj := &library.Ini{config_file}
 	//config := config_obj.Parse()
@@ -122,27 +123,18 @@ func main() {
 		log.Println(err)
 		return
 	}
-	//user := string(config["mysql"]["user"].(string))
-	//password := string(config["mysql"]["password"].(string))
-	//port := string(config["mysql"]["port"].(string))
-	//host := string(config["mysql"]["host"].(string))
 
-	//slave_id_str := string(config["client"]["slave_id"].(string))
-	//slave_id, _ := strconv.Atoi(slave_id_str)
 
-	//db_name := string(config["mysql"]["db_name"].(string))
-	//charset := string(config["mysql"]["charset"].(string))
-	//db, err := sql.Open("mysql", user+":"+password+"@tcp("+host+":"+port+")/"+db_name+"?charset="+charset)
-
-	//if nil != err {
-	//	wing_log.Println(err)
-	//	return
-	//}
-
-	//defer db.Close()
+	wwebsocket_config := &library.WConfig{websocket_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
+	websocket_config, err := wwebsocket_config.GetTcp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
 	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
-	websocket_service := services.NewWebSocketService("0.0.0.0", 9997)
+	websocket_service := services.NewWebSocketService(websocket_config.Tcp.Listen, websocket_config.Tcp.Port, websocket_config)
 
 	tcp_service.Start()
 

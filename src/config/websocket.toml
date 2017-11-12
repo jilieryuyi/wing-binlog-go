@@ -7,9 +7,12 @@
 ##当组的mode为权重时，将依据设定的权重自动负载均衡
 [groups]
     [groups.1]
-     mode = "broadcast" ##(广播)broadcast or  (权重)weight
+     mode = 1 ##1 (广播)broadcast or  2 (权重)weight
      name = "group1"
 
     [groups.2]
-     mode = "weight"
+     mode = 2
      name = "group2"
+[websocket]
+listen = "0.0.0.0"
+port = 9997
