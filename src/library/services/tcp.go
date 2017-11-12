@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 	"log"
-	"runtime"
+	//"runtime"
 	"time"
 	"sync/atomic"
 	"sync"
@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	TCP_MAX_SEND_QUEUE           = 4096
+	TCP_MAX_SEND_QUEUE           = 1000000
 	TCP_DEFAULT_CLIENT_SIZE      = 64
 	TCP_DEFAULT_READ_BUFFER_SIZE = 1024
 	TCP_RECV_DEFAULT_SIZE        = 4096
@@ -40,6 +40,7 @@ type tcp_client_node struct {
 	weight int               // 权重 0 - 100
 	group string             // 所属分组
 	recv_buf []byte          // 读缓冲区
+	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
 }
@@ -83,7 +84,8 @@ func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
 
 // 对外的广播发送接口
 func (tcp *TcpService) SendAll(msg []byte) bool {
-	if tcp.clients_count <=0 {
+	cc := atomic.LoadInt32(&tcp.clients_count)
+	if cc <= 0 {
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {
@@ -97,16 +99,25 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 // 广播服务
 func (tcp *TcpService) broadcast() {
 	to := time.NewTimer(time.Second*1)
-	cpu := runtime.NumCPU()
-	for i := 0; i < cpu; i ++ {
+	//cpu := runtime.NumCPU()
+	//for i := 0; i < cpu; i ++
+	//{
 		tou := to
-		go func() {
+		//go func()
+		//{
 
 			for {
 				select {
 				case  msg := <-tcp.send_queue:
+					tcp.lock.Lock()
+					log.Println(tcp.groups)
 					//分组
 					for group_name, clients := range tcp.groups {
+
+						if len(clients) <= 0 {
+							continue
+						}
+
 						mode := tcp.groups_mode[group_name]
 
 						if mode != MODEL_WEIGHT {
@@ -114,6 +125,7 @@ func (tcp *TcpService) broadcast() {
 								conn.send_queue <- msg
 							}
 						} else {
+							log.Println(clients)
 							// todo 根据已经send_times的次数负载均衡
 							target := clients[0]
 							//将发送次数/权重 作为负载基数，每次选择最小的发送
@@ -138,124 +150,37 @@ func (tcp *TcpService) broadcast() {
 							target.send_queue <- msg
 						}
 					}
+					tcp.lock.Unlock()
 				case <-tou.C://time.After(time.Second*3):
 				}
 			}
-		} ()
-	}
+		//} ()
+	//}
 }
 
 // 打包tcp响应包 格式为 [包长度-2字节，大端序][指令-2字节][内容]
 func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
-	l := len(m) + 2
-	r := make([]byte, l + 2)
-	r[0] = byte(l)
-	r[1] = byte(l >> 8)
-	r[3] = byte(cmd)
-	r[4] = byte(cmd >> 8)
-	copy(r[4:], m)
+	l := len(m)
+	r := make([]byte, l + 6)
+
+	cl := l + 2
+	log.Println("发送消息：", l, msg)
+
+	r[0] = byte(cl)
+	r[1] = byte(cl >> 8)
+	r[2] = byte(cl >> 16)
+	r[3] = byte(cl >> 32)
+
+	r[4] = byte(cmd)
+	r[5] = byte(cmd >> 8)
+	copy(r[6:], m)
+
+	log.Println(r)
+
 	return r
 }
 
-// 收到消息回调函数
-func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte) {
-	conn.recv_buf = append(conn.recv_buf, msg...)
-	if len(conn.recv_buf) < 4 {
-		return
-	} else if len(conn.recv_buf) > TCP_RECV_DEFAULT_SIZE {
-		// 清除所有的读缓存，防止发送的脏数据不断的累计
-		var nb [TCP_RECV_DEFAULT_SIZE]byte
-		conn.recv_buf = nb[:0]
-		return
-	}
-
-	//2字节长度
-	content_len := int(msg[0])+ int(msg[1] << 8)
-	//2字节 command
-	cmd := int(msg[2])+ int(msg[3] << 8)
-
-	switch cmd {
-	case CMD_SET_PRO:
-		if len(conn.recv_buf) < 10 {
-			return
-		}
-		//2字节 mode
-		mode := int(msg[4])+ int(msg[5] << 8)
-		//4字节 weight
-		weight := int(msg[6])      +
-			      int(msg[7] << 8) +
-			      int(msg[8] << 16)+
-			      int(msg[9] << 32)
-
-		if mode != MODEL_BROADCAST && mode != MODEL_WEIGHT {
-			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的模式：%d", mode))
-		} else {
-
-			if weight < 0 || weight > 100 {
-				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
-				return
-			}
-
-			group := string(conn.recv_buf[9:content_len])
-			is_find := false
-			for g, _ := range tcp.groups {
-				if g == group {
-					is_find = true
-					break
-				}
-			}
-			if !is_find {
-				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
-				return
-			}
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- tcp.pack(CMD_OK, "ok")
-
-			tcp.lock.Lock()
-			conn.group = group
-			conn.mode = mode
-			conn.weight = weight
-
-
-
-
-
-			//数据移动
-			copy(conn.recv_buf[:0], conn.recv_buf[content_len:])
-			atomic.AddInt32(&tcp.clients_count, int32(1))
-			tcp.groups[group] = append(tcp.groups[group], conn)
-
-
-			//weight 合理性格式化，保证所有的weight的和是100
-			all_weight := 0
-			for _, _conn := range tcp.groups[group] {
-				w := _conn.weight
-				if w <= 0 {
-					w = 100
-				}
-				all_weight += w
-			}
-
-			gl := len(tcp.groups[group])
-			yg := 0
-			for k, _conn := range tcp.groups[group] {
-				if k == gl - 1 {
-					_conn.weight = 100 - yg
-				} else {
-					_conn.weight = int(_conn.weight*100/all_weight)
-					yg += _conn.weight
-				}
-			}
-
-			tcp.lock.Unlock()
-		}
-	case CMD_TICK:
-		//心跳包
-	default:
-		conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
-	}
-}
 
 func (tcp *TcpService) onClose(conn *tcp_client_node) {
 	if conn.group == "" {
@@ -273,6 +198,7 @@ func (tcp *TcpService) onClose(conn *tcp_client_node) {
 		}
 	}
 	tcp.lock.Unlock()
+	atomic.AddInt32(&tcp.clients_count, int32(-1))
 }
 
 
@@ -317,8 +243,8 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		connect_time:time.Now().Unix(),
 		send_times:int64(0),
 	}
-	var b [TCP_RECV_DEFAULT_SIZE]byte
-	cnode.recv_buf = b[:0]
+	cnode.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
+	cnode.recv_bytes = 0
 	cnode.group = ""
 	//tcp.clients = append(tcp.clients, cnode)
 	//tcp.lock.Unlock()
@@ -326,13 +252,18 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 
 	go tcp.clientSendService(cnode)
 
-	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte//, )// [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+
+	//conn.SetReadDeadline(time.Now().Add(time.Second*3))
 	//conn.SetDeadline(time.Now().Add(time.Second*3))
 	for {
-		rbuf := read_buffer[:0]
-		size, err := conn.Read(rbuf)
+		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+		//清空旧数据
+		for k,_:= range buf {
+			buf[k] = byte(0)
+		}
+		size, err := conn.Read(buf)
 
 		if err != nil {
 			log.Println(conn.RemoteAddr().String(), "连接发生错误: ", err)
@@ -341,12 +272,128 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			return
 		}
 
-		log.Println("收到消息",size,"字节：", string(rbuf))
+		log.Println("收到消息",size,"字节：", string(buf))
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 
-		tcp.onMessage(cnode, rbuf)
+		cnode.recv_bytes += size
+		tcp.onMessage(cnode, buf, size)
 	}
 
+}
+// 收到消息回调函数
+func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
+	//log.Println("recv_buf: ", len(msg), msg)
+	conn.recv_buf = append(conn.recv_buf[:conn.recv_bytes - size], msg[0:size]...)
+
+	for {
+		clen := len(conn.recv_buf)
+		if clen < 6 {
+			return
+		} else if clen > TCP_RECV_DEFAULT_SIZE {
+			// 清除所有的读缓存，防止发送的脏数据不断的累计
+			conn.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
+			log.Println("新建缓冲区")
+			return
+		}
+
+		//4字节长度
+		content_len := int(conn.recv_buf[0]) +
+			int(conn.recv_buf[1] << 8) +
+			int(conn.recv_buf[2] << 16) +
+			int(conn.recv_buf[3] << 32)
+
+		//2字节 command
+		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+
+		log.Println("content：", conn.recv_buf)
+		log.Println("content_len：", content_len)
+		log.Println("cmd：", cmd)
+		switch cmd {
+		case CMD_SET_PRO:
+			if len(conn.recv_buf) < 10 {
+				return
+			}
+			//4字节 weight
+			weight := int(conn.recv_buf[6]) +
+				int(conn.recv_buf[7] << 8) +
+				int(conn.recv_buf[8] << 16) +
+				int(conn.recv_buf[9] << 32)
+
+			log.Println("weight：", weight)
+			if weight < 0 || weight > 100 {
+				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
+				return
+			}
+
+			//内容长度+4字节的前缀（存放内容长度的数值）
+			group := string(conn.recv_buf[10:content_len + 4])
+			log.Println("group：", group)
+
+			is_find := false
+			for g, _ := range tcp.groups {
+				log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
+				if g == group {
+					is_find = true
+					break
+				}
+			}
+			if !is_find {
+				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
+				return
+			}
+
+			//(*conn.conn).SetReadDeadline(time.Time{})
+			conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
+
+			tcp.lock.Lock()
+			conn.group = group
+			conn.mode = tcp.groups_mode[group]
+			conn.weight = weight
+
+			log.Println(len(tcp.groups[group]))
+			tcp.groups[group] = append(tcp.groups[group], conn)
+			log.Println(len(tcp.groups[group]), tcp.groups[group])
+
+			if conn.mode == MODEL_WEIGHT {
+				//weight 合理性格式化，保证所有的weight的和是100
+				all_weight := 0
+				for _, _conn := range tcp.groups[group] {
+					w := _conn.weight
+					if w <= 0 {
+						w = 100
+					}
+					all_weight += w
+				}
+
+				gl := len(tcp.groups[group])
+				yg := 0
+				for k, _conn := range tcp.groups[group] {
+					if k == gl - 1 {
+						_conn.weight = 100 - yg
+					} else {
+						_conn.weight = int(_conn.weight * 100 / all_weight)
+						yg += _conn.weight
+					}
+				}
+			}
+			atomic.AddInt32(&tcp.clients_count, int32(1))
+			tcp.lock.Unlock()
+
+		case CMD_TICK:
+			log.Println("收到心跳消息")
+			conn.send_queue <- tcp.pack(CMD_OK, "ok")
+		//心跳包
+		default:
+			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+		}
+
+		//数据移动
+		log.Println(content_len + 4, conn.recv_bytes)
+		conn.recv_buf = append(conn.recv_buf[:0], conn.recv_buf[content_len + 4:conn.recv_bytes]...)
+		conn.recv_bytes = conn.recv_bytes - content_len - 4
+
+		log.Println("移动后的数据：", conn.recv_bytes, len(conn.recv_buf), string(conn.recv_buf))
+	}
 }
 
 func (tcp *TcpService) Start() {

@@ -1,6 +1,8 @@
 package main
 
-import "fmt"
+import (
+    "fmt"
+)
 
 type S struct {
     buf []byte
@@ -31,7 +33,21 @@ func main() {
     fmt.Println("len=", len(ccc), string(ccc) , string(ccc[8:20]))
 
 
-    var nb [len(ccc)]byte
-    copy(nb, aaaa)
-    fmt.Println(nb)
+
+
+
+    as1 := make([]byte, 1024)
+    as1 = append(as1[:0], "20123456789"...)
+
+    as1 = append(as1[:0],as1[4:]...)
+    fmt.Println(string(as1), len(as1))
+
+    as2 := []byte("20123456789")
+    as2 = append(as2[:0],as2[2:2]...)
+    fmt.Println(string(as2), len(as2))
+
+    //输出
+    //20123456789 1031
+    //3456789 7
+
 }

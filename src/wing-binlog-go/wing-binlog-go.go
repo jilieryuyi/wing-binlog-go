@@ -144,6 +144,8 @@ func main() {
 	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
 	websocket_service := services.NewWebSocketService("0.0.0.0", 9997)
 
+	tcp_service.Start()
+
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()
 	blog.Start(tcp_service, websocket_service)
