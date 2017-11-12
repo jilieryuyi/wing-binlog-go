@@ -110,7 +110,7 @@ func (tcp *TcpService) broadcast() {
 				select {
 				case  msg := <-tcp.send_queue:
 					tcp.lock.Lock()
-					log.Println(tcp.groups)
+					//log.Println(tcp.groups)
 					//分组
 					for group_name, clients := range tcp.groups {
 
@@ -122,10 +122,13 @@ func (tcp *TcpService) broadcast() {
 
 						if mode != MODEL_WEIGHT {
 							for _, conn := range clients {
+								if !conn.is_connected {
+									continue
+								}
 								conn.send_queue <- msg
 							}
 						} else {
-							log.Println(clients)
+							//log.Println(clients)
 							// todo 根据已经send_times的次数负载均衡
 							target := clients[0]
 							//将发送次数/权重 作为负载基数，每次选择最小的发送
@@ -165,7 +168,7 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	r := make([]byte, l + 6)
 
 	cl := l + 2
-	log.Println("发送消息：", l, msg)
+	//log.Println("发送消息：", l, msg)
 
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -176,20 +179,25 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	r[5] = byte(cmd >> 8)
 	copy(r[6:], m)
 
-	log.Println(r)
+	//log.Println(r)
 
 	return r
 }
 
 
 func (tcp *TcpService) onClose(conn *tcp_client_node) {
+
 	if conn.group == "" {
+		tcp.lock.Lock()
 		conn.is_connected = false
+		close(conn.send_queue)
+		tcp.lock.Unlock()
 		return
 	}
 	//移除conn
 	//查实查找位置
 	tcp.lock.Lock()
+	close(conn.send_queue)
 	for index, con := range tcp.groups[conn.group] {
 		if con.conn == conn.conn {
 			con.is_connected = false
@@ -199,15 +207,14 @@ func (tcp *TcpService) onClose(conn *tcp_client_node) {
 	}
 	tcp.lock.Unlock()
 	atomic.AddInt32(&tcp.clients_count, int32(-1))
+	log.Println("当前连输的客户端：", len(tcp.groups[conn.group]), tcp.groups[conn.group])
 }
-
-
 
 func (tcp *TcpService) clientSendService(node *tcp_client_node) {
 	to := time.NewTimer(time.Second*1)
-
 	for {
 		if !node.is_connected {
+			log.Println("clientSendService退出")
 			break
 		}
 
@@ -255,7 +262,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte//, )// [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
-	//conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
 	//conn.SetDeadline(time.Now().Add(time.Second*3))
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
@@ -342,7 +349,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 				return
 			}
 
-			//(*conn.conn).SetReadDeadline(time.Time{})
+			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
 
 			tcp.lock.Lock()
@@ -350,9 +357,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 			conn.mode = tcp.groups_mode[group]
 			conn.weight = weight
 
-			log.Println(len(tcp.groups[group]))
 			tcp.groups[group] = append(tcp.groups[group], conn)
-			log.Println(len(tcp.groups[group]), tcp.groups[group])
 
 			if conn.mode == MODEL_WEIGHT {
 				//weight 合理性格式化，保证所有的weight的和是100
@@ -380,7 +385,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 			tcp.lock.Unlock()
 
 		case CMD_TICK:
-			log.Println("收到心跳消息")
+			//log.Println("收到心跳消息")
 			conn.send_queue <- tcp.pack(CMD_OK, "ok")
 		//心跳包
 		default:
@@ -388,11 +393,11 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 		}
 
 		//数据移动
-		log.Println(content_len + 4, conn.recv_bytes)
+		//log.Println(content_len + 4, conn.recv_bytes)
 		conn.recv_buf = append(conn.recv_buf[:0], conn.recv_buf[content_len + 4:conn.recv_bytes]...)
 		conn.recv_bytes = conn.recv_bytes - content_len - 4
 
-		log.Println("移动后的数据：", conn.recv_bytes, len(conn.recv_buf), string(conn.recv_buf))
+		//log.Println("移动后的数据：", conn.recv_bytes, len(conn.recv_buf), string(conn.recv_buf))
 	}
 }
 

@@ -61,6 +61,7 @@ type binlogHandler struct{
 }
 
 func (h *binlogHandler) notify(msg []byte) {
+	log.Println("发送广播：", string(msg))
 	h.tcp_service.SendAll(msg)
 	h.websocket_service.SendAll(msg)
 }
@@ -95,13 +96,13 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	//{"database":"new_yonglibao_c","event":{"data":{"new_data":{"affirm_money":100,"created":1416887067,"days":0,"id":1,"invest_id":11,"pay_type":1,"payback_at":1416887067,"payout_money":100,"user_id":523},
 	// "old_data":{"affirm_money":100,"created":1416887067,"days":0,"id":1,"invest_id":111,"pay_type":1,"payback_at":1416887067,"payout_money":100,"user_id":523}}
 	// ,"event_type":"update","time":1510309349},"event_index":253131297,"table":"bw_active_payout"}
-	buf := h.buf[:0]
-	//log.Println(e.Rows)
+
+	log.Println("bufinfo: ",len(h.buf), cap(h.buf))
 
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i+=2 {
 			atomic.AddInt64(&h.Event_index, int64(1))
-
+			buf := h.buf[:0]
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
@@ -215,7 +216,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
 			atomic.AddInt64(&h.Event_index, int64(1))
-
+			buf := h.buf[:0]
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{"...)
