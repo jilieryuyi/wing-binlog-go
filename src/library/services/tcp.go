@@ -25,10 +25,11 @@ const (
 )
 
 const (
-	TCP_MAX_SEND_QUEUE           = 1000000 //100万缓冲区
-	TCP_DEFAULT_CLIENT_SIZE      = 64
-	TCP_DEFAULT_READ_BUFFER_SIZE = 1024
-	TCP_RECV_DEFAULT_SIZE        = 4096
+	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
+	TCP_DEFAULT_CLIENT_SIZE       = 64
+	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
+	TCP_RECV_DEFAULT_SIZE         = 4096
+	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
 )
 
 type tcp_client_node struct {
@@ -399,9 +400,6 @@ func (tcp *TcpService) Start() {
 		defer func() {
 			listen.Close();
 			close(tcp.send_queue)
-			//for _, c := range tcp.clients {
-			//	tcp.onClose(c.conn)
-			//}
 		}()
 
 		log.Println("等待新的连接...")
