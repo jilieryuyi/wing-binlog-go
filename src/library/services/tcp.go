@@ -259,7 +259,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			conn.Close();
 			return
 		}
-		log.Println("收到消息",size,"字节：", string(buf))
+		log.Println("收到消息",size,"字节：", buf[:size], string(buf))
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
 		tcp.onMessage(cnode, buf, size)
@@ -295,6 +295,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 		//log.Println("cmd：", cmd)
 		switch cmd {
 		case CMD_SET_PRO:
+			log.Println("收到注册分组消息")
 			if len(conn.recv_buf) < 10 {
 				return
 			}
@@ -317,7 +318,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 			tcp.lock.Lock()
 			is_find := false
 			for g, _ := range tcp.groups {
-				log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
+				//log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
 				if g == group {
 					is_find = true
 					break
@@ -364,7 +365,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 			tcp.lock.Unlock()
 
 		case CMD_TICK:
-			//log.Println("收到心跳消息")
+			log.Println("收到心跳消息")
 			conn.send_queue <- tcp.pack(CMD_OK, "ok")
 		//心跳包
 		default:

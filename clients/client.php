@@ -95,6 +95,7 @@ function fork_child($socket)
     while(1) {
         pcntl_signal_dispatch();
         try {
+            clog("发送心跳包");
             socket_write($socket, $tick);
             // 3秒发送一次
             sleep(3);
