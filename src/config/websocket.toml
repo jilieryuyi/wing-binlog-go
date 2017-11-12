@@ -6,13 +6,13 @@
 ##当组的名称对应的mode为广播时，权重无效
 ##当组的mode为权重时，将依据设定的权重自动负载均衡
 [groups]
-    [groups.1]
+    [groups.g1]
      mode = 1 ##1 (广播)broadcast or  2 (权重)weight
      name = "group1"
 
-    [groups.2]
+    [groups.g2]
      mode = 2
      name = "group2"
-[websocket]
+[tcp]
 listen = "0.0.0.0"
 port = 9997

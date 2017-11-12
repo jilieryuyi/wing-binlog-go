@@ -19,7 +19,6 @@ type websocket_client_node struct {
 	mode int                 // broadcast = 1 weight = 2 支持两种方式，广播和权重
 	weight int               // 权重 0 - 100
 	group string             // 所属分组
-	recv_buf []byte          // 读缓冲区
 	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
@@ -132,18 +131,11 @@ func (tcp *WebSocketService) broadcast() {
 func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 6)
+	r := make([]byte, l + 2)
 
-	cl := l + 2
-
-	r[0] = byte(cl)
-	r[1] = byte(cl >> 8)
-	r[2] = byte(cl >> 16)
-	r[3] = byte(cl >> 32)
-
-	r[4] = byte(cmd)
-	r[5] = byte(cmd >> 8)
-	copy(r[6:], m)
+	r[0] = byte(cmd)
+	r[1] = byte(cmd >> 8)
+	copy(r[2:], m)
 
 	return r
 }
@@ -192,7 +184,7 @@ func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 
-				log.Println("websocket-失败次数：", tcp.send_failure_times, node.conn, node.send_failure_times)
+				log.Println("websocket-失败次数：", tcp.send_failure_times, node.conn.RemoteAddr().String(), node.send_failure_times)
 			}
 		case <-to.C://time.After(time.Second*3):
 		//log.Println("发送超时...", tcp)
@@ -212,7 +204,6 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 		mode               : MODEL_BROADCAST,
 		connect_time       : time.Now().Unix(),
 		send_times         : int64(0),
-		recv_buf           : make([]byte, TCP_RECV_DEFAULT_SIZE),
 		recv_bytes         : 0,
 		group              : "",
 	}
@@ -243,42 +234,28 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
-	conn.recv_buf = append(conn.recv_buf[:conn.recv_bytes - size], msg[0:size]...)
-
 	for {
-		clen := len(conn.recv_buf)
-		if clen < 6 {
-			return
-		} else if clen > TCP_RECV_DEFAULT_SIZE {
-			// 清除所有的读缓存，防止发送的脏数据不断的累计
-			conn.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
-			log.Println("新建缓冲区")
+		clen := len(msg)
+		if clen < 2 {
 			return
 		}
 
-		//4字节长度
-		content_len := int(conn.recv_buf[0]) +
-			int(conn.recv_buf[1] << 8) +
-			int(conn.recv_buf[2] << 16) +
-			int(conn.recv_buf[3] << 32)
-
 		//2字节 command
-		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+		cmd := int(msg[0]) + int(msg[1] << 8)
 
-		//log.Println("content：", conn.recv_buf)
-		//log.Println("content_len：", content_len)
-		//log.Println("cmd：", cmd)
+		log.Println("content：", msg)
+		log.Println("cmd：", cmd)
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Println("收到注册分组消息")
-			if len(conn.recv_buf) < 10 {
+			if len(msg) < 6 {
 				return
 			}
 			//4字节 weight
-			weight := int(conn.recv_buf[6]) +
-				int(conn.recv_buf[7] << 8) +
-				int(conn.recv_buf[8] << 16) +
-				int(conn.recv_buf[9] << 32)
+			weight := int(msg[2]) +
+				int(msg[3] << 8) +
+				int(msg[4] << 16) +
+				int(msg[5] << 32)
 
 			//log.Println("weight：", weight)
 			if weight < 0 || weight > 100 {
@@ -287,8 +264,8 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 			}
 
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(conn.recv_buf[10:content_len + 4])
-			//log.Println("group：", group)
+			group := string(msg[6:])
+			log.Println("group：", group)
 
 			tcp.lock.Lock()
 			is_find := false
@@ -346,12 +323,6 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 		default:
 			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
-
-		//数据移动
-		//log.Println(content_len + 4, conn.recv_bytes)
-		conn.recv_buf = append(conn.recv_buf[:0], conn.recv_buf[content_len + 4:conn.recv_bytes]...)
-		conn.recv_bytes = conn.recv_bytes - content_len - 4
-		//log.Println("移动后的数据：", conn.recv_bytes, len(conn.recv_buf), string(conn.recv_buf))
 	}
 }
 
@@ -388,6 +359,7 @@ func (tcp *WebSocketService) Start() {
 		})
 
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
+		log.Println("websocket listen: ", tcp, dns)
 		m.RunOnAddr(dns)
 	} ()
 }

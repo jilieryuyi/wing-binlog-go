@@ -134,6 +134,8 @@ func main() {
 	}
 
 	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
+
+	log.Println(websocket_config)
 	websocket_service := services.NewWebSocketService(websocket_config.Tcp.Listen, websocket_config.Tcp.Port, websocket_config)
 
 	tcp_service.Start()
