@@ -3,7 +3,7 @@ set current_path=%cd%
 set vendor_path=%current_path%\vendor
 
 ::添加当前目录和当前目录下的vendor目录到GOPATH环境变量
-set GOPATH=%current_path%\vendor;%current_path%;%GOPATH%
+set GOPATH=%vendor_path%;%current_path%
 
 if not exist %vendor_path% (
  md %vendor_path%

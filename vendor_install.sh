@@ -3,7 +3,7 @@ current_path=$(cd `dirname $0`; pwd)
 vendor_path=$current_path"/vendor"
 
 ##添加当前目录和当前目录下的vendor目录到GOPATH环境变量
-export GOPATH="$current_path/vendor:$current_path"
+export GOPATH="$vendor_path:$current_path"
 if [ ! -d "$vendor_path" ]; then
  mkdir "$vendor_path"
  mkdir "$vendor_path/src"
