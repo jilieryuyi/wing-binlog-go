@@ -234,7 +234,8 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
-	for {
+	//for
+	{
 		clen := len(msg)
 		if clen < 2 {
 			return
@@ -318,7 +319,7 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 
 		case CMD_TICK:
 			//log.Println("收到心跳消息")
-			conn.send_queue <- tcp.pack(CMD_OK, "ok")
+			conn.send_queue <- tcp.pack(CMD_TICK, "ok")
 		//心跳包
 		default:
 			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))

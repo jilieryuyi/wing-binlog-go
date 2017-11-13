@@ -19,29 +19,55 @@ function clog()
 
 function on_connect(ws)
 {
+    // str="A";
+    // code = str.charCodeAt();
     // 打包set_pro数据包
     // 2字节cmd
     var r = "";
-    r += (CMD_SET_PRO + "").charCodeAt();
-    r += ((CMD_SET_PRO >> 8) + "").charCodeAt();
+    r +=  String.fromCharCode(CMD_SET_PRO);
+    r +=  String.fromCharCode(CMD_SET_PRO >> 8);
 
     // 4字节权重
-    r += (weight + "").charCodeAt();
-    r += ((weight >> 8) + "").charCodeAt();
-    r += ((weight >> 16) + "").charCodeAt();
-    r += ((weight >> 32) + "").charCodeAt();
+    r +=  String.fromCharCode(weight);
+    r +=  String.fromCharCode(weight >> 8);
+    r +=  String.fromCharCode(weight >> 16);
+    r +=  String.fromCharCode(weight >> 32);
 
     // 实际的分组名称
     r += group_name;
 
-    console.log(r)
     ws.send(r)
 }
 
 function on_message(msg)
 {
-    console.log(msg)
+    //console.log(msg)
     //cmd(2byte) + content
+    var cmd = msg[0].charCodeAt() + msg[1].charCodeAt();
+    console.log(cmd);
+    var content = msg.substr(2, msg.length - 2);
+    console.log(content);
+
+    switch (cmd) {
+        case CMD_SET_PRO:
+            console.log("设置注册分组返回值：", content);
+            break;
+        case CMD_AUTH:
+        case CMD_OK:
+            console.log("正常响应返回值：", content);
+            break;
+        case CMD_ERROR:
+            console.log("错误返回值：", content);
+            break;
+        case CMD_TICK:
+            console.log("心跳返回值：", content);
+            break;
+        case CMD_EVENT:
+            console.log("事件返回值：", content);
+            break;
+        default:
+            console.log("未知事件：", cmd, content);
+    }
 }
 
 function on_close()

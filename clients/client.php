@@ -175,7 +175,7 @@ function start_service()
 
             switch ($cmd) {
                 case CMD_TICK:
-                    clog("收到心跳包：" . $content);
+                    clog("心跳包返回值：" . $content);
                     break;
                 case CMD_ERROR:
                     clog("错误：" . $content);

@@ -343,7 +343,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 
 		case CMD_TICK:
 			//log.Println("收到心跳消息")
-			conn.send_queue <- tcp.pack(CMD_OK, "ok")
+			conn.send_queue <- tcp.pack(CMD_TICK, "ok")
 		//心跳包
 		default:
 			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
