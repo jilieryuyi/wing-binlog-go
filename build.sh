@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+echo "building..."
 current_path=$(cd `dirname $0`; pwd)
 bin_path=$current_path"/bin"
 pkg_path=$current_path"/pkg"
@@ -29,7 +30,7 @@ fi
 ##进入当前目录
 cd $current_path
 ##build构建项目
-go build wing-binlog-go
+go build -p 4 -race wing-binlog-go ##-a强制重新编译所有的包 -v显示被编译的包 -x显示所用到的其他命令
 ##install安装
 go install wing-binlog-go
 ##删除根目录下的可执行文件
@@ -42,3 +43,4 @@ fi
 ##拷贝配置文件
 cp -rf "$current_path/src/config/" "$current_path/bin/config/"
 echo "build success"
+echo $current_path/bin/wing-binlog-go

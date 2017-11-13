@@ -17,11 +17,11 @@ const HTTP_POST_TIMEOUT = 3 //3秒超时
 var ERR_STATUS error =  errors.New("错误的状态码")
 
 type HttpService struct {
-    send_queue chan []byte         // 发送channel
-    groups [][]*httpNode             // 客户端分组，现在支持两种分组，广播组合负载均衡组
-    groups_mode []int    // 分组的模式 1，2 广播还是复载均衡
-    lock *sync.Mutex               // 互斥锁，修改资源时锁定
-    send_failure_times int64
+    send_queue chan []byte     // 发送channel
+    groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
+    groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
+    lock *sync.Mutex           // 互斥锁，修改资源时锁定
+    send_failure_times int64   // 发送失败次数
 }
 
 type httpNode struct {
@@ -29,7 +29,7 @@ type httpNode struct {
     send_queue chan []byte      // 发送channel
     weight int                  // 权重 0 - 100
     send_times int64            // 发送次数
-    send_failure_times int64
+    send_failure_times int64    // 发送失败次数
 }
 
 func NewHttpService(config *HttpConfig) *HttpService {

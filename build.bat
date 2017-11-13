@@ -34,7 +34,7 @@ cd %~d0
 ::进入当前目录
 cd %current_path%
 ::build构建项目
-call go build wing-binlog-go
+call go build -v wing-binlog-go
 ::install安装
 call go install wing-binlog-go
 ::删除根目录下的可执行文件
