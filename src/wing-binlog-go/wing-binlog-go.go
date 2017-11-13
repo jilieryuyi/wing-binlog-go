@@ -96,6 +96,7 @@ func main() {
 	config_file := current_path + "/config/mysql.toml"
 	tcp_config_file := current_path + "/config/tcp.toml"
 	websocket_config_file := current_path + "/config/websocket.toml"
+	http_config_file := current_path + "/config/http.toml"
 
 	//config_obj := &library.Ini{config_file}
 	//config := config_obj.Parse()
@@ -133,13 +134,26 @@ func main() {
 		return
 	}
 
+
+	whttp_config := &library.WConfig{http_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
+	http_config, err := whttp_config.GetHttp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println(http_config)
+
+
 	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
+	tcp_service.Start()
 
 	log.Println(websocket_config)
 	websocket_service := services.NewWebSocketService(websocket_config.Tcp.Listen, websocket_config.Tcp.Port, websocket_config)
-
-	tcp_service.Start()
 	websocket_service.Start()
+
+	http_service := services.NewHttpService(http_config)
+	http_service.Start()
 
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()

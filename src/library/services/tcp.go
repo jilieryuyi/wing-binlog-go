@@ -191,7 +191,7 @@ func (tcp *TcpService) clientSendService(node *tcp_client_node) {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 
-				log.Println("失败次数：", tcp.send_failure_times, node.conn, node.send_failure_times)
+				log.Println((*node.conn).RemoteAddr().String(), "失败次数：", node.send_failure_times)
 			}
 		case <-to.C://time.After(time.Second*3):
 			//log.Println("发送超时...", tcp)

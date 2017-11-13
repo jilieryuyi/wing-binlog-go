@@ -72,3 +72,19 @@ func (config *WConfig) GetTcp() (*services.TcpConfig, error) {
     }
     return &tcp_config, nil
 }
+
+func (config *WConfig) GetHttp() (*services.HttpConfig, error) {
+    var tcp_config services.HttpConfig
+
+    wfile := WFile{config.Config_file}
+    if !wfile.Exists() {
+        log.Printf("config file %s does not exists", config.Config_file)
+        return nil, ErrorFileNotFound
+    }
+
+    if _, err := toml.DecodeFile(config.Config_file, &tcp_config); err != nil {
+        log.Println(err)
+        return nil, ErrorFileParse
+    }
+    return &tcp_config, nil
+}

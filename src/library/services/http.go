@@ -2,63 +2,171 @@ package services
 
 import (
     "io/ioutil"
-    "fmt"
-    "net/http"
-    "strings"
-    "net/url"
-    "encoding/json"
+    "log"
+    "errors"
     "bytes"
     "net"
     "time"
+    "net/http"
+    "sync/atomic"
+    "sync"
+    "strconv"
 )
+
+const HTTP_POST_TIMEOUT = 3 //3秒超时
+var ERR_STATUS error =  errors.New("错误的状态码")
+
 type HttpService struct {
-    urls []string
-}
-func httpDo(json string) {
-    client := &http.Client{}
-
-    req, err := http.NewRequest("POST", "http://www.01happy.com/demo/accept.php", strings.NewReader("name=cjb"))
-    if err != nil {
-        // handle error
-    }
-
-    req.SetBasicAuth("root", "123456")
-    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-    req.Header.Set("Cookie", "name=anny")
-    req.Form = url.Values{"event":{json}}
-    //req.
-    resp, err := client.Do(req)
-
-    defer resp.Body.Close()
-
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        // handle error
-    }
-
-    fmt.Println(string(body))
+    send_queue chan []byte         // 发送channel
+    groups [][]*httpNode             // 客户端分组，现在支持两种分组，广播组合负载均衡组
+    groups_mode []int    // 分组的模式 1，2 广播还是复载均衡
+    lock *sync.Mutex               // 互斥锁，修改资源时锁定
+    send_failure_times int64
 }
 
-func NetUploadJson(addr string, buf interface{}) (*[]byte, *int, error) {
-    // 将需要上传的JSON转为Byte
-    v, _ := json.Marshal(buf)
-    // 上传JSON数据
-    req, e := http.NewRequest("POST", addr, bytes.NewReader(v))
-    if e != nil {
-        // 提交异常,返回错误
-        return nil, nil, e
+type httpNode struct {
+    url string                  // url
+    send_queue chan []byte      // 发送channel
+    weight int                  // 权重 0 - 100
+    send_times int64            // 发送次数
+    send_failure_times int64
+}
+
+func NewHttpService(config *HttpConfig) *HttpService {
+    glen := len(config.Groups)
+    client := &HttpService {
+        send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+        lock               : new(sync.Mutex),
+        groups             : make([][]*httpNode, glen),
+        groups_mode        : make([]int, glen),
+        send_failure_times : int64(0),
     }
-    // Body Type
+    index := 0
+    for _, v := range config.Groups {
+        l := len(v.Nodes)
+        client.groups[index]      = make([]*httpNode, l)
+        client.groups_mode[index] = v.Mode
+
+        for i := 0; i < l; i++ {
+            w, _ := strconv.Atoi(v.Nodes[i][1])
+            client.groups[index][i] = &httpNode{
+                url                : v.Nodes[i][0],
+                weight             : w,
+                send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+                send_times         : int64(0),
+                send_failure_times : int64(0),
+            }
+        }
+        index++
+    }
+
+    return client
+}
+
+func (client *HttpService) Start() {
+    go client.broadcast()
+    for _, clients :=range client.groups {
+        for _, h := range clients {
+            go client.clientSendService(h)
+        }
+    }
+}
+
+func (client *HttpService) clientSendService(node *httpNode) {
+    to := time.NewTimer(time.Second*1)
+    for {
+        select {
+        case  msg := <-node.send_queue:
+            atomic.AddInt64(&node.send_times, int64(1))
+            data, err := client.post(node.url, msg)
+            if (err != nil) {
+                atomic.AddInt64(&client.send_failure_times, int64(1))
+                atomic.AddInt64(&node.send_failure_times, int64(1))
+                log.Println(node.url, "失败次数：", node.send_failure_times)
+            }
+            log.Println(node.url, " post 返回值：", data)
+        case <-to.C://time.After(time.Second*3):
+        //log.Println("发送超时...", tcp)
+        }
+    }
+}
+
+// 广播服务
+func (client *HttpService) broadcast() {
+    to := time.NewTimer(time.Second*1)
+    for {
+        select {
+        case  msg := <-client.send_queue:
+            client.lock.Lock()
+            for index, clients := range client.groups {
+                // 如果分组里面没有客户端连接，跳过
+                if len(clients) <= 0 {
+                    continue
+                }
+                // 分组的模式
+                mode := client.groups_mode[index]
+                // 如果不等于权重，即广播模式
+                if mode != MODEL_WEIGHT {
+                    for _, conn := range clients {
+                        log.Println("发送广播消息")
+                        conn.send_queue <- msg
+                    }
+                } else {
+                    // 负载均衡模式
+                    // todo 根据已经send_times的次数负载均衡
+                    target := clients[0]
+                    //将发送次数/权重 作为负载基数，每次选择最小的发送
+                    js := atomic.LoadInt64(&target.send_times)/int64(target.weight)
+
+                    for _, conn := range clients {
+                        stimes := atomic.LoadInt64(&conn.send_times)
+                        //conn.send_queue <- msg
+                        if stimes == 0 {
+                            //优先发送没有发过的
+                            target = conn
+                            break
+                        }
+                        _js := stimes/int64(conn.weight)
+                        if _js < js {
+                            js = _js
+                            target = conn
+                        }
+                    }
+                    log.Println("发送权重消息，", (*target).url)
+                    target.send_queue <- msg
+                }
+            }
+            client.lock.Unlock()
+        case <-to.C://time.After(time.Second*3):
+        }
+    }
+}
+
+// 对外的广播发送接口
+func (client *HttpService) SendAll(msg []byte) bool {
+    if len(client.send_queue) >= cap(client.send_queue) {
+        log.Println("http发送缓冲区满...")
+        return false
+    }
+    client.send_queue <- msg
+    return true
+}
+
+func (client *HttpService) post(addr string, post_data []byte) ([]byte, error) {
+    pdata := []byte("event=")
+    pdata = append(pdata, post_data...)
+    req, err := http.NewRequest("POST", addr, bytes.NewReader(pdata))
+    if err != nil {
+        return nil, err
+    }
     req.Header.Set("Content-Type", "application/json")
-    // 完成后断开连接
     req.Header.Set("Connection", "close")
-    // -------------------------------------------
-    // 设置 TimeOut
+    // 超时设置
     DefaultClient := http.Client{
-        Transport: &http.Transport{
+        Transport: &http.Transport {
             Dial: func(netw, addr string) (net.Conn, error) {
-                deadline := time.Now().Add(30 * time.Second)
-                c, err := net.DialTimeout(netw, addr, time.Second*30)
+                deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
+                c, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
                 if err != nil {
                     return nil, err
                 }
@@ -67,35 +175,27 @@ func NetUploadJson(addr string, buf interface{}) (*[]byte, *int, error) {
             },
         },
     }
-    // -------------------------------------------
-    // 执行
-    resp, ee := DefaultClient.Do(req)
-    if ee != nil {
-        // 提交异常,返回错误
-        return nil, nil, ee
+    // 执行post
+    resp, err := DefaultClient.Do(req)
+    if err != nil {
+        return nil, err
     }
-    // 保证I/O正常关闭
+    // 关闭io
     defer resp.Body.Close()
     // 判断返回状态
-    if resp.StatusCode == http.StatusOK {
-        // 读取返回的数据
-        data, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-            // 读取异常,返回错误
-            return nil, nil, err
-        }
-        // 将收到的数据与状态返回
-        return &data, &resp.StatusCode, nil
-    } else if resp.StatusCode != http.StatusOK {
+    if resp.StatusCode != http.StatusOK {
         // 返回异常状态
-        return nil, &resp.StatusCode, nil
+        log.Println("http post error, error status back: ", resp.StatusCode)
+        return nil, ERR_STATUS
     }
-    // 不会到这里
-    return nil, nil, nil
+    data, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return nil, err
+    }
+    return data, nil
 }
 
-// 下载文件
-func NetDownloadFile(addr string) (*[]byte, *int, *http.Header, error) {
+func (client *HttpService) get(addr string) (*[]byte, *int, *http.Header, error) {
     // 上传JSON数据
     req, e := http.NewRequest("GET", addr, nil)
     if e != nil {

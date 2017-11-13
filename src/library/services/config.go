@@ -12,3 +12,12 @@ type TcpConfig struct {
     Groups map[string]tcpg
     Tcp tcpc
 }
+
+type HttpConfig struct {
+    Groups map[string]httpNodeConfig
+}
+
+type httpNodeConfig struct {
+    Mode int
+    Nodes [][]string
+}

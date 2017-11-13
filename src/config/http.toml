@@ -3,20 +3,28 @@
 ##权重值范围为0-100
 ##设定mode模式为广播时weight值无效
 [groups]
-    [groups.1]
-     mode = "broadcast" ##(广播)broadcast or  (权重)weight
-        [node1]
-        url = "http://www.baidu.com/"
-        weight = 0 ##如果mode为广播，则此值无效
-        [node2]
-        url = "http://www.google.com/"
-        wight = 0
+    [groups.g1]
+     mode  = 1 ## 1 (广播)broadcast or  2 (权重)weight
+     nodes = [ ## 所有的广播节点
+        [
+            "http://www.baidu.com/",
+            "0"  ## 权重，mode 为1的分组，此值无效，写为0
+        ],
+        [
+            "http://www.google.com/",
+            "0"  ## 广播模式，权重写为0
+        ]
+     ]
 
-     [groups.2]
-      mode = "weight"
-         [node1]
-         url = "http://test1.com"
-         weight = 80
-         [node2]
-         url = "http://test2.com"
-         weight = 20
+     [groups.g2]
+      mode = 2   ## 负载均衡模式
+      nodes = [  ## 负载均衡url节点
+         [
+            "http://test1.com",
+            "80" ##所占权重
+         ],
+         [
+            "http://test2.com",
+            "20" ##所占权重
+         ]
+      ]
