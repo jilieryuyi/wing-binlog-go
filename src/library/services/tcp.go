@@ -36,10 +36,11 @@ type TcpService struct {
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
-func NewTcpService(ip string, port int, config *TcpConfig) *TcpService {
+func NewTcpService(config *TcpConfig) *TcpService {
+	//tcp_config.Tcp.Listen, tcp_config.Tcp.Port
 	tcp := &TcpService {
-		Ip                 : ip,
-		Port               : port,
+		Ip                 : config.Tcp.Listen,
+		Port               : config.Tcp.Port,
 		clients_count      : int32(0),
 		lock               : new(sync.Mutex),
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),

@@ -37,10 +37,11 @@ type WebSocketService struct {
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
-func NewWebSocketService(ip string, port int, config *TcpConfig) *WebSocketService {
+func NewWebSocketService(config *TcpConfig) *WebSocketService {
+	//websocket_config.Tcp.Listen, websocket_config.Tcp.Port,
 	tcp := &WebSocketService {
-		Ip                 : ip,
-		Port               : port,
+		Ip                 : config.Tcp.Listen,
+		Port               : config.Tcp.Port,
 		clients_count      : int32(0),
 		lock               : new(sync.Mutex),
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),

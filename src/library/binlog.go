@@ -58,6 +58,7 @@ type binlogHandler struct{
 	buf     []byte
 	tcp_service *services.TcpService
 	websocket_service *services.WebSocketService
+	http_service *services.HttpService
 }
 
 func (h *binlogHandler) notify(msg []byte) {
@@ -363,7 +364,8 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 	return res[0], pos, index
 }
 
-func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *services.WebSocketService) {
+func (h *Binlog) Start(tcp_service *services.TcpService,
+websocket_service *services.WebSocketService, http_service *services.HttpService) {
 
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
@@ -396,11 +398,13 @@ func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *serv
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:0]
-	h.binlog_handler.tcp_service = tcp_service
+
+	// 3种服务
+	h.binlog_handler.tcp_service       = tcp_service
 	h.binlog_handler.websocket_service = websocket_service
+	h.binlog_handler.http_service      = http_service
 
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
-
 	h.handler.SetEventHandler(&h.binlog_handler)
 	h.is_connected = true
 
@@ -420,13 +424,9 @@ func (h *Binlog) Start(tcp_service *services.TcpService, websocket_service *serv
 		for {
 			select {
 			case pos := <-h.binlog_handler.chan_save_position:
-				//log.Println(pos)
-				//v := reflect.ValueOf(pos)
-				//if v.IsValid() {
-					if pos.pos.Name != "" && pos.pos.Pos > 0 {
-						wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
-					}
-				//}
+				if pos.pos.Name != "" && pos.pos.Pos > 0 {
+					wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
+				}
 			}
 		}
 	}()

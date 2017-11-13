@@ -117,6 +117,8 @@ func main() {
 		return
 	}
 
+
+	// tcp服务
 	wtcp_config := &library.WConfig{tcp_config_file}
 	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
 	tcp_config, err := wtcp_config.GetTcp()
@@ -124,8 +126,10 @@ func main() {
 		log.Println(err)
 		return
 	}
+	tcp_service := services.NewTcpService(tcp_config)
+	tcp_service.Start()
 
-
+	// websocket 服务
 	wwebsocket_config := &library.WConfig{websocket_config_file}
 	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
 	websocket_config, err := wwebsocket_config.GetTcp()
@@ -133,8 +137,10 @@ func main() {
 		log.Println(err)
 		return
 	}
+	websocket_service := services.NewWebSocketService(websocket_config)
+	websocket_service.Start()
 
-
+	// http服务
 	whttp_config := &library.WConfig{http_config_file}
 	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
 	http_config, err := whttp_config.GetHttp()
@@ -142,22 +148,12 @@ func main() {
 		log.Println(err)
 		return
 	}
-	log.Println(http_config)
-
-
-	tcp_service := services.NewTcpService(tcp_config.Tcp.Listen, tcp_config.Tcp.Port, tcp_config)
-	tcp_service.Start()
-
-	log.Println(websocket_config)
-	websocket_service := services.NewWebSocketService(websocket_config.Tcp.Listen, websocket_config.Tcp.Port, websocket_config)
-	websocket_service.Start()
-
 	http_service := services.NewHttpService(http_config)
 	http_service.Start()
 
 	blog := library.Binlog{DB_Config:app_config}
 	defer blog.Close()
-	blog.Start(tcp_service, websocket_service)
+	blog.Start(tcp_service, websocket_service, http_service)
 
 	<-sc
 
