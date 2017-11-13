@@ -6,3 +6,5 @@
  * Time: 21:47
  * 广播http接收端1
  */
+
+file_put_contents(__DIR__."/test1.log", json_encode($_REQUEST));

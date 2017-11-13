@@ -108,7 +108,7 @@ func (client *HttpService) broadcast() {
                 // 如果不等于权重，即广播模式
                 if mode != MODEL_WEIGHT {
                     for _, conn := range clients {
-                        log.Println("发送广播消息")
+                        log.Println("http发送广播消息")
                         conn.send_queue <- msg
                     }
                 } else {
@@ -132,7 +132,7 @@ func (client *HttpService) broadcast() {
                             target = conn
                         }
                     }
-                    log.Println("发送权重消息，", (*target).url)
+                    log.Println("http发送权重消息，", (*target).url)
                     target.send_queue <- msg
                 }
             }

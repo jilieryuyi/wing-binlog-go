@@ -65,6 +65,7 @@ func (h *binlogHandler) notify(msg []byte) {
 	log.Println("发送广播：", string(msg))
 	h.tcp_service.SendAll(msg)
 	h.websocket_service.SendAll(msg)
+	h.http_service.SendAll(msg)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {

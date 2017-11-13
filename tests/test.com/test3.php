@@ -6,3 +6,4 @@
  * Time: 21:47
  * 80%权重接收端
  */
+file_put_contents("test3.log", json_encode($_REQUEST));

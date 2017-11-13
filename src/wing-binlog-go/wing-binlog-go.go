@@ -148,6 +148,7 @@ func main() {
 		log.Println(err)
 		return
 	}
+	log.Println(http_config)
 	http_service := services.NewHttpService(http_config)
 	http_service.Start()
 
