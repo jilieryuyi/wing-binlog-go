@@ -1,6 +1,8 @@
-var count = 0;
+var count      = 0;
 var group_name = "group1";
-var weight = 100;
+var weight     = 100;
+var ws         = new WebSocket("ws://127.0.0.1:9997/");
+
 
 const CMD_SET_PRO = 1;
 const CMD_AUTH    = 2;
@@ -12,12 +14,14 @@ const CMD_EVENT   = 6;
 const MODE_BROADCAST = 1; //广播
 const MODE_WEIGHT    = 2; //权重
 
+var tick_pack  = String.fromCharCode(CMD_TICK) + String.fromCharCode(CMD_TICK >> 8);
+
 function clog()
 {
 
 }
 
-function on_connect(ws)
+function on_connect()
 {
     // str="A";
     // code = str.charCodeAt();
@@ -41,12 +45,8 @@ function on_connect(ws)
 
 function on_message(msg)
 {
-    //console.log(msg)
-    //cmd(2byte) + content
-    var cmd = msg[0].charCodeAt() + msg[1].charCodeAt();
-    console.log(cmd);
+    var cmd     = msg[0].charCodeAt() + msg[1].charCodeAt();
     var content = msg.substr(2, msg.length - 2);
-    console.log(content);
 
     switch (cmd) {
         case CMD_SET_PRO:
@@ -82,10 +82,9 @@ function on_error()
 
 function start_service()
 {
-    var ws = new WebSocket("ws://127.0.0.1:9997/");
 
     ws.onopen = function() {
-        on_connect(ws);
+        on_connect();
     };
 
     ws.onmessage = function(e) {
@@ -103,3 +102,6 @@ function start_service()
 
 
 start_service();
+window.setInterval(function(){
+   ws.send(tick_pack);
+}, 3000);
