@@ -114,26 +114,35 @@ func (client *HttpService) broadcast() {
                 filter := client.groups_filter[index]
                 flen   := len(filter)
 
+
+                //4字节长度
+                table_len := int(msg[0]) +
+                    int(msg[1] << 8);
+                table := string(msg[2:table_len+2])
+                log.Println("事件发生的数据表：", table)
                 //分组过滤
                 log.Println(filter)
                 if flen > 0 {
-                    /*is_match := false
+                    is_match := false
                     for _, f := range filter {
-                        if regexp.MatchString(f,"db.table") {
+                        match, err := regexp.MatchString(f, table)
+                        if err != nil {
+                            continue
+                        }
+                        if match {
                             is_match = true
                         }
                     }
-
                     if !is_match {
                         continue
-                    }*/
+                    }
                 }
 
                 // 如果不等于权重，即广播模式
                 if mode != MODEL_WEIGHT {
                     for _, conn := range clients {
                         log.Println("http发送广播消息")
-                        conn.send_queue <- msg
+                        conn.send_queue <- msg[table_len+2:]
                     }
                 } else {
                     // 负载均衡模式
@@ -158,7 +167,7 @@ func (client *HttpService) broadcast() {
                         }
                     }
                     log.Println("http发送权重消息，", (*target).url)
-                    target.send_queue <- msg
+                    target.send_queue <- msg[table_len+2:]
                 }
             }
             client.lock.Unlock()
