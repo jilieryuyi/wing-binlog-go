@@ -6,4 +6,5 @@
  * Time: 21:47
  * 广播http接收端2
  */
-file_put_contents("test2.log", json_encode($_REQUEST));
+file_put_contents("test2.log", date("Y-m-d H:i:s"). "=>". file_get_contents("php://input")."\r\n",
+    FILE_APPEND);

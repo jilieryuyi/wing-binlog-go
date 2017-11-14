@@ -153,9 +153,7 @@ func (client *HttpService) SendAll(msg []byte) bool {
 }
 
 func (client *HttpService) post(addr string, post_data []byte) ([]byte, error) {
-    pdata := []byte("event=")
-    pdata = append(pdata, post_data...)
-    req, err := http.NewRequest("POST", addr, bytes.NewReader(pdata))
+    req, err := http.NewRequest("POST", addr, bytes.NewReader(post_data))
     if err != nil {
         return nil, err
     }

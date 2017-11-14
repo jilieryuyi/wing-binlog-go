@@ -6,4 +6,5 @@
  * Time: 21:48
  * 20%权重接收端
  */
-file_put_contents("test4.log", json_encode($_REQUEST));
+file_put_contents("test4.log", date("Y-m-d H:i:s"). "=>". file_get_contents("php://input")."\r\n",
+    FILE_APPEND);
