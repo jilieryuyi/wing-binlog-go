@@ -115,7 +115,7 @@ func (client *HttpService) broadcast() {
                 flen   := len(filter)
 
 
-                //4字节长度
+                //2字节长度
                 table_len := int(msg[0]) +
                     int(msg[1] << 8);
                 table := string(msg[2:table_len+2])

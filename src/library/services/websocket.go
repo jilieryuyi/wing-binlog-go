@@ -88,6 +88,13 @@ func (tcp *WebSocketService) broadcast() {
 				}
 				// 分组的模式
 				mode := tcp.groups_mode[group_name]
+
+				//2字节长度
+				table_len := int(msg[0]) +
+					int(msg[1] << 8);
+				table := string(msg[2:table_len+2])
+				log.Println("tcp数据表：", table)
+
 				// 如果不等于权重，即广播模式
 				if mode != MODEL_WEIGHT {
 					for _, conn := range clients {
@@ -95,7 +102,7 @@ func (tcp *WebSocketService) broadcast() {
 							continue
 						}
 						log.Println("发送广播消息")
-						conn.send_queue <- msg
+						conn.send_queue <- msg[table_len+2:]
 					}
 				} else {
 					// 负载均衡模式
@@ -120,7 +127,7 @@ func (tcp *WebSocketService) broadcast() {
 						}
 					}
 					log.Println("发送权重消息，", (*target.conn).RemoteAddr().String())
-					target.send_queue <- msg
+					target.send_queue <- msg[table_len+2:]
 				}
 			}
 			tcp.lock.Unlock()
