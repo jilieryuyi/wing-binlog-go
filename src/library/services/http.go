@@ -78,6 +78,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
         select {
         case  msg := <-node.send_queue:
             atomic.AddInt64(&node.send_times, int64(1))
+            log.Println("post到url：",node.url)
             data, err := client.post(node.url, msg)
             if (err != nil) {
                 atomic.AddInt64(&client.send_failure_times, int64(1))
@@ -114,22 +115,23 @@ func (client *HttpService) broadcast() {
                 } else {
                     // 负载均衡模式
                     // todo 根据已经send_times的次数负载均衡
+                    clen := len(clients)
                     target := clients[0]
                     //将发送次数/权重 作为负载基数，每次选择最小的发送
-                    js := atomic.LoadInt64(&target.send_times)/int64(target.weight)
-
-                    for _, conn := range clients {
-                        stimes := atomic.LoadInt64(&conn.send_times)
+                    js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
+                    for i := 1; i < clen; i++ {
+                        stimes := atomic.LoadInt64(&clients[i].send_times)
                         //conn.send_queue <- msg
                         if stimes == 0 {
                             //优先发送没有发过的
-                            target = conn
+                            target = clients[i]
                             break
                         }
-                        _js := stimes/int64(conn.weight)
+                        _js := float64(stimes)/float64(clients[i].weight)
+                        log.Println("权重基数",float64(stimes),float64(clients[i].weight), _js, js)
                         if _js < js {
                             js = _js
-                            target = conn
+                            target = clients[i]
                         }
                     }
                     log.Println("http发送权重消息，", (*target).url)
