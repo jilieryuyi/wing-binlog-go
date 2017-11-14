@@ -11,6 +11,7 @@ import (
     "sync/atomic"
     "sync"
     "strconv"
+    "regexp"
 )
 
 const HTTP_POST_TIMEOUT = 3 //3秒超时
@@ -20,6 +21,7 @@ type HttpService struct {
     send_queue chan []byte     // 发送channel
     groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
     groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
+    groups_filter [][]string     // 分组过滤器
     lock *sync.Mutex           // 互斥锁，修改资源时锁定
     send_failure_times int64   // 发送失败次数
 }
@@ -39,6 +41,7 @@ func NewHttpService(config *HttpConfig) *HttpService {
         lock               : new(sync.Mutex),
         groups             : make([][]*httpNode, glen),
         groups_mode        : make([]int, glen),
+        groups_filter      : make([][]string, glen),
         send_failure_times : int64(0),
     }
     index := 0
@@ -46,7 +49,9 @@ func NewHttpService(config *HttpConfig) *HttpService {
         l := len(v.Nodes)
         client.groups[index]      = make([]*httpNode, l)
         client.groups_mode[index] = v.Mode
-
+        client.groups_filter[index] = make([]string, len(v.Filter))
+        client.groups_filter[index] = append(client.groups_filter[index][:0], v.Filter...)
+        log.Println("filter => ",client.groups_filter[index])
         for i := 0; i < l; i++ {
             w, _ := strconv.Atoi(v.Nodes[i][1])
             client.groups[index][i] = &httpNode{
@@ -105,7 +110,25 @@ func (client *HttpService) broadcast() {
                     continue
                 }
                 // 分组的模式
-                mode := client.groups_mode[index]
+                mode   := client.groups_mode[index]
+                filter := client.groups_filter[index]
+                flen   := len(filter)
+
+                //分组过滤
+                log.Println(filter)
+                if flen > 0 {
+                    /*is_match := false
+                    for _, f := range filter {
+                        if regexp.MatchString(f,"db.table") {
+                            is_match = true
+                        }
+                    }
+
+                    if !is_match {
+                        continue
+                    }*/
+                }
+
                 // 如果不等于权重，即广播模式
                 if mode != MODEL_WEIGHT {
                     for _, conn := range clients {

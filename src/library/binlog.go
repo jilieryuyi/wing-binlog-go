@@ -105,6 +105,20 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 		for i := 0; i < len(e.Rows); i+=2 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 			buf := h.buf[:0]
+
+			db := []byte(e.Table.Schema)
+			dblen := len(db)
+			table := []byte(e.Table.Name)
+			tablelen := len(table)
+
+			buf = append(buf, byte(dblen))
+			buf = append(buf, byte(dblen >> 8))
+			buf = append(buf, db...)
+
+			buf = append(buf, byte(tablelen))
+			buf = append(buf, byte(tablelen >> 8))
+			buf = append(buf, table...)
+
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
@@ -219,6 +233,20 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 		for i := 0; i < len(e.Rows); i += 1 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 			buf := h.buf[:0]
+
+			db := []byte(e.Table.Schema)
+			dblen := len(db)
+			table := []byte(e.Table.Name)
+			tablelen := len(table)
+
+			buf = append(buf, byte(dblen))
+			buf = append(buf, byte(dblen >> 8))
+			buf = append(buf, db...)
+
+			buf = append(buf, byte(tablelen))
+			buf = append(buf, byte(tablelen >> 8))
+			buf = append(buf, table...)
+
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{"...)
