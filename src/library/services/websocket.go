@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"sync/atomic"
+	"regexp"
 )
 
 type websocket_client_node struct {
@@ -34,6 +35,7 @@ type WebSocketService struct {
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*websocket_client_node // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
+	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
@@ -47,6 +49,7 @@ func NewWebSocketService(config *TcpConfig) *WebSocketService {
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*websocket_client_node),
 		groups_mode        : make(map[string] int),
+		groups_filter      : make(map[string] []string),
 		recv_times         : 0,
 		send_times         : 0,
 		send_failure_times : 0,
@@ -56,6 +59,10 @@ func NewWebSocketService(config *TcpConfig) *WebSocketService {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocket_client_node
 		tcp.groups[v.Name]      = con[:0]
 		tcp.groups_mode[v.Name] = v.Mode
+
+		flen := len(v.Filter)
+		tcp.groups_filter[v.Name] = make([]string, flen)
+		tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
 	}
 
 	return tcp
@@ -87,13 +94,32 @@ func (tcp *WebSocketService) broadcast() {
 					continue
 				}
 				// 分组的模式
-				mode := tcp.groups_mode[group_name]
+				mode   := tcp.groups_mode[group_name]
+				filter := tcp.groups_filter[group_name]
+				flen   := len(filter)
 
 				//2字节长度
-				table_len := int(msg[0]) +
-					int(msg[1] << 8);
-				table := string(msg[2:table_len+2])
-				log.Println("tcp数据表：", table)
+				table_len := int(msg[0]) + int(msg[1] << 8);
+				table     := string(msg[2:table_len+2])
+
+				log.Println("websocket数据表：", table)
+				log.Println(filter)
+
+				if flen > 0 {
+					is_match := false
+					for _, f := range filter {
+						match, err := regexp.MatchString(f, table)
+						if err != nil {
+							continue
+						}
+						if match {
+							is_match = true
+						}
+					}
+					if !is_match {
+						continue
+					}
+				}
 
 				// 如果不等于权重，即广播模式
 				if mode != MODEL_WEIGHT {
@@ -136,7 +162,7 @@ func (tcp *WebSocketService) broadcast() {
 	}
 }
 
-// 打包tcp响应包 格式为 [包长度-2字节，大端序][指令-2字节][内容]
+// 打包tcp响应包 格式为 [包长度-2字节，小端序][指令-2字节][内容]
 func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)

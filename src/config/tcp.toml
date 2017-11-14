@@ -9,10 +9,11 @@
     [groups.1]
      mode = 1 ## 1 (广播)broadcast or  2(权重)weight
      name = "group1"
-
+     filter = []
     [groups.2]
      mode = 2
      name = "group2"
+     filter = []
 [tcp]
 listen = "0.0.0.0"
 port = 9998

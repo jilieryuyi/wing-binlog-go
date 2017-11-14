@@ -7,6 +7,7 @@ import (
 	"time"
 	"sync/atomic"
 	"sync"
+	"regexp"
 )
 
 type tcp_client_node struct {
@@ -33,6 +34,7 @@ type TcpService struct {
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*tcp_client_node  // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
+	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
@@ -46,15 +48,19 @@ func NewTcpService(config *TcpConfig) *TcpService {
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*tcp_client_node),
 		groups_mode        : make(map[string] int),
+		groups_filter      : make(map[string] []string),
 		recv_times         : 0,
 		send_times         : 0,
 		send_failure_times : 0,
 	}
 
 	for _, v := range config.Groups {
+		flen := len(v.Filter)
 		var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node
 		tcp.groups[v.Name]      = con[:0]
 		tcp.groups_mode[v.Name] = v.Mode
+		tcp.groups_filter[v.Name] = make([]string, flen)
+		tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
 	}
 
 	return tcp
@@ -87,13 +93,31 @@ func (tcp *TcpService) broadcast() {
 					continue
 				}
 				// 分组的模式
-				mode := tcp.groups_mode[group_name]
-
+				mode   := tcp.groups_mode[group_name]
+				filter := tcp.groups_filter[group_name]
+				flen   := len(filter)
 				//2字节长度
-				table_len := int(msg[0]) +
-					int(msg[1] << 8);
-				table := string(msg[2:table_len+2])
+				table_len := int(msg[0]) + int(msg[1] << 8);
+				table     := string(msg[2:table_len+2])
+
 				log.Println("tcp数据表：", table)
+				log.Println(filter)
+
+				if flen > 0 {
+					is_match := false
+					for _, f := range filter {
+						match, err := regexp.MatchString(f, table)
+						if err != nil {
+							continue
+						}
+						if match {
+							is_match = true
+						}
+					}
+					if !is_match {
+						continue
+					}
+				}
 
 				// 如果不等于权重，即广播模式
 				if mode != MODEL_WEIGHT {

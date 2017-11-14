@@ -15,6 +15,9 @@ import (
 )
 
 const HTTP_POST_TIMEOUT = 3 //3秒超时
+const HTTP_CACHE_LEN = 10000
+const HTTP_CACHE_BUFFER_SIZE = 4096
+
 var ERR_STATUS error =  errors.New("错误的状态码")
 
 type HttpService struct {
@@ -32,6 +35,13 @@ type httpNode struct {
     weight int                  // 权重 0 - 100
     send_times int64            // 发送次数
     send_failure_times int64    // 发送失败次数
+    is_down bool                // 是否因为故障下线的节点
+    failure_times_flag int32    // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
+    lock *sync.Mutex            // 互斥锁，修改资源时锁定
+
+    cache [][]byte
+    cache_index int
+    cache_is_init bool
 }
 
 func NewHttpService(config *HttpConfig) *HttpService {
@@ -60,6 +70,10 @@ func NewHttpService(config *HttpConfig) *HttpService {
                 send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
                 send_times         : int64(0),
                 send_failure_times : int64(0),
+                is_down            : false,
+                lock               : new(sync.Mutex),
+                failure_times_flag : int32(0),
+                cache_is_init      : false,
             }
         }
         index++
@@ -78,19 +92,93 @@ func (client *HttpService) Start() {
 }
 
 func (client *HttpService) clientSendService(node *httpNode) {
+    go func(){
+        for {
+            node.lock.Lock()
+            if node.is_down {
+                // 发送空包检测
+                // post默认3秒超时，所以这里不会死锁
+                _, err := client.post(node.url,[]byte{byte(0)})
+                if err == nil {
+                    //重新上线
+                    node.is_down = false
+                }
+            }
+            node.lock.Unlock()
+            time.Sleep(time.Second)
+        }
+    }()
+
     to := time.NewTimer(time.Second*1)
     for {
         select {
         case  msg := <-node.send_queue:
-            atomic.AddInt64(&node.send_times, int64(1))
-            log.Println("post到url：",node.url)
-            data, err := client.post(node.url, msg)
-            if (err != nil) {
-                atomic.AddInt64(&client.send_failure_times, int64(1))
-                atomic.AddInt64(&node.send_failure_times, int64(1))
-                log.Println(node.url, "失败次数：", node.send_failure_times)
+            node.lock.Lock()
+            if !node.is_down {
+                atomic.AddInt64(&node.send_times, int64(1))
+                log.Println("post到url：", node.url)
+                data, err := client.post(node.url, msg)
+
+                if (err != nil) {
+                    atomic.AddInt64(&client.send_failure_times, int64(1))
+                    atomic.AddInt64(&node.send_failure_times, int64(1))
+                    atomic.AddInt32(&node.failure_times_flag, int32(1))
+                    failure_times := atomic.LoadInt32(&node.failure_times_flag)
+
+                    // 如果连续3次错误，标志位故障
+                    if failure_times >= 3 {
+                        //发生故障
+                        log.Println(node.url, "发生错误，下线节点")
+                        node.is_down = true
+                    }
+                    log.Println(node.url, "失败次数：", node.send_failure_times)
+
+                    if !node.cache_is_init {
+                        node.cache = make([][]byte, HTTP_CACHE_LEN)
+                        for k := 0; k < HTTP_CACHE_LEN; k++ {
+                            node.cache[k] = make([]byte, HTTP_CACHE_BUFFER_SIZE)
+                        }
+                        node.cache_is_init = true
+                        node.cache_index = 0
+                    }
+
+                    node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
+                    node.cache_index++
+                    if node.cache_index > HTTP_CACHE_LEN {
+                        node.cache_index = 0;
+                    }
+
+                } else {
+                    if node.is_down {
+                        node.is_down = false
+                    }
+                    failure_times := atomic.LoadInt32(&node.failure_times_flag)
+                    //恢复即时清零故障计数
+                    if failure_times > 0 {
+                        atomic.StoreInt32(&node.failure_times_flag, 0)
+                    }
+
+                    //对失败的cache进行重发
+                    if node.cache_index > 0 {
+                        for j := node.cache_index - 1; j >= 0; j-- {
+                            //重发
+                            node.send_queue <- node.cache[j]
+                        }
+                    }
+                }
+                log.Println(node.url, " post 返回值：", data)
+            } else {
+                // 故障节点，缓存需要发送的数据
+                // 这里就需要一个map[string][10000][]byte，最多缓存10000条
+                // 保持最新的10000条
+                node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
+                node.cache_index++
+                if node.cache_index > HTTP_CACHE_LEN {
+                    node.cache_index = 0;
+                }
             }
-            log.Println(node.url, " post 返回值：", data)
+
+            node.lock.Unlock()
         case <-to.C://time.After(time.Second*3):
         //log.Println("发送超时...", tcp)
         }
