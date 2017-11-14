@@ -102,6 +102,16 @@ func (client *HttpService) clientSendService(node *httpNode) {
                 if err == nil {
                     //重新上线
                     node.is_down = false
+                    log.Println(node.url, "节点恢复")
+                    //对失败的cache进行重发
+                    if node.cache_index > 0 {
+                        for j := node.cache_index - 1; j >= 0; j-- {
+                            //重发
+                            log.Println("数据重发2")
+                            node.send_queue <- node.cache[j]
+                            node.cache_index--
+                        }
+                    }
                 }
             }
             node.lock.Unlock()
@@ -134,6 +144,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     log.Println(node.url, "失败次数：", node.send_failure_times)
 
                     if !node.cache_is_init {
+                        log.Println("初始化cache")
                         node.cache = make([][]byte, HTTP_CACHE_LEN)
                         for k := 0; k < HTTP_CACHE_LEN; k++ {
                             node.cache[k] = make([]byte, HTTP_CACHE_BUFFER_SIZE)
@@ -144,6 +155,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 
                     node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
                     node.cache_index++
+                    log.Println(node.cache_index, "添加cache数据")
                     if node.cache_index > HTTP_CACHE_LEN {
                         node.cache_index = 0;
                     }
@@ -162,7 +174,9 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     if node.cache_index > 0 {
                         for j := node.cache_index - 1; j >= 0; j-- {
                             //重发
+                            log.Println("数据重发")
                             node.send_queue <- node.cache[j]
+                            node.cache_index--
                         }
                     }
                 }
@@ -173,6 +187,8 @@ func (client *HttpService) clientSendService(node *httpNode) {
                 // 保持最新的10000条
                 node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
                 node.cache_index++
+                log.Println(node.cache_index, "添加cache数据2")
+
                 if node.cache_index > HTTP_CACHE_LEN {
                     node.cache_index = 0;
                 }
