@@ -91,33 +91,68 @@ func (client *HttpService) Start() {
     }
 }
 
-func (client *HttpService) clientSendService(node *httpNode) {
-    go func(){
-        for {
-            node.lock.Lock()
-            if node.is_down {
-                // 发送空包检测
-                // post默认3秒超时，所以这里不会死锁
-                _, err := client.post(node.url,[]byte{byte(0)})
-                if err == nil {
-                    //重新上线
-                    node.is_down = false
-                    log.Println(node.url, "节点恢复")
-                    //对失败的cache进行重发
-                    if node.cache_index > 0 {
-                        for j := node.cache_index - 1; j >= 0; j-- {
-                            //重发
-                            log.Println("数据重发2")
-                            node.send_queue <- node.cache[j]
-                            node.cache_index--
-                        }
-                    }
-                }
-            }
-            node.lock.Unlock()
-            time.Sleep(time.Second)
+// 初始化节点缓冲区，这个缓冲区用于存放发送失败的数据，最多HTTP_CACHE_LEN条
+func (client *HttpService) cacheInit(node *httpNode) {
+    if node.cache_is_init {
+        return
+    }
+
+    log.Println("初始化cache")
+    node.cache = make([][]byte, HTTP_CACHE_LEN)
+    for k := 0; k < HTTP_CACHE_LEN; k++ {
+        node.cache[k] = make([]byte, HTTP_CACHE_BUFFER_SIZE)
+    }
+    node.cache_is_init = true
+    node.cache_index = 0
+}
+
+// 添加数据到缓冲区
+func (client *HttpService) addCache(node *httpNode, msg []byte) {
+    node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
+    node.cache_index++
+    log.Println(node.cache_index, "添加cache数据")
+    if node.cache_index > HTTP_CACHE_LEN {
+        node.cache_index = 0;
+    }
+}
+
+// 尝试对失败的数据进行重发
+func (client *HttpService) sendCache(node *httpNode) {
+    if node.cache_index > 0 {
+        //保持时序
+        for j := 0; j < node.cache_index; j++ {
+            //重发
+            log.Println("数据重发")
+            node.send_queue <- node.cache[j]
+            node.cache_index--
         }
-    }()
+    }
+}
+
+// 节点故障检测与恢复服务
+func (client *HttpService) errorCheckService(node *httpNode) {
+    for {
+        node.lock.Lock()
+        if node.is_down {
+            // 发送空包检测
+            // post默认3秒超时，所以这里不会死锁
+            _, err := client.post(node.url,[]byte{byte(0)})
+            if err == nil {
+                //重新上线
+                node.is_down = false
+                log.Println(node.url, "节点恢复")
+                //对失败的cache进行重发
+                client.sendCache(node)
+            }
+        }
+        node.lock.Unlock()
+        time.Sleep(time.Second)
+    }
+}
+
+// 节点服务协程
+func (client *HttpService) clientSendService(node *httpNode) {
+    go client.errorCheckService(node)
 
     to := time.NewTimer(time.Second*1)
     for {
@@ -143,22 +178,8 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     }
                     log.Println(node.url, "失败次数：", node.send_failure_times)
 
-                    if !node.cache_is_init {
-                        log.Println("初始化cache")
-                        node.cache = make([][]byte, HTTP_CACHE_LEN)
-                        for k := 0; k < HTTP_CACHE_LEN; k++ {
-                            node.cache[k] = make([]byte, HTTP_CACHE_BUFFER_SIZE)
-                        }
-                        node.cache_is_init = true
-                        node.cache_index = 0
-                    }
-
-                    node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
-                    node.cache_index++
-                    log.Println(node.cache_index, "添加cache数据")
-                    if node.cache_index > HTTP_CACHE_LEN {
-                        node.cache_index = 0;
-                    }
+                    client.cacheInit(node)
+                    client.addCache(node, msg)
 
                 } else {
                     if node.is_down {
@@ -169,29 +190,15 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     if failure_times > 0 {
                         atomic.StoreInt32(&node.failure_times_flag, 0)
                     }
-
                     //对失败的cache进行重发
-                    if node.cache_index > 0 {
-                        for j := node.cache_index - 1; j >= 0; j-- {
-                            //重发
-                            log.Println("数据重发")
-                            node.send_queue <- node.cache[j]
-                            node.cache_index--
-                        }
-                    }
+                    client.sendCache(node)
                 }
                 log.Println(node.url, " post 返回值：", data)
             } else {
                 // 故障节点，缓存需要发送的数据
                 // 这里就需要一个map[string][10000][]byte，最多缓存10000条
                 // 保持最新的10000条
-                node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
-                node.cache_index++
-                log.Println(node.cache_index, "添加cache数据2")
-
-                if node.cache_index > HTTP_CACHE_LEN {
-                    node.cache_index = 0;
-                }
+                client.addCache(node, msg)
             }
 
             node.lock.Unlock()
