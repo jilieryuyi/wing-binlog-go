@@ -126,6 +126,7 @@ func main() {
 		log.Println(err)
 		return
 	}
+	log.Println("tcp config: ", tcp_config)
 	tcp_service := services.NewTcpService(tcp_config)
 	tcp_service.Start()
 
@@ -137,6 +138,7 @@ func main() {
 		log.Println(err)
 		return
 	}
+	log.Println("websocket config: ",websocket_config)
 	websocket_service := services.NewWebSocketService(websocket_config)
 	websocket_service.Start()
 
@@ -148,7 +150,7 @@ func main() {
 		log.Println(err)
 		return
 	}
-	log.Println(http_config)
+	log.Println("http config: ",http_config)
 	http_service := services.NewHttpService(http_config)
 	http_service.Start()
 

@@ -10,11 +10,13 @@ type tcpc struct {
     Port int
 }
 type TcpConfig struct {
+    Enable bool
     Groups map[string]tcpg
     Tcp tcpc
 }
 
 type HttpConfig struct {
+    Enable bool
     Groups map[string]httpNodeConfig
 }
 

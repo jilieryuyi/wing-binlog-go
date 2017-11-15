@@ -27,6 +27,7 @@ type HttpService struct {
     groups_filter [][]string     // 分组过滤器
     lock *sync.Mutex           // 互斥锁，修改资源时锁定
     send_failure_times int64   // 发送失败次数
+    enable bool
 }
 
 type httpNode struct {
@@ -45,6 +46,9 @@ type httpNode struct {
 }
 
 func NewHttpService(config *HttpConfig) *HttpService {
+    if !config.Enable {
+        return &HttpService{enable:config.Enable}
+    }
     glen := len(config.Groups)
     client := &HttpService {
         send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
@@ -53,6 +57,7 @@ func NewHttpService(config *HttpConfig) *HttpService {
         groups_mode        : make([]int, glen),
         groups_filter      : make([][]string, glen),
         send_failure_times : int64(0),
+        enable             : config.Enable,
     }
     index := 0
     for _, v := range config.Groups {
@@ -83,6 +88,9 @@ func NewHttpService(config *HttpConfig) *HttpService {
 }
 
 func (client *HttpService) Start() {
+    if !client.enable {
+        return
+    }
     go client.broadcast()
     for _, clients :=range client.groups {
         for _, h := range clients {
@@ -289,6 +297,9 @@ func (client *HttpService) broadcast() {
 
 // 对外的广播发送接口
 func (client *HttpService) SendAll(msg []byte) bool {
+    if !client.enable {
+        return false
+    }
     if len(client.send_queue) >= cap(client.send_queue) {
         log.Println("http发送缓冲区满...")
         return false

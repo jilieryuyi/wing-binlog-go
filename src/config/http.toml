@@ -4,6 +4,7 @@
 ## 设定mode模式为广播时weight值无效
 ## mode == 1 广播 2 权重
 ## 修改配置文件均需要重启服务
+enable = true              ## 是否启用http服务
 [groups]                   ## 配置文件里面的groups不可以改变
     [groups.g1]            ## 这里的g1可以使任意的 "字符串"
      mode   = 1            ## 1 (广播)broadcast or  2 (权重)weight

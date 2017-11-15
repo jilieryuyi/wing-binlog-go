@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"library/services"
 
+	"reflect"
 )
 
 func init() {
@@ -128,6 +129,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				buf = append(buf, "\":"...)
 				edata := e.Rows[i][k]
 				//log.Println(reflect.TypeOf(edata))
+
 				switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
@@ -156,9 +158,13 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
-
 				default:
-					buf = append(buf, "\"--unkonw type--\""...)
+					log.Println(col.Name, "不支持的类型：", reflect.TypeOf(edata))
+					if edata != nil {
+						buf = append(buf, "\"--unkonw type--\""...)
+					} else {
+						buf = append(buf, "NULL"...)
+					}
 				}
 
 				if k < clen - 1 {
@@ -175,6 +181,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				buf = append(buf, col.Name...)
 				buf = append(buf, "\":"...)
 				edata := e.Rows[i+1][k]
+
 				switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
@@ -205,7 +212,13 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 
 				default:
-					buf = append(buf, "\"--unkonw type--\""...)
+
+						log.Println(col.Name, "不支持的类型：", reflect.TypeOf(edata))
+					if edata != nil {
+						buf = append(buf, "\"--unkonw type--\""...)
+					} else {
+						buf = append(buf, "NULL"...)
+					}
 				}
 
 				if k < clen - 1 {
@@ -282,9 +295,14 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
-
 				default:
-					buf = append(buf, "\"--unkonw type--\""...)
+
+						log.Println(col.Name, "不支持的类型：", reflect.TypeOf(edata))
+					if edata != nil {
+						buf = append(buf, "\"--unkonw type--\""...)
+					} else {
+						buf = append(buf, "NULL"...)
+					}
 				}
 
 				if k < clen - 1 {
