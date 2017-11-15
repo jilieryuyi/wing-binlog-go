@@ -78,7 +78,9 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 		log.Println("websocket发送缓冲区满...")
 		return false
 	}
-	tcp.send_queue <- tcp.pack(CMD_EVENT, string(msg))
+
+	table_len := int(msg[0]) + int(msg[1] << 8);
+	tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 	return true
 }
 
@@ -171,6 +173,19 @@ func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	r[0] = byte(cmd)
 	r[1] = byte(cmd >> 8)
 	copy(r[2:], m)
+
+	return r
+}
+
+func (tcp *WebSocketService) pack2(cmd int, msg []byte, table []byte) []byte {
+	l := len(msg)
+	tl := len(table)
+	r := make([]byte, l + 2 + tl)
+
+	copy(r[0:], table)
+	r[tl+0] = byte(cmd)
+	r[tl+1] = byte(cmd >> 8)
+	copy(r[tl+2:], msg)
 
 	return r
 }

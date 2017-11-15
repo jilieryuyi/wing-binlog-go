@@ -238,9 +238,9 @@ func (client *HttpService) broadcast() {
                 table_len := int(msg[0]) +
                     int(msg[1] << 8);
                 table := string(msg[2:table_len+2])
-                log.Println("事件发生的数据表：", table)
+                log.Println("事件发生的数据表：", table_len, table)
                 //分组过滤
-                log.Println(filter)
+                //log.Println(filter)
                 if flen > 0 {
                     is_match := false
                     for _, f := range filter {

@@ -8,7 +8,7 @@ enable = true              ## 是否启用http服务
 [groups]                   ## 配置文件里面的groups不可以改变
     [groups.g1]            ## 这里的g1可以使任意的 "字符串"
      mode   = 1            ## 1 (广播)broadcast or  2 (权重)weight
-     filter = ["xsl.*"]    ## 只订阅这里添加的表，空[]表示全部，如 ["wordpress.wp_comments","seals.*"]
+     filter = []    ## 只订阅这里添加的表，空[]表示全部，如 ["wordpress.wp_comments","seals.*"]
                            ## 为数组，结构为 ["库.表"]，支持正则
      nodes  = [            ## 所有的广播节点
         [
@@ -23,7 +23,7 @@ enable = true              ## 是否启用http服务
 
      [groups.g2]           ## 这里的g2可以使任意的 "字符串"
       mode = 2             ## 负载均衡模式
-      filter = ["seals.*"] ## 只关注seals库下面的表，或者留空[]，关注全部，空必须写成[]
+      filter = [] ## 只关注seals库下面的表，或者留空[]，关注全部，空必须写成[]
       nodes = [            ## 负载均衡url节点
          [
             "http://test.com/test3.php",

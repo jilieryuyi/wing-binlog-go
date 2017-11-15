@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"sync"
 	"regexp"
+	//"os"
 )
 
 type tcp_client_node struct {
@@ -68,15 +69,19 @@ func NewTcpService(config *TcpConfig) *TcpService {
 
 // 对外的广播发送接口
 func (tcp *TcpService) SendAll(msg []byte) bool {
+	log.Println("tcp-sendall")
 	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
+		log.Println("tcp-sendall-clients_count 0")
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {
 		log.Println("tcp发送缓冲区满...")
 		return false
 	}
-	tcp.send_queue <- tcp.pack(CMD_EVENT, string(msg))
+
+	table_len := int(msg[0]) + int(msg[1] << 8);
+	tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 	return true
 }
 
@@ -86,6 +91,7 @@ func (tcp *TcpService) broadcast() {
 	for {
 		select {
 		case  msg := <-tcp.send_queue:
+			log.Println("tcp广播消息")
 			tcp.lock.Lock()
 			for group_name, clients := range tcp.groups {
 				// 如果分组里面没有客户端连接，跳过
@@ -100,8 +106,9 @@ func (tcp *TcpService) broadcast() {
 				table_len := int(msg[0]) + int(msg[1] << 8);
 				table     := string(msg[2:table_len+2])
 
-				log.Println("tcp数据表：", table)
-				log.Println(filter)
+				log.Println("tcp数据表：", table_len, table)
+				log.Println(msg)
+				//log.Println(filter)
 
 				if flen > 0 {
 					is_match := false
@@ -179,6 +186,28 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 
 	return r
 }
+
+func (tcp *TcpService) pack2(cmd int, msg []byte, table []byte) []byte {
+	l  := len(msg)
+	tl := len(table)
+	r  := make([]byte, l + 6 + tl)
+
+	cl := l + 2
+
+	copy(r[0:], table)
+
+	r[tl+0] = byte(cl)
+	r[tl+1] = byte(cl >> 8)
+	r[tl+2] = byte(cl >> 16)
+	r[tl+3] = byte(cl >> 32)
+
+	r[tl+4] = byte(cmd)
+	r[tl+5] = byte(cmd >> 8)
+	copy(r[tl+6:], msg)
+
+	return r
+}
+
 
 // 掉线回调
 func (tcp *TcpService) onClose(conn *tcp_client_node) {
