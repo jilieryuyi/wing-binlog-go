@@ -157,7 +157,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
         if node.is_down {
             // 发送空包检测
             // post默认3秒超时，所以这里不会死锁
-            _, err := client.post(node.url,[]byte{""})
+            _, err := client.post(node.url,[]byte{byte(0)})
             if err == nil {
                 //重新上线
                 node.is_down = false
