@@ -1,22 +1,14 @@
 @echo off
-set current_path=%cd%
-::echo %current_path%
+echo building...
 
+set pan=%~d0
+set current_path=%cd%
 set bin_path=%current_path%\bin
 set pkg_path=%current_path%\pkg
 set vendor_path=%current_path%\vendor
 
-::echo %bin_path%
-::echo %pkg_path%
-::echo %vendor_path%
-
 ::添加环境变量,即在原来的环境变量后加上英文状态下的分号和路径
 set GOPATH=%vendor_path%;%current_path%
-
-::如果bin目录存在，直接删除掉
-::if exist %bin_path% (
-:: rd %bin_path% /S /Q
-:: )
 
 ::如果pkg目录存在，直接删除
 if exist %pkg_path% (
@@ -30,11 +22,11 @@ if not exist %vendor_path% (
  call "%current_path%\vendor_install.bat"
 )
 
-cd %~d0
+cd %pan%
 ::进入当前目录
 cd %current_path%
 ::build构建项目
-call go build -v wing-binlog-go
+call go build -p 4 -race  wing-binlog-go
 ::install安装
 call go install wing-binlog-go
 ::删除根目录下的可执行文件
@@ -45,5 +37,6 @@ md %bin_path%\config
 )
 
 ::拷贝配置文件
-xcopy  %current_path%\src\config\*.* %current_path%\bin\config\ /s /e /y
-echo "build success"
+xcopy  %current_path%\src\config\*.* %current_path%\bin\config\ /s /e /y /q
+echo build success
+echo %current_path%\bin\wing-binlog-go.exe

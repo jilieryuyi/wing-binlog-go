@@ -34,8 +34,8 @@ func killPid() {
 	fmt.Print(string(dat))
 	pid, _ := strconv.Atoi(string(dat))
 	log.Println("给进程发送终止信号：", pid)
-	err := syscall.Kill(pid, syscall.SIGTERM)
-	log.Println(err)
+	//err := syscall.Kill(pid, syscall.SIGTERM)
+	//log.Println(err)
 }
 
 func main() {
