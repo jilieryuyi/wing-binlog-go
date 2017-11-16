@@ -43,6 +43,7 @@ type httpNode struct {
     cache [][]byte
     cache_index int
     cache_is_init bool
+    cache_full bool
 }
 
 func NewHttpService(config *HttpConfig) *HttpService {
@@ -112,15 +113,18 @@ func (client *HttpService) cacheInit(node *httpNode) {
     }
     node.cache_is_init = true
     node.cache_index = 0
+    node.cache_full = false
 }
 
 // 添加数据到缓冲区
 func (client *HttpService) addCache(node *httpNode, msg []byte) {
+    //log.Println("node cache ===> ", node.cache_index, cap(node.cache))
     node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
     node.cache_index++
     log.Println(node.cache_index, "添加cache数据")
-    if node.cache_index > HTTP_CACHE_LEN {
+    if node.cache_index >= HTTP_CACHE_LEN {
         node.cache_index = 0;
+        node.cache_full = true
     }
 }
 
@@ -128,6 +132,15 @@ func (client *HttpService) addCache(node *httpNode, msg []byte) {
 func (client *HttpService) sendCache(node *httpNode) {
     if node.cache_index > 0 {
         //保持时序
+        if node.cache_full {
+            for j := node.cache_index; j < HTTP_CACHE_LEN; j++ {
+                //重发
+                log.Println(node.cache_index, "数据重发-full")
+                node.send_queue <- node.cache[j]
+            }
+            node.cache_full = false
+        }
+
         for j := 0; j < node.cache_index; j++ {
             //重发
             log.Println("数据重发")
