@@ -11,7 +11,7 @@ set vendor_path=%current_path%\vendor
 ::echo %vendor_path%
 
 ::添加环境变量,即在原来的环境变量后加上英文状态下的分号和路径
-set GOPATH=%current_path%\vendor;%current_path%;%GOPATH%
+set GOPATH=%vendor_path%;%current_path%
 
 ::如果bin目录存在，直接删除掉
 ::if exist %bin_path% (
@@ -34,7 +34,7 @@ cd %~d0
 ::进入当前目录
 cd %current_path%
 ::build构建项目
-call go build wing-binlog-go
+call go build -v wing-binlog-go
 ::install安装
 call go install wing-binlog-go
 ::删除根目录下的可执行文件

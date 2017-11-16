@@ -5,11 +5,16 @@
 ##tcp连接到wing-binlog-go时可以选择加入到组和设定权重，依据为组的名称
 ##当组的名称对应的mode为广播时，权重无效
 ##当组的mode为权重时，将依据设定的权重自动负载均衡
+enable = true ##启用tcp服务
 [groups]
     [groups.1]
-     mode = "broadcast" ##(广播)broadcast or  (权重)weight
+     mode = 1 ## 1 (广播)broadcast or  2(权重)weight
      name = "group1"
-
+     filter = []
     [groups.2]
-     mode = "weight"
+     mode = 2
      name = "group2"
+     filter = []
+[tcp]
+listen = "0.0.0.0"
+port = 9998

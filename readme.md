@@ -1,4 +1,4 @@
-基于mysql数据库binlog的增量订阅&消费
+基于mysql数据库binlog的分布式增量订阅&消费
 ====
 >此仓库为wing-binlog的go版本          
 开发中...          

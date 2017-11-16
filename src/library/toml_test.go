@@ -10,7 +10,7 @@ func TestWConfig_Parse(t *testing.T) {
     config_file := "/tmp/__test_mysql.toml"
     config := &WConfig{config_file}
 
-    app_config, err:= config.Parse()
+    app_config, err:= config.GetMysql()
 
     if err != nil {
         t.Error(err)
@@ -27,10 +27,10 @@ func TestWConfig_Parse(t *testing.T) {
         t.Error("config parse error - 1")
     }
 
-    log.Println(reflect.TypeOf(app_config.Client.Ignore_table))
+    log.Println("===>", reflect.TypeOf(app_config.Client.Ignore_tables).String(), "<===")
     //switch  {
     //case []string:
-        for _, v := range  app_config.Client.Ignore_table {
+        for _, v := range  app_config.Client.Ignore_tables {
             //log.Println(v)
             if v != "Test.abc" && v != "Test.123" {
                 t.Error("config parse error - 2")
@@ -40,13 +40,13 @@ func TestWConfig_Parse(t *testing.T) {
       //  t.Error("config parse error - 3")
     //}
 
-    if app_config.Client.Bin_file != "" {
-        t.Error("config parse error - 4")
-    }
+    //if app_config.Client.Bin_file != "" {
+    //    t.Error("config parse error - 4")
+    //}
 
-    if app_config.Client.Bin_pos != 0 {
-        t.Error("config parse error - 5")
-    }
+    //if app_config.Client.Bin_pos != 0 {
+    //    t.Error("config parse error - 5")
+    //}
 
 
     /**
@@ -71,4 +71,16 @@ func TestWConfig_Parse(t *testing.T) {
     if app_config.Mysql.Charset != "utf8" {
         t.Error("config parse error - 10")
     }
+
+    if app_config.Mysql.DbName != "wordpress" {
+        t.Error("config parse error - 11")
+    }
+}
+
+func TestWConfig_GetTcp(t *testing.T) {
+    config := "/Users/yuyi/Code/go/wing-binlog-go/src/config/tcp.toml"
+    wconfig := &WConfig{config}
+
+    tcp,_ := wconfig.GetTcp()
+    log.Println(tcp)
 }

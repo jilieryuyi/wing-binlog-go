@@ -4,6 +4,10 @@ import (
 	"io/ioutil"
 	"os"
 	// "log"
+	//"path/filepath"
+	//"io"
+	"time"
+	"log"
 )
 
 type WFile struct {
@@ -83,10 +87,34 @@ func (file *WFile) Read(offset int64, length int64) string {
 	//    SEEK_END int = 2 // seek relative to the end
 	//)
 
+	nf1, err := handle.Seek(0, os.SEEK_END)
+	if err != nil {
+		log.Println(err)
+	}
+	//log.Printf("=====>new offset: %d => %d" , nf1, offset)
+
+	if length > nf1 {
+		length = nf1
+	}
+
 	if offset >= 0 {
-		handle.Seek(offset, os.SEEK_SET)
+		if offset > nf1 {
+			offset = nf1
+		}
+		_, err := handle.Seek(offset, os.SEEK_SET)
+		if err != nil {
+			log.Println(err)
+		}
+		//log.Printf("new offset: %d => %d" , nf, offset)
 	} else {
-		handle.Seek(offset, os.SEEK_END)
+		if offset < 0 - nf1 {
+			offset = 0 - nf1
+		}
+		_, err := handle.Seek(offset, os.SEEK_END)
+		if err != nil {
+			log.Println(err)
+		}
+		//log.Printf("new offset: %d => %d" , nf, offset)
 	}
 	buf := make([]byte, length)
 	bytes, err := handle.Read(buf)
@@ -99,6 +127,15 @@ func (file *WFile) Read(offset int64, length int64) string {
 	if buf[blen] == 10 {
 		buf = buf[0:blen]
 	}
+
+	//kl := len(buf) - 1
+	//for k := kl; k >= 0; k-- {
+	//	if buf[k] == 0 {
+	//		buf = buf[0:k]
+	//	}  else {
+	//		break
+	//	}
+	//}
 
 	return string(buf)
 }
@@ -130,4 +167,57 @@ func (file *WFile) Length() int64 {
 
 	return length
 
+}
+
+func (file *WFile) Delete() bool  {
+	err := os.Remove(file.File_path)
+	return err == nil
+}
+
+func (file *WFile) Write(data string, append bool) int {
+	dir := WPath{file.File_path}
+	dir = WPath{dir.GetParent()}
+	dir.Mkdir()
+
+	flag := os.O_WRONLY|os.O_CREATE|os.O_SYNC
+	if append {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+	}
+
+	handle, err := os.OpenFile(file.File_path, flag , 0755)
+	if err != nil {
+		return 0
+	}
+	defer handle.Close()
+
+	wdata := []byte(data)
+	n, err := handle.Write(wdata)
+
+	if err != nil {
+		return 0
+	}
+	dlen := len(data)
+	start := time.Now().Unix()
+	for {
+		if (time.Now().Unix() - start) > 1 {
+			break
+		}
+
+		if n >= dlen {
+			break
+		}
+
+		wdata = wdata[n:dlen-n]
+		m, err := handle.Write(wdata)
+		if err != nil {
+			break
+		}
+		n += m
+	}
+
+	//io.WriteString(handle, data)
+	//ioutil.WriteFile(file.File_path, []byte(data), 0755)
+	return n
 }

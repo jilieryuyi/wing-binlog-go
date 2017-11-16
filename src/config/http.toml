@@ -1,22 +1,36 @@
-##mode 支持广播和权重的方式，广播意味着，事件发生的时候会通知到所有的url
-##权重意味着依据权重自动负载均衡，如果为0或者想等，则自动平均负载
-##权重值范围为0-100
-##设定mode模式为广播时weight值无效
-[groups]
-    [groups.1]
-     mode = "broadcast" ##(广播)broadcast or  (权重)weight
-        [node1]
-        url = "http://www.baidu.com/"
-        weight = 0 ##如果mode为广播，则此值无效
-        [node2]
-        url = "http://www.google.com/"
-        wight = 0
+## mode 支持广播和权重的方式，广播意味着，事件发生的时候会通知到所有的url
+## 权重意味着依据权重自动负载均衡，如果为0将不发送任何数据
+## 权重值范围为0-100
+## 设定mode模式为广播时weight值无效
+## mode == 1 广播 2 权重
+## 修改配置文件均需要重启服务
+enable = true              ## 是否启用http服务
+[groups]                   ## 配置文件里面的groups不可以改变
+    [groups.g1]            ## 这里的g1可以使任意的 "字符串"
+     mode   = 1            ## 1 (广播)broadcast or  2 (权重)weight
+     filter = []    ## 只订阅这里添加的表，空[]表示全部，如 ["wordpress.wp_comments","seals.*"]
+                           ## 为数组，结构为 ["库.表"]，支持正则
+     nodes  = [            ## 所有的广播节点
+        [
+            "http://test.com/test1.php",
+            "0"            ## 权重，mode 为1的分组，此值无效，写为0，必须写成字符串哦
+        ],
+        [
+            "http://test.com/test2.php",
+            "0"            ## 广播模式，权重写为0，必须写成字符串哦
+        ]
+     ]
 
-     [groups.2]
-      mode = "weight"
-         [node1]
-         url = "http://test1.com"
-         weight = 80
-         [node2]
-         url = "http://test2.com"
-         weight = 20
+     [groups.g2]           ## 这里的g2可以使任意的 "字符串"
+      mode = 2             ## 负载均衡模式
+      filter = [] ## 只关注seals库下面的表，或者留空[]，关注全部，空必须写成[]
+      nodes = [            ## 负载均衡url节点
+         [
+            "http://test.com/test3.php",
+            "80"           ## 所占权重，必须协程字符串哦
+         ],
+         [
+            "http://test.com/test4.php",
+            "20"           ## 所占权重，必须协程字符串哦
+         ]
+      ]

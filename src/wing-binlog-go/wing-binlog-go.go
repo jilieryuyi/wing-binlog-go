@@ -3,6 +3,9 @@ package main
 import (
 	//"database/sql"
 	"library"
+	"library/services"
+	//"github.com/siddontang/go-mysql/canal"
+
 	//"library/base"
 	//"library/workers"
 	"log"
@@ -10,9 +13,62 @@ import (
 	"runtime"
 	//"strconv"
 	//"subscribe"
+	"os"
+	"os/signal"
+	"syscall"
+	_"net/http/pprof"
+	"net/http"
+	"fmt"
+	"io/ioutil"
+	"strconv"
 )
 
+
+func writePid() {
+	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
+	ioutil.WriteFile(library.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
+}
+
+func killPid() {
+	dat, _ := ioutil.ReadFile(library.GetCurrentPath() + "/wing-binlog-go.pid")
+	fmt.Print(string(dat))
+	pid, _ := strconv.Atoi(string(dat))
+	log.Println("给进程发送终止信号：", pid)
+	err := syscall.Kill(pid, syscall.SIGTERM)
+	log.Println(err)
+}
+
 func main() {
+
+	if len(os.Args) > 1 && os.Args[1] == "stop" {
+		killPid()
+		return
+	}
+
+	writePid()
+
+	//标准输出重定向
+	//library.Reset()
+	go func() {
+		//http://localhost:6060/debug/pprof/  内存性能分析工具
+		//go tool pprof logDemo.exe --text a.prof
+		//go tool pprof your-executable-name profile-filename
+		//go tool pprof your-executable-name http://localhost:6060/debug/pprof/heap
+		//go tool pprof wing-binlog-go http://localhost:6060/debug/pprof/heap
+		//https://lrita.github.io/2017/05/26/golang-memory-pprof/
+		//然后执行 text
+		//go tool pprof -alloc_space http://127.0.0.1:6060/debug/pprof/heap
+		//top20 -cum
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc,
+		os.Kill,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 
 	wing_log := library.GetLogInstance()
 	//释放日志资源
@@ -27,8 +83,7 @@ func main() {
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	//标准输出重定向
-	//library.Reset()
+
 	cpu := runtime.NumCPU()
 	wing_log.Println("cpu num: ", cpu)
 
@@ -39,6 +94,9 @@ func main() {
 	wing_log.Println(current_path)
 
 	config_file := current_path + "/config/mysql.toml"
+	tcp_config_file := current_path + "/config/tcp.toml"
+	websocket_config_file := current_path + "/config/websocket.toml"
+	http_config_file := current_path + "/config/http.toml"
 
 	//config_obj := &library.Ini{config_file}
 	//config := config_obj.Parse()
@@ -52,7 +110,7 @@ func main() {
 	//config_file := "/tmp/__test_mysql.toml"
 	config := &library.WConfig{config_file}
 
-	app_config, err:= config.Parse()
+	app_config, err:= config.GetMysql()
 
 	if err != nil {
 		log.Println(err)
@@ -60,27 +118,47 @@ func main() {
 	}
 
 
-	//user := string(config["mysql"]["user"].(string))
-	//password := string(config["mysql"]["password"].(string))
-	//port := string(config["mysql"]["port"].(string))
-	//host := string(config["mysql"]["host"].(string))
+	// tcp服务
+	wtcp_config := &library.WConfig{tcp_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
+	tcp_config, err := wtcp_config.GetTcp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println("tcp config: ", tcp_config)
+	tcp_service := services.NewTcpService(tcp_config)
+	tcp_service.Start()
 
-	//slave_id_str := string(config["client"]["slave_id"].(string))
-	//slave_id, _ := strconv.Atoi(slave_id_str)
+	// websocket 服务
+	wwebsocket_config := &library.WConfig{websocket_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
+	websocket_config, err := wwebsocket_config.GetTcp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println("websocket config: ",websocket_config)
+	websocket_service := services.NewWebSocketService(websocket_config)
+	websocket_service.Start()
 
-	//db_name := string(config["mysql"]["db_name"].(string))
-	//charset := string(config["mysql"]["charset"].(string))
-	//db, err := sql.Open("mysql", user+":"+password+"@tcp("+host+":"+port+")/"+db_name+"?charset="+charset)
+	// http服务
+	whttp_config := &library.WConfig{http_config_file}
+	//{map[1:{1 group1} 2:{2 group2}] {0.0.0.0 9998}}
+	http_config, err := whttp_config.GetHttp()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	log.Println("http config: ",http_config)
+	http_service := services.NewHttpService(http_config)
+	http_service.Start()
 
-	//if nil != err {
-	//	wing_log.Println(err)
-	//	return
-	//}
+	blog := library.Binlog{DB_Config:app_config}
+	defer blog.Close()
+	blog.Start(tcp_service, websocket_service, http_service)
 
-	//defer db.Close()
-
-	blog := library.Binlog{app_config}
-	blog.Start()
+	<-sc
 
 	//redis := &subscribe.Redis{}
 	//tcp := &subscribe.Tcp{}
