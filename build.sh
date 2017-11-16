@@ -41,6 +41,6 @@ mkdir "$bin_path/config"
 fi
 
 ##拷贝配置文件
-cp -rf "$current_path/src/config/" "$current_path/bin/config/"
+cp -rf $current_path/src/config/* $current_path/bin/config/
 echo "build success"
 echo $current_path/bin/wing-binlog-go
