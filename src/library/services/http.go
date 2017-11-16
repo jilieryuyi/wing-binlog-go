@@ -1,17 +1,14 @@
 package services
 
 import (
-    "io/ioutil"
     "log"
     "errors"
-    "bytes"
-    "net"
     "time"
-    "net/http"
     "sync/atomic"
     "sync"
     "strconv"
     "regexp"
+    "library/http"
 )
 
 const HTTP_POST_TIMEOUT = 3 //3秒超时
@@ -157,7 +154,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
         if node.is_down {
             // 发送空包检测
             // post默认3秒超时，所以这里不会死锁
-            _, err := client.post(node.url,[]byte{byte(0)})
+            _, err := http.Post(node.url,[]byte{byte(0)})
             if err == nil {
                 //重新上线
                 node.is_down = false
@@ -183,7 +180,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
             if !node.is_down {
                 atomic.AddInt64(&node.send_times, int64(1))
                 log.Println("post到url：", node.url)
-                data, err := client.post(node.url, msg)
+                data, err := http.Post(node.url, msg)
 
                 if (err != nil) {
                     atomic.AddInt64(&client.send_failure_times, int64(1))
@@ -319,95 +316,4 @@ func (client *HttpService) SendAll(msg []byte) bool {
     }
     client.send_queue <- msg
     return true
-}
-
-func (client *HttpService) post(addr string, post_data []byte) ([]byte, error) {
-    req, err := http.NewRequest("POST", addr, bytes.NewReader(post_data))
-    if err != nil {
-        return nil, err
-    }
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Connection", "close")
-    // 超时设置
-    DefaultClient := http.Client{
-        Transport: &http.Transport {
-            Dial: func(netw, addr string) (net.Conn, error) {
-                deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
-                c, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
-                if err != nil {
-                    return nil, err
-                }
-                c.SetDeadline(deadline)
-                return c, nil
-            },
-        },
-    }
-    // 执行post
-    resp, err := DefaultClient.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    // 关闭io
-    defer resp.Body.Close()
-    // 判断返回状态
-    if resp.StatusCode != http.StatusOK {
-        // 返回异常状态
-        log.Println("http post error, error status back: ", resp.StatusCode)
-        return nil, ERR_STATUS
-    }
-    data, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        return nil, err
-    }
-    return data, nil
-}
-
-func (client *HttpService) get(addr string) (*[]byte, *int, *http.Header, error) {
-    // 上传JSON数据
-    req, e := http.NewRequest("GET", addr, nil)
-    if e != nil {
-        // 返回异常
-        return nil, nil, nil, e
-    }
-    // 完成后断开连接
-    req.Header.Set("Connection", "close")
-    // -------------------------------------------
-    // 设置 TimeOut
-    DefaultClient := http.Client{
-        Transport: &http.Transport{
-            Dial: func(netw, addr string) (net.Conn, error) {
-                deadline := time.Now().Add(30 * time.Second)
-                c, err := net.DialTimeout(netw, addr, time.Second*30)
-                if err != nil {
-                    return nil, err
-                }
-                c.SetDeadline(deadline)
-                return c, nil
-            },
-        },
-    }
-    // -------------------------------------------
-    // 执行
-    resp, ee := DefaultClient.Do(req)
-    if ee != nil {
-        // 返回异常
-        return nil, nil, nil, ee
-    }
-    // 保证I/O正常关闭
-    defer resp.Body.Close()
-    // 判断请求状态
-    if resp.StatusCode == 200 {
-        data, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-            // 读取错误,返回异常
-            return nil, nil, nil, err
-        }
-        // 成功，返回数据及状态
-        return &data, &resp.StatusCode, &resp.Header, nil
-    } else {
-        // 失败，返回状态
-        return nil, &resp.StatusCode, nil, nil
-    }
-    // 不会到这里
-    return nil, nil, nil, nil
 }
