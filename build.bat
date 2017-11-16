@@ -22,9 +22,9 @@ if not exist %vendor_path% (
  call "%current_path%\vendor_install.bat"
 )
 
-cd %pan%
+::cd %pan%
 ::进入当前目录
-cd %current_path%
+::cd %current_path%
 ::build构建项目
 call go build -p 4 -race  wing-binlog-go
 ::install安装
