@@ -91,7 +91,7 @@ func Append(c *Cluster) {
     //然后整体就形成了一个tcp连接环
 }
 
-// 打印环形链表
+// 打印环形链表 -- 测试
 func Print() {
     c1 := NewCluster("127.0.0.1", 9989);
     Append(c1);
