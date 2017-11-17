@@ -7,10 +7,12 @@ import (
     "net"
     "io/ioutil"
     "log"
+    "time"
 )
 const (
     CERT_PASSWORD = 1
     CERT_PUBLIC_KEY_FILE = 2
+    DEFAULT_TIMEOUT = 3 // second
 )
 type SSH struct{
     Ip string
@@ -37,33 +39,27 @@ func (ssh_client *SSH) readPublicKeyFile(file string) ssh.AuthMethod {
 func (ssh_client *SSH) Connect(mode int) {
 
     var ssh_config *ssh.ClientConfig
+    var auth  []ssh.AuthMethod
     if mode == CERT_PASSWORD {
-        ssh_config = &ssh.ClientConfig{
-            User: ssh_client.User,
-            Auth: []ssh.AuthMethod{ssh.Password(ssh_client.Cert)},
-            //需要验证服务端，不做验证返回nil就可以，点击HostKeyCallback看源码就知道了
-            HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-                return nil
-            },
-        }
+        auth = []ssh.AuthMethod{ssh.Password(ssh_client.Cert)}
     } else if mode == CERT_PUBLIC_KEY_FILE {
-        ssh_config = &ssh.ClientConfig{
-            User: ssh_client.User,
-            Auth: []ssh.AuthMethod{ssh_client.readPublicKeyFile(ssh_client.Cert), },
-            //需要验证服务端，不做验证返回nil就可以，点击HostKeyCallback看源码就知道了
-            HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-                return nil
-            },
-        }
+        auth = []ssh.AuthMethod{ssh_client.readPublicKeyFile(ssh_client.Cert)}
     } else {
         log.Println("does not support mode: ", mode)
         return
     }
 
+    ssh_config = &ssh.ClientConfig{
+        User: ssh_client.User,
+        Auth: auth,
+        //需要验证服务端，不做验证返回nil就可以，点击HostKeyCallback看源码就知道了
+        HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+            return nil
+        },
+        Timeout:time.Second * DEFAULT_TIMEOUT,
+    }
 
-    client, err := ssh.Dial("tcp",
-        fmt.Sprintf("%s:%d", ssh_client.Ip, ssh_client.Port),
-        ssh_config)
+    client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", ssh_client.Ip, ssh_client.Port), ssh_config)
     if err != nil {
         fmt.Println(err)
         return
@@ -93,3 +89,17 @@ func (ssh_client *SSH) Close() {
     ssh_client.client.Close()
 }
 
+//demo
+/*
+func main() {
+    client := &SSH{
+        Ip: "127.0.0.1",
+        User : "root",
+        Port:22,
+        Cert:"123456",
+    }
+    client.Connect()
+    client.RunCmd("ls /home")
+    client.Close()
+}
+ */
