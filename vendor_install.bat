@@ -28,5 +28,7 @@ echo installing... gorilla/websocket
 call go get github.com/gorilla/websocket
 echo installing... garyburd/redigo/redis
 call go get github.com/garyburd/redigo/redis
+echo "installing... takama/daemon"
+call go get github.com/takama/daemon
 
 xcopy  %vendor_path%\src\*.* %vendor_path% /s /e /y /q

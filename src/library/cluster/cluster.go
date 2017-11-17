@@ -51,7 +51,7 @@ func init() {
     start(ip, port)
 }
 
-func NewCluster(ip string, port string) *Cluster {
+func NewCluster(ip string, port int) *Cluster {
     c := &Cluster{
         Ip : ip,
         Port:port,
@@ -89,6 +89,28 @@ func Append(c *Cluster) {
     //__last_point连接__first_point
 
     //然后整体就形成了一个tcp连接环
+}
+
+// 打印环形链表
+func Print() {
+    c1 := NewCluster("127.0.0.1", 9989);
+    Append(c1);
+    c2 := NewCluster("127.0.0.1", 9988);
+    Append(c2);
+    c3 := NewCluster("127.0.0.1", 9987);
+    Append(c3);
+
+    current := __first_point
+
+    for {
+        fmt.Println(current.index, "=>", current.Ip, current.Port)
+        current = current.next
+
+        if current == __first_point {
+            fmt.Println(current.index, "=>", current.Ip, current.Port)
+            break
+        }
+    }
 }
 
 func start(ip string, port int) {

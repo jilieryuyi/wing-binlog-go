@@ -26,6 +26,8 @@ echo "installing... gorilla/websocket"
 go get github.com/gorilla/websocket
 echo "installing... garyburd/redigo/redis"
 go get github.com/garyburd/redigo/redis
+echo "installing... takama/daemon"
+go get github.com/takama/daemon
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 cp -rf $vendor_path/src/* $vendor_path
