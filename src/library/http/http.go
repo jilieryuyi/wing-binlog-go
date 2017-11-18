@@ -8,7 +8,17 @@ import (
     "io/ioutil"
     "log"
     "errors"
+    "strconv"
+    "io"
+    "fmt"
 )
+
+type HttpServer struct{
+    Path string // web路径 当前路径/web
+    Ip string   // 监听ip 0.0.0.0
+    Port int    // 9989
+}
+
 const HTTP_POST_TIMEOUT = 3 //3秒超时
 var ERR_STATUS error =  errors.New("错误的状态码")
 
@@ -52,7 +62,6 @@ func Post(addr string, post_data []byte) ([]byte, error) {
     }
     return data, nil
 }
-
 func Get(addr string) (*[]byte, *int, *http.Header, error) {
     // 上传JSON数据
     req, e := http.NewRequest("GET", addr, nil)
@@ -101,4 +110,22 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
     }
     // 不会到这里
     return nil, nil, nil, nil
+}
+
+func (server *HttpServer) Start() {
+    go func() {
+        staticHandler := http.FileServer(http.Dir(server.Path))
+        http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+            if req.URL.Path != "/" {
+                staticHandler.ServeHTTP(w, req)
+                return
+            }
+            io.WriteString(w, "hello, world!\n")
+        })
+        dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
+        err := http.ListenAndServe(dns, nil)
+        if err != nil {
+            log.Fatal("启动http服务失败: ", err)
+        }
+    }()
 }
