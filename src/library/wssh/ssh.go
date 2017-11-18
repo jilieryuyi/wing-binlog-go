@@ -98,7 +98,7 @@ func main() {
         Port:22,
         Cert:"123456",
     }
-    client.Connect()
+    client.Connect(CERT_PASSWORD)
     client.RunCmd("ls /home")
     client.Close()
 }
