@@ -1,18 +1,12 @@
 package main
 
 import (
-	//"database/sql"
 	"library"
 	"library/services"
-	//"github.com/siddontang/go-mysql/canal"
-
-	//"library/base"
-	//"library/workers"
+	_ "library/data"
 	"log"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
-	//"strconv"
-	//"subscribe"
 	"os"
 	"os/signal"
 	"syscall"

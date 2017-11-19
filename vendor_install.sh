@@ -28,6 +28,8 @@ echo "installing... garyburd/redigo/redis"
 go get github.com/garyburd/redigo/redis
 echo "installing... takama/daemon"
 go get github.com/takama/daemon
+echo "installing... mattn/go-sqlite3"
+go get github.com/mattn/go-sqlite3
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 cp -rf $vendor_path/src/* $vendor_path
