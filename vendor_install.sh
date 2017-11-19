@@ -7,6 +7,7 @@ export GOPATH="$vendor_path:$current_path"
 if [ ! -d "$vendor_path" ]; then
  mkdir "$vendor_path"
  mkdir "$vendor_path/src"
+ mkdir "$vendor_path/library"
 fi
 echo "installing... go-sql-driver/mysql"
 go get github.com/go-sql-driver/mysql
@@ -33,4 +34,6 @@ go get github.com/mattn/go-sqlite3
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 cp -rf $vendor_path/src/* $vendor_path
+cp -rf $current_path/src/library/* $current_path/vendor/library/
+
 echo "install complete"

@@ -10,3 +10,7 @@
 /vendor/pkg/
 /*.pid
 /back
+/vendor/library
+/vendor/golang.org
+/vendor/github.com
+
