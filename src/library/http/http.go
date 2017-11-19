@@ -8,12 +8,10 @@ import (
     "io/ioutil"
     "log"
     "errors"
-   // "io"
     "fmt"
     "path/filepath"
     "os"
     "strings"
-   // "io"
     "library/admin"
 )
 
@@ -123,9 +121,32 @@ func (server *HttpServer) Start() {
 
         staticHandler := http.FileServer(http.Dir(server.Path))
         http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-            log.Println("http请求: ",w, req.URL.Path)
+            log.Println("http请求: ",w, req.URL.Path, req.Form)
+            //if req.URL.Path == "/action" || req.URL.Path == "/action/" {
+            //    io.WriteString(w, "hello, world!\n")
+            //    return
+            //}
+
+            switch req.URL.Path {
+                case "/user/login":
+                    username, ok1 := req.Form["username"]
+                    password, ok2 := req.Form["password"]
+                    log.Println(username, password)
+                    if ok1 && ok2 {
+                        cookie := http.Cookie{
+                            Name: "appsign",
+                            Value: "123",
+                            Path: "/", MaxAge: 86400,
+                        }
+                        http.SetCookie(w, &cookie)
+                        w.Write([]byte("{\"code\":200, \"message\":\"login ok\"}"))
+                    }
+                default:
+                    staticHandler.ServeHTTP(w, req)
+            }
+
             //if req.URL.Path == "/" {
-                staticHandler.ServeHTTP(w, req)
+
             //    return
             //}
            // io.WriteString(w, "hello, world!\n")
