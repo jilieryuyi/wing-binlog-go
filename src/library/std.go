@@ -2,6 +2,10 @@ package library
 
 import (
 	"os"
+	"time"
+	"sync"
+	"log"
+	"fmt"
 )
 
 func Reset() error {
@@ -12,19 +16,63 @@ func Reset() error {
 		os.Mkdir(dir, 0755)
 	}
 
-	handle_stdout, err := os.OpenFile(dir+"/stdout.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+	stdout_log_path := fmt.Sprintf(dir+"/stdout-%d.log", time.Now().Unix())
+	handle_stdout, err := os.OpenFile(stdout_log_path, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
 	os.Stdout = handle_stdout
 
 	if err != nil {
 		return err
 	}
 
-	handle_stderr, err := os.OpenFile(dir+"/stderr.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+	stderr_log_path := fmt.Sprintf(dir+"/stderr-%d.log", time.Now().Unix())
+	handle_stderr, err := os.OpenFile(stderr_log_path, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
 	os.Stderr = handle_stderr
 
 	if err != nil {
 		return err
 	}
+
+	go func() {
+		var mutex sync.Mutex
+		for {
+			s, err := os.Stderr.Stat()
+			if err != nil {
+				time.Sleep(time.Second)
+				continue
+			}
+			if s.Size() == 1024 * 1024 * 1024 * 1024 {
+				// == 1G
+				mutex.Lock()
+				os.Stdout.Close()
+				os.Stderr.Close()
+
+				stdout_log_path := fmt.Sprintf(dir+"/stdout-%d.log", time.Now().Unix())
+				handle_stdout, err := os.OpenFile(stdout_log_path, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+				os.Stdout = handle_stdout
+
+				if err != nil {
+					log.Println(err)
+					mutex.Unlock();
+					time.Sleep(time.Second)
+					continue
+				}
+
+				stderr_log_path := fmt.Sprintf(dir+"/stderr-%d.log", time.Now().Unix())
+				handle_stderr, err := os.OpenFile(stderr_log_path, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+				os.Stderr = handle_stderr
+
+				if err != nil {
+					log.Println(err)
+					mutex.Unlock();
+					time.Sleep(time.Second)
+					continue
+				}
+
+				mutex.Unlock();
+			}
+			time.Sleep(time.Second)
+		}
+	}()
 
 	return nil
 }

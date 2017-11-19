@@ -39,8 +39,13 @@ rm wing-binlog-go
 if [ ! -d "$bin_path/config" ]; then
 mkdir "$bin_path/config"
 fi
+if [ ! -d "$bin_path/web" ]; then
+mkdir "$bin_path/web"
+fi
 
 ##拷贝配置文件
 cp -rf $current_path/src/config/* $current_path/bin/config/
+cp -rf $current_path/web/* $current_path/bin/web/
+
 echo "build success"
 echo $current_path/bin/wing-binlog-go

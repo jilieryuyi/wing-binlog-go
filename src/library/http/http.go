@@ -8,9 +8,13 @@ import (
     "io/ioutil"
     "log"
     "errors"
-    "strconv"
-    "io"
+   // "io"
     "fmt"
+    "path/filepath"
+    "os"
+    "strings"
+   // "io"
+    "library/admin"
 )
 
 type HttpServer struct{
@@ -114,13 +118,17 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
 
 func (server *HttpServer) Start() {
     go func() {
+        log.Println("http服务器启动...")
+        log.Printf("http监听: %s:%d", server.Ip, server.Port)
+
         staticHandler := http.FileServer(http.Dir(server.Path))
         http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-            if req.URL.Path != "/" {
+            log.Println("http请求: ",w, req.URL.Path)
+            //if req.URL.Path == "/" {
                 staticHandler.ServeHTTP(w, req)
-                return
-            }
-            io.WriteString(w, "hello, world!\n")
+            //    return
+            //}
+           // io.WriteString(w, "hello, world!\n")
         })
         dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
         err := http.ListenAndServe(dns, nil)
@@ -128,4 +136,21 @@ func (server *HttpServer) Start() {
             log.Fatal("启动http服务失败: ", err)
         }
     }()
+}
+
+func init() {
+    ws := admin.NewWebSocketService("0.0.0.0", 9988);
+    ws.Start()
+
+    dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+    if err != nil {
+        log.Fatal(err)
+    }
+    path := strings.Replace(dir, "\\", "/", -1)
+    server := &HttpServer{
+        Path: path+"/web",
+        Ip:"0.0.0.0",
+        Port:9989,
+    }
+    server.Start()
 }

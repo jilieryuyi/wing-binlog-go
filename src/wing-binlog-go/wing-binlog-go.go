@@ -48,7 +48,7 @@ func main() {
 	writePid()
 
 	//标准输出重定向
-	//library.Reset()
+	library.Reset()
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
 		//go tool pprof logDemo.exe --text a.prof
@@ -70,9 +70,10 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	wing_log := library.GetLogInstance()
+	log.SetFlags(log.Ldate|log.Ltime|log.Lshortfile)
+	//wing_log := library.GetLogInstance()
 	//释放日志资源
-	defer library.FreeLogInstance()
+	//defer library.FreeLogInstance()
 
 	/*file := &library.WFile{"C:\\__test.txt"}
 	str := file.ReadAll()
@@ -85,13 +86,11 @@ func main() {
 
 
 	cpu := runtime.NumCPU()
-	wing_log.Println("cpu num: ", cpu)
-
-	//指定cpu为多核运行
+	//指定cpu为多核运行 旧版本兼容
 	runtime.GOMAXPROCS(cpu)
 
 	current_path := library.GetCurrentPath()
-	wing_log.Println(current_path)
+	log.Println(current_path)
 
 	config_file := current_path + "/config/mysql.toml"
 	tcp_config_file := current_path + "/config/tcp.toml"
@@ -101,10 +100,10 @@ func main() {
 	//config_obj := &library.Ini{config_file}
 	//config := config_obj.Parse()
 	//if config == nil {
-	//	wing_log.Println("read config file: " + config_file + " error")
+	//	log.Println("read config file: " + config_file + " error")
 	//	return
 	//}
-	//wing_log.Println(config)
+	//log.Println(config)
 
 
 	//config_file := "/tmp/__test_mysql.toml"
