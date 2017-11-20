@@ -4,7 +4,7 @@ import (
 	"library"
 	"library/services"
 	_ "library/data"
-	"log"
+	log "github.com/sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
 	"os"
@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strconv"
+	"library/data"
 )
 
 
@@ -32,7 +33,20 @@ func killPid() {
 	//log.Println(err)
 }
 
+func init() {
+	//fmt.Println("binlog init")
+	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+		ForceColors:true,
+		QuoteEmptyFields:true, FullTimestamp:true})
+}
+
 func main() {
+
+	u := data.User{"admin", "admin"}
+	log.Println("用户查询：",u.Get())
+
+	u = data.User{"admin", "admin1"}
+	log.Println("用户查询：",u.Get())
 
 	if len(os.Args) > 1 && os.Args[1] == "stop" {
 		killPid()
@@ -64,7 +78,7 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 
-	log.SetFlags(log.Ldate|log.Ltime|log.Lshortfile)
+	//log.SetFlags(log.Ldate|log.Ltime|log.Lshortfile)
 	//wing_log := library.GetLogInstance()
 	//释放日志资源
 	//defer library.FreeLogInstance()
@@ -76,7 +90,7 @@ func main() {
 	//}
 	return*/
 
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	//log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 
 	cpu := runtime.NumCPU()

@@ -4,7 +4,7 @@ import (
     "library"
     "database/sql"
     _ "github.com/mattn/go-sqlite3"
-    "log"
+    log "github.com/sirupsen/logrus"
 )
 var user_data_path string
 func init() {
@@ -29,7 +29,11 @@ func init() {
             log.Println("sqlite3 exec error", err)
             return
         }
+        u := User{"admin", "admin"}
+        u.Add()
     }
+
+
 }
 
 type User struct{
@@ -47,14 +51,14 @@ func (user *User) Add() bool {
     defer db.Close()
 
     //插入数据
-    stmt, err := db.Prepare("INSERT INTO userinfo(username, username) values(?,?)")
+    stmt, err := db.Prepare("INSERT INTO userinfo(username, password) values(?,?)")
     if err != nil {
         log.Println("2-open sqlite3 error", err)
         return false
     }
     defer stmt.Close()
 
-    res, err := stmt.Exec("admin", "admin")
+    res, err := stmt.Exec(user.Name, user.Password)
     if err != nil {
         log.Println("2-open sqlite3 error", err)
         return false
@@ -70,12 +74,39 @@ func (user *User) Add() bool {
     return true
 }
 
-// 删除用户
-func (user *User) Delete() bool {
-    if !user.Get() {
+//查询用户
+func (user *User) Get() bool {
+
+    db, err := sql.Open("sqlite3", user_data_path)
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+    defer db.Close()
+
+    sql_str := "SELECT id, username, password, strftime('%Y-%m-%d %H:%M:%S',created) as created FROM userinfo WHERE username = ? AND password = ?"
+    stmt, err:= db.Prepare(sql_str)
+    if err != nil {
+        log.Println(err)
         return false
     }
 
+    defer stmt.Close()
+
+    res := stmt.QueryRow(user.Name, user.Password)
+    var (
+        id int64
+        username string
+        password string
+        daytime string
+    )
+
+    err = res.Scan(&id, &username, &password, &daytime)
+    if err != nil {
+        return false
+    }
+
+    log.Println(id, username, password, daytime)
     return true
 }
 
@@ -88,8 +119,8 @@ func (user *User) Update() bool {
     return true
 }
 
-// 查询用户
-func (user *User) Get() bool {
+// 删除用户
+func (user *User) Delete() bool {
 
     return false
 }
