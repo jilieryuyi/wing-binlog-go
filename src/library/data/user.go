@@ -8,14 +8,18 @@ import (
 )
 var user_data_path string
 func init() {
-    log.Println("user init.....")
+    // 默认的数据目录
     data_path := library.GetCurrentPath() + "/data"
+
+    // 如果不存在，尝试创建
     wpath := &library.WPath{data_path}
     wpath.Mkdir()
 
+    // db文件
     user_data_path = data_path+"/wing.db"
     wfile := &library.WFile{user_data_path}
 
+    // 如果不存在，尝试创建
     if !wfile.Exists() {
         create := "CREATE TABLE `userinfo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT,`username` VARCHAR(64) NULL,`password` VARCHAR(64) NULL,`created` TIMESTAMP default (datetime('now', 'localtime')));"
         db, err := sql.Open("sqlite3", data_path + "/wing.db")
@@ -29,11 +33,10 @@ func init() {
             log.Println("sqlite3 exec error", err)
             return
         }
+        // 添加默认用户
         u := User{"admin", "admin"}
         u.Add()
     }
-
-
 }
 
 type User struct{
@@ -43,6 +46,10 @@ type User struct{
 
 // 添加用户
 func (user *User) Add() bool {
+    if user.Get() {
+        log.Println("用户已存在", user.Name)
+        return false
+    }
     db, err := sql.Open("sqlite3", user_data_path)
     if err != nil {
         log.Println("2-open sqlite3 error", err)
@@ -74,7 +81,8 @@ func (user *User) Add() bool {
     return true
 }
 
-//查询用户
+// 查询用户是否存在
+// 存在返回true，不存在返回false
 func (user *User) Get() bool {
 
     db, err := sql.Open("sqlite3", user_data_path)
@@ -111,16 +119,76 @@ func (user *User) Get() bool {
 }
 
 // 更新用户
-func (user *User) Update() bool {
+func (user *User) Update(id int64) bool {
     if !user.Get() {
         return false
     }
 
-    return true
+    db, err := sql.Open("sqlite3", user_data_path)
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+    defer db.Close()
+
+    //插入数据
+    stmt, err := db.Prepare("update userinfo set username=?, password=? where id=?")
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+    defer stmt.Close()
+
+    res, err := stmt.Exec(user.Name, user.Password, id)
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+
+    num, err := res.RowsAffected()
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+
+    log.Println(num)
+    return num > 0
 }
+
 
 // 删除用户
 func (user *User) Delete() bool {
+    if !user.Get() {
+        return false
+    }
 
-    return false
+    db, err := sql.Open("sqlite3", user_data_path)
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+    defer db.Close()
+
+    //插入数据
+    stmt, err := db.Prepare("delete from userinfo where username=?")
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+    defer stmt.Close()
+
+    res, err := stmt.Exec(user.Name)
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+
+    num, err := res.RowsAffected()
+    if err != nil {
+        log.Println("2-open sqlite3 error", err)
+        return false
+    }
+
+    log.Println(num)
+    return num > 0
 }
