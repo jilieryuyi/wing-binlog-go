@@ -5,6 +5,7 @@ import (
     "log"
     "github.com/juju/errors"
     "library/services"
+    "library/file"
 )
 
 var (
@@ -44,7 +45,7 @@ type MysqlConfig struct {
 func (config *WConfig) GetMysql() (*AppConfig, error) {
     var app_config AppConfig
 
-    wfile := WFile{config.Config_file}
+    wfile := file.WFile{config.Config_file}
     if !wfile.Exists() {
         log.Printf("config file %s does not exists", config.Config_file)
         return nil, ErrorFileNotFound
@@ -60,7 +61,7 @@ func (config *WConfig) GetMysql() (*AppConfig, error) {
 func (config *WConfig) GetTcp() (*services.TcpConfig, error) {
     var tcp_config services.TcpConfig
 
-    wfile := WFile{config.Config_file}
+    wfile := file.WFile{config.Config_file}
     if !wfile.Exists() {
         log.Printf("config file %s does not exists", config.Config_file)
         return nil, ErrorFileNotFound
@@ -76,7 +77,7 @@ func (config *WConfig) GetTcp() (*services.TcpConfig, error) {
 func (config *WConfig) GetHttp() (*services.HttpConfig, error) {
     var tcp_config services.HttpConfig
 
-    wfile := WFile{config.Config_file}
+    wfile := file.WFile{config.Config_file}
     if !wfile.Exists() {
         log.Printf("config file %s does not exists", config.Config_file)
         return nil, ErrorFileNotFound

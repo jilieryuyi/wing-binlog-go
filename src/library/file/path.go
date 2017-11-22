@@ -1,10 +1,11 @@
-package library
+package file
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	wstr "library/string"
 )
 
 func GetCurrentPath() string {
@@ -21,7 +22,7 @@ type WPath struct {
 
 func (dir *WPath) GetParent() string {
 	dir.Dir = strings.Replace(dir.Dir, "\\", "/", -1)
-	str := WString{dir.Dir}
+	str := wstr.WString{dir.Dir}
 	last_index := strings.LastIndex(str.Substr(0, len(dir.Dir)-1), "/")
 	return str.Substr(0, last_index)
 }
@@ -29,7 +30,7 @@ func (dir *WPath) GetParent() string {
 func (dir *WPath) GetPath() string {
 	dir.Dir = strings.Replace(dir.Dir, "\\", "/", -1)
 	if string(dir.Dir[len(dir.Dir)-1]) == "/" {
-		str := WString{dir.Dir}
+		str := wstr.WString{dir.Dir}
 		return str.Substr(0, len(dir.Dir)-1)
 	}
 	return dir.Dir

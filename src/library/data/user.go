@@ -1,7 +1,7 @@
 package data
 
 import (
-    "library"
+    "library/file"
     "database/sql"
     _ "github.com/mattn/go-sqlite3"
     log "github.com/sirupsen/logrus"
@@ -9,15 +9,15 @@ import (
 var user_data_path string
 func init() {
     // 默认的数据目录
-    data_path := library.GetCurrentPath() + "/data"
+    data_path := file.GetCurrentPath() + "/data"
 
     // 如果不存在，尝试创建
-    wpath := &library.WPath{data_path}
+    wpath := &file.WPath{data_path}
     wpath.Mkdir()
 
     // db文件
     user_data_path = data_path+"/wing.db"
-    wfile := &library.WFile{user_data_path}
+    wfile := &file.WFile{user_data_path}
 
     // 如果不存在，尝试创建
     if !wfile.Exists() {

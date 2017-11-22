@@ -1,4 +1,4 @@
-package library
+package file
 
 import "testing"
 import (

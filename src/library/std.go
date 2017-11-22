@@ -6,11 +6,12 @@ import (
 	"sync"
 	"log"
 	"fmt"
+	"library/file"
 )
 
 func Reset() error {
-	dir := GetCurrentPath() + "/logs"
-	logs_dir := &WPath{dir}
+	dir := file.GetCurrentPath() + "/logs"
+	logs_dir := &file.WPath{dir}
 
 	if !logs_dir.Exists() {
 		os.Mkdir(dir, 0755)

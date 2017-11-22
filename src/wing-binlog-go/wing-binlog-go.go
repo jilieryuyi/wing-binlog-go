@@ -16,16 +16,18 @@ import (
 	"io/ioutil"
 	"strconv"
 	"library/data"
+	"library/file"
+
 )
 
 
 func writePid() {
 	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
-	ioutil.WriteFile(library.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
+	ioutil.WriteFile(file.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
 }
 
 func killPid() {
-	dat, _ := ioutil.ReadFile(library.GetCurrentPath() + "/wing-binlog-go.pid")
+	dat, _ := ioutil.ReadFile(file.GetCurrentPath() + "/wing-binlog-go.pid")
 	fmt.Print(string(dat))
 	pid, _ := strconv.Atoi(string(dat))
 	log.Println("给进程发送终止信号：", pid)
@@ -97,7 +99,7 @@ func main() {
 	//指定cpu为多核运行 旧版本兼容
 	runtime.GOMAXPROCS(cpu)
 
-	current_path := library.GetCurrentPath()
+	current_path := file.GetCurrentPath()
 	log.Println(current_path)
 
 	config_file := current_path + "/config/mysql.toml"

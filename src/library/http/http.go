@@ -6,19 +6,35 @@ import (
     "net"
     "time"
     "io/ioutil"
-    "log"
+    log "github.com/sirupsen/logrus"
     "errors"
     "fmt"
     "path/filepath"
     "os"
     "strings"
     "library/admin"
+    "math/rand"
+    "library/data"
 )
 
 type HttpServer struct{
     Path string // web路径 当前路径/web
     Ip string   // 监听ip 0.0.0.0
     Port int    // 9989
+}
+
+type OnLineUser struct {
+    Name string
+    Password string
+    LastPostTime int64
+}
+
+var online_users map[string] *OnLineUser = make(map[string] *OnLineUser)
+var http_errors map[int] string = map[int] string{
+    200 : "login ok",
+    201 : "login error",
+    202 : "logout error",
+    203 : "logout ok",
 }
 
 const HTTP_POST_TIMEOUT = 3 //3秒超时
@@ -114,51 +130,6 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
     return nil, nil, nil, nil
 }
 
-func (server *HttpServer) Start() {
-    go func() {
-        log.Println("http服务器启动...")
-        log.Printf("http监听: %s:%d", server.Ip, server.Port)
-
-        staticHandler := http.FileServer(http.Dir(server.Path))
-        http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-            log.Println("http请求: ",w, req.URL.Path, req.Form)
-            //if req.URL.Path == "/action" || req.URL.Path == "/action/" {
-            //    io.WriteString(w, "hello, world!\n")
-            //    return
-            //}
-
-            switch req.URL.Path {
-                case "/user/login":
-                    username, ok1 := req.Form["username"]
-                    password, ok2 := req.Form["password"]
-                    log.Println(username, password)
-                    if ok1 && ok2 {
-                        cookie := http.Cookie{
-                            Name: "appsign",
-                            Value: "123",
-                            Path: "/", MaxAge: 86400,
-                        }
-                        http.SetCookie(w, &cookie)
-                        w.Write([]byte("{\"code\":200, \"message\":\"login ok\"}"))
-                    }
-                default:
-                    staticHandler.ServeHTTP(w, req)
-            }
-
-            //if req.URL.Path == "/" {
-
-            //    return
-            //}
-           // io.WriteString(w, "hello, world!\n")
-        })
-        dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
-        err := http.ListenAndServe(dns, nil)
-        if err != nil {
-            log.Fatal("启动http服务失败: ", err)
-        }
-    }()
-}
-
 func init() {
     ws := admin.NewWebSocketService("0.0.0.0", 9988);
     ws.Start()
@@ -175,3 +146,98 @@ func init() {
     }
     server.Start()
 }
+
+func randString() string {
+    str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    bt := []byte(str)
+    result := []byte{}
+    r := rand.New(rand.NewSource(time.Now().UnixNano()))
+    for i := 0; i < 32; i++ {
+        result = append(result, bt[r.Intn(len(bt))])
+    }
+    return string(result)
+}
+func output(code int, msg string) string{
+    return fmt.Sprintf("{\"code\":%d, \"message\":\"%s\"}", code, msg)
+}
+
+func OnUserLogin(w http.ResponseWriter, req *http.Request) {
+    req.ParseForm()
+    username, ok1 := req.Form["username"]
+    password, ok2 := req.Form["password"]
+    log.Println(req.Form, username[0], password[0])
+    user := data.User{username[0], password[0]}
+    if ok1 && ok2 && user.Get() {
+        user_sign := randString()
+        online_users[user_sign] = &OnLineUser{
+            Name : username[0],
+            Password:password[0],
+            LastPostTime:time.Now().Unix(),
+        }
+        cookie := http.Cookie{
+            Name: "user_sign",
+            Value: user_sign,
+            Path: "/",
+            MaxAge: 86400,
+        }
+        http.SetCookie(w, &cookie)
+        w.Write([]byte(output(200, http_errors[200])))
+    } else {
+        w.Write([]byte(output(201, http_errors[201])))
+    }
+}
+
+func OnUserLogout(w http.ResponseWriter, req *http.Request) {
+    user_sign, err:= req.Cookie("user_sign")
+    if err != nil {
+        w.Write([]byte(output(202, http_errors[202])))
+        return
+    }
+    _, ok := online_users[user_sign.Value]
+    if ok {
+        log.Println("delete ok ", user_sign.Value)
+        delete(online_users, user_sign.Value)
+        cookie := http.Cookie{
+            Name: "user_sign",
+            Path: "/",
+            MaxAge: -1,
+        }
+        http.SetCookie(w, &cookie)
+        w.Write([]byte(output(203, http_errors[203])))
+    } else {
+        log.Println("delete error, session does not exists ", user_sign.Value)
+        w.Write([]byte(output(202, http_errors[202])))
+    }
+}
+
+func (server *HttpServer) Start() {
+    go func() {
+        //登录超时检测
+        for {
+            for key, user := range online_users {
+                now := time.Now().Unix()
+                // 10分钟不活动强制退出
+                if now - user.LastPostTime > 600 {
+                    delete(online_users, key)
+                }
+            }
+            time.Sleep(time.Second*3)
+        }
+    }()
+    go func() {
+        log.Println("http服务器启动...")
+        log.Printf("http监听: %s:%d", server.Ip, server.Port)
+        static_http_handler := http.FileServer(http.Dir(server.Path))
+
+        http.Handle("/", static_http_handler)
+        http.HandleFunc("/user/login", OnUserLogin)
+        http.HandleFunc("/user/logout", OnUserLogout)
+
+        dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
+        err := http.ListenAndServe(dns, nil)
+        if err != nil {
+            log.Fatal("启动http服务失败: ", err)
+        }
+    }()
+}
+
