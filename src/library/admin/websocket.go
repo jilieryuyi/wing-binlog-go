@@ -32,7 +32,7 @@ type WebSocketService struct {
 	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
-	clients []*websocket_client_node
+	clients map[string] *websocket_client_node
 }
 
 func NewWebSocketService(ip string, port int) *WebSocketService {
@@ -45,7 +45,7 @@ func NewWebSocketService(ip string, port int) *WebSocketService {
 		recv_times         : 0,
 		send_times         : 0,
 		send_failure_times : 0,
-		clients            : make([]*websocket_client_node, 128),
+		clients            : make(map[string] *websocket_client_node, 128),
 	}
 	return tcp
 }
@@ -105,7 +105,8 @@ func (tcp *WebSocketService) onClose(conn *websocket_client_node) {
 	for index, con := range tcp.clients {
 		if con == conn {
 			con.is_connected = false
-			tcp.clients = append(tcp.clients[:index], tcp.clients[index+1:]...)
+			//tcp.clients = append(tcp.clients[:index], tcp.clients[index+1:]...)
+			delete(tcp.clients, index)
 			break
 		}
 	}
@@ -178,7 +179,15 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 		tcp.onMessage(cnode, message, size)
 	}
 }
-
+func (tcp *WebSocketService) DeleteClient(key string) {
+	tcp.lock.Lock()
+	conn, ok := tcp.clients[key]
+	if ok {
+		conn.conn.Close()
+		delete(tcp.clients, key)
+	}
+	tcp.lock.Unlock()
+}
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
 		clen := len(msg)
@@ -205,7 +214,7 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 			tcp.lock.Lock()
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- tcp.pack(CMD_AUTH, "ok")
-			tcp.clients = append(tcp.clients, conn)
+			tcp.clients[sign] = conn// = append(tcp.clients, conn)
 			atomic.AddInt32(&tcp.clients_count, int32(1))
 			tcp.lock.Unlock()
 		case CMD_CONNECT:

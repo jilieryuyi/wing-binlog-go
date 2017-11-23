@@ -22,6 +22,7 @@ type HttpServer struct{
     Path string // web路径 当前路径/web
     Ip string   // 监听ip 0.0.0.0
     Port int    // 9989
+    ws *admin.WebSocketService
 }
 
 type OnLineUser struct {
@@ -143,9 +144,10 @@ func init() {
     }
     path := strings.Replace(dir, "\\", "/", -1)
     server := &HttpServer{
-        Path: path+"/web",
-        Ip:"0.0.0.0",
-        Port:9989,
+        Path : path+"/web",
+        Ip   : "0.0.0.0",
+        Port : 9989,
+        ws   : ws,
     }
     server.Start()
 }
@@ -172,6 +174,7 @@ func OnUserLogin(w http.ResponseWriter, req *http.Request) {
     log.Println(req.Form, username[0], password[0])
     user := data.User{username[0], password[0]}
     if ok1 && ok2 && user.Get() {
+        log.Println("login success")
         user_sign := randString()
         online_users_lock.Lock()
         online_users[user_sign] = &OnLineUser{
@@ -199,7 +202,6 @@ func OnUserLogout(w http.ResponseWriter, req *http.Request) {
         w.Write([]byte(output(202, http_errors[202])))
         return
     }
-
     cookie := http.Cookie{
         Name: "user_sign",
         Path: "/",
@@ -229,6 +231,7 @@ func (server *HttpServer) Start() {
                 now := time.Now().Unix()
                 // 10分钟不活动强制退出
                 if now - user.LastPostTime > 600 {
+                    server.ws.DeleteClient(key)
                     delete(online_users, key)
                     log.Println("登录超时...", key)
                 }
@@ -242,9 +245,37 @@ func (server *HttpServer) Start() {
         log.Printf("http监听: %s:%d", server.Ip, server.Port)
         static_http_handler := http.FileServer(http.Dir(server.Path))
 
-        http.Handle("/", static_http_handler)
+        http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request){
+            // 判断是否在线
+            user_sign, err := req.Cookie("user_sign")
+            is_leave := false
+            if err != nil {
+                is_leave = true
+            } else {
+                _, ok := online_users[user_sign.Value]
+                if !ok {
+                    server.ws.DeleteClient(user_sign.Value)
+                    is_leave = true
+                }
+            }
+            if is_leave {
+                cookie := http.Cookie{
+                    Name: "user_sign",
+                    Path: "/",
+                    MaxAge: -1,
+                }
+                http.SetCookie(w, &cookie)
+            }
+            static_http_handler.ServeHTTP(w, req)
+        })
         http.HandleFunc("/user/login", OnUserLogin)
-        http.HandleFunc("/user/logout", OnUserLogout)
+        http.HandleFunc("/user/logout", func(w http.ResponseWriter, req *http.Request){
+            user_sign, err:= req.Cookie("user_sign")
+            if err == nil {
+                server.ws.DeleteClient(user_sign.Value)
+            }
+            OnUserLogout(w, req)
+        })
 
         dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
         err := http.ListenAndServe(dns, nil)
