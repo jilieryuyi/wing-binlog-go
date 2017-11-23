@@ -12,7 +12,6 @@ import (
     "path/filepath"
     "os"
     "strings"
-    "library/admin"
     "math/rand"
     "library/data"
     "sync"
@@ -22,7 +21,7 @@ type HttpServer struct{
     Path string // web路径 当前路径/web
     Ip string   // 监听ip 0.0.0.0
     Port int    // 9989
-    ws *admin.WebSocketService
+    ws *WebSocketService
 }
 
 type OnLineUser struct {
@@ -33,6 +32,15 @@ type OnLineUser struct {
 
 var online_users map[string] *OnLineUser = make(map[string] *OnLineUser)
 var online_users_lock *sync.Mutex = new(sync.Mutex)
+
+
+func is_online(sign string) bool {
+    online_users_lock.Lock()
+    _, ok := online_users[sign]
+    online_users_lock.Unlock()
+    return ok
+}
+
 
 var http_errors map[int] string = map[int] string{
     200 : "login ok",
@@ -135,7 +143,7 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
 }
 
 func init() {
-    ws := admin.NewWebSocketService("0.0.0.0", 9988);
+    ws := NewWebSocketService("0.0.0.0", 9988);
     ws.Start()
 
     dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -150,6 +158,7 @@ func init() {
         ws   : ws,
     }
     server.Start()
+    //ws.http = server
 }
 
 func randString() string {
@@ -254,11 +263,13 @@ func (server *HttpServer) Start() {
             } else {
                 _, ok := online_users[user_sign.Value]
                 if !ok {
-                    server.ws.DeleteClient(user_sign.Value)
+                    // 清除ws连接
+                    //server.ws.DeleteClient(user_sign.Value)
                     is_leave = true
                 }
             }
             if is_leave {
+                // 清除cookie
                 cookie := http.Cookie{
                     Name: "user_sign",
                     Path: "/",

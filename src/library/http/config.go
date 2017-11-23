@@ -1,4 +1,4 @@
-package admin
+package http
 
 type tcpg struct {
     Mode int     // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
@@ -40,6 +40,7 @@ const (
     CMD_TICK    = 5 // 心跳包
     CMD_EVENT   = 6 // 事件
     CMD_CONNECT = 7
+    CMD_RELOGIN = 8
 )
 
 const (

@@ -1,4 +1,4 @@
-package admin
+package http
 // 仅供admin管理交互使用
 
 import (
@@ -33,6 +33,7 @@ type WebSocketService struct {
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 	clients map[string] *websocket_client_node
+	//http *HttpServer
 }
 
 func NewWebSocketService(ip string, port int) *WebSocketService {
@@ -105,8 +106,8 @@ func (tcp *WebSocketService) onClose(conn *websocket_client_node) {
 	for index, con := range tcp.clients {
 		if con == conn {
 			con.is_connected = false
-			//tcp.clients = append(tcp.clients[:index], tcp.clients[index+1:]...)
 			delete(tcp.clients, index)
+			log.Println("连接发生错误，删除资源", index)
 			break
 		}
 	}
@@ -120,11 +121,16 @@ func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
 	for {
 		if !node.is_connected {
 			log.Println("websocket-clientSendService退出")
-			break
+			return
 		}
 
 		select {
-		case  msg := <-node.send_queue:
+		case  msg, ok:= <-node.send_queue:
+			if !ok {
+				log.Println("通道关闭")
+				// 通道已关闭
+				return
+			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
 			//size, err := (*node.conn).Write(msg)
 			err := (*node.conn).WriteMessage(1, msg)
@@ -134,8 +140,7 @@ func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
 			if (err != nil) {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
-
-				log.Println("websocket-失败次数：", tcp.send_failure_times, node.conn.RemoteAddr().String(), node.send_failure_times)
+				log.Println("websocket-发送失败：", msg)
 			}
 		case <-to.C://time.After(time.Second*3):
 		//log.Println("发送超时...", tcp)
@@ -171,7 +176,7 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 			conn.Close();
 			return
 		}
-		log.Println("收到websocket消息：", string(message))
+		//log.Println("收到websocket消息：", string(message))
 
 		size := len(message)
 		atomic.AddInt64(&tcp.recv_times, int64(1))
@@ -180,14 +185,19 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 	}
 }
 func (tcp *WebSocketService) DeleteClient(key string) {
+	log.Println("删除ws资源", key)
 	tcp.lock.Lock()
 	conn, ok := tcp.clients[key]
 	if ok {
+		//close(conn.send_queue) 这里不需要close，因为接下来的
+		//conn.Close()会触发onClose事件，这个事件里面会关闭channel
 		conn.conn.Close()
-		delete(tcp.clients, key)
+		//conn.is_connected = false
+		//delete(tcp.clients, key)
 	}
 	tcp.lock.Unlock()
 }
+
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
 		clen := len(msg)
@@ -198,8 +208,8 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 		//2字节 command
 		cmd := int(msg[0]) + int(msg[1] << 8)
 
-		log.Println("content：", msg)
-		log.Println("cmd：", cmd)
+		//log.Println("content：", msg)
+		//log.Println("cmd：", cmd)
 		switch cmd {
 		case CMD_AUTH:
 			log.Println("收到认证消息")
@@ -210,10 +220,15 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 			//签名
 			sign := string(msg[2:])
 			log.Println("sign：", sign)
+			if !is_online(sign) {
+				conn.send_queue <- tcp.pack(CMD_RELOGIN, "需要重新登录")
+				return
+			}
 
 			tcp.lock.Lock()
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- tcp.pack(CMD_AUTH, "ok")
+			//log.Println("发送CMD_AUTH ok")
 			tcp.clients[sign] = conn// = append(tcp.clients, conn)
 			atomic.AddInt32(&tcp.clients_count, int32(1))
 			tcp.lock.Unlock()
@@ -230,9 +245,11 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 		case CMD_TICK:
 			//log.Println("收到心跳消息")
 			conn.send_queue <- tcp.pack(CMD_TICK, "ok")
+			//log.Println("发送CMD_TICK ok")
 		//心跳包
 		default:
 			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+			//log.Println("发送CMD_ERROR ",fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 }
 
