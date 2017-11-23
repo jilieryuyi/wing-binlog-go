@@ -15,6 +15,7 @@ import (
     "library/admin"
     "math/rand"
     "library/data"
+    "sync"
 )
 
 type HttpServer struct{
@@ -30,6 +31,8 @@ type OnLineUser struct {
 }
 
 var online_users map[string] *OnLineUser = make(map[string] *OnLineUser)
+var online_users_lock *sync.Mutex = new(sync.Mutex)
+
 var http_errors map[int] string = map[int] string{
     200 : "login ok",
     201 : "login error",
@@ -74,11 +77,11 @@ func Post(addr string, post_data []byte) ([]byte, error) {
         log.Println("http post error, error status back: ", resp.StatusCode)
         return nil, ERR_STATUS
     }
-    data, err := ioutil.ReadAll(resp.Body)
+    res, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         return nil, err
     }
-    return data, nil
+    return res, nil
 }
 func Get(addr string) (*[]byte, *int, *http.Header, error) {
     // 上传JSON数据
@@ -115,13 +118,13 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
     defer resp.Body.Close()
     // 判断请求状态
     if resp.StatusCode == 200 {
-        data, err := ioutil.ReadAll(resp.Body)
+        res, err := ioutil.ReadAll(resp.Body)
         if err != nil {
             // 读取错误,返回异常
             return nil, nil, nil, err
         }
         // 成功，返回数据及状态
-        return &data, &resp.StatusCode, &resp.Header, nil
+        return &res, &resp.StatusCode, &resp.Header, nil
     } else {
         // 失败，返回状态
         return nil, &resp.StatusCode, nil, nil
@@ -157,6 +160,7 @@ func randString() string {
     }
     return string(result)
 }
+
 func output(code int, msg string) string{
     return fmt.Sprintf("{\"code\":%d, \"message\":\"%s\"}", code, msg)
 }
@@ -169,11 +173,13 @@ func OnUserLogin(w http.ResponseWriter, req *http.Request) {
     user := data.User{username[0], password[0]}
     if ok1 && ok2 && user.Get() {
         user_sign := randString()
+        online_users_lock.Lock()
         online_users[user_sign] = &OnLineUser{
             Name : username[0],
             Password:password[0],
             LastPostTime:time.Now().Unix(),
         }
+        online_users_lock.Unlock()
         cookie := http.Cookie{
             Name: "user_sign",
             Value: user_sign,
@@ -193,34 +199,41 @@ func OnUserLogout(w http.ResponseWriter, req *http.Request) {
         w.Write([]byte(output(202, http_errors[202])))
         return
     }
+
+    cookie := http.Cookie{
+        Name: "user_sign",
+        Path: "/",
+        MaxAge: -1,
+    }
+    http.SetCookie(w, &cookie)
+
+    online_users_lock.Lock()
     _, ok := online_users[user_sign.Value]
     if ok {
         log.Println("delete ok ", user_sign.Value)
         delete(online_users, user_sign.Value)
-        cookie := http.Cookie{
-            Name: "user_sign",
-            Path: "/",
-            MaxAge: -1,
-        }
-        http.SetCookie(w, &cookie)
         w.Write([]byte(output(203, http_errors[203])))
     } else {
         log.Println("delete error, session does not exists ", user_sign.Value)
         w.Write([]byte(output(202, http_errors[202])))
     }
+    online_users_lock.Unlock()
 }
 
 func (server *HttpServer) Start() {
     go func() {
         //登录超时检测
         for {
+            online_users_lock.Lock()
             for key, user := range online_users {
                 now := time.Now().Unix()
                 // 10分钟不活动强制退出
                 if now - user.LastPostTime > 600 {
                     delete(online_users, key)
+                    log.Println("登录超时...", key)
                 }
             }
+            online_users_lock.Unlock()
             time.Sleep(time.Second*3)
         }
     }()

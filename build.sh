@@ -47,6 +47,7 @@ fi
 cp -rf $current_path/src/config/* $current_path/bin/config/
 cp -rf $current_path/web/* $current_path/bin/web/
 cp -rf $current_path/src/library $current_path/vendor/
+cp -rf $vendor_path/src/* $vendor_path
 
 echo "build success"
 echo $current_path/bin/wing-binlog-go
