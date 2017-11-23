@@ -221,7 +221,7 @@ func OnUserLogout(w http.ResponseWriter, req *http.Request) {
     online_users_lock.Lock()
     _, ok := online_users[user_sign.Value]
     if ok {
-        log.Println("delete ok ", user_sign.Value)
+        log.Println("delete online user ", user_sign.Value)
         delete(online_users, user_sign.Value)
         w.Write([]byte(output(203, http_errors[203])))
     } else {
