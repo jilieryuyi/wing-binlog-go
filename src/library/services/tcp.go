@@ -3,7 +3,8 @@ package services
 import (
 	"fmt"
 	"net"
-	log "library/log"
+	//log "library/log"
+	log "github.com/sirupsen/logrus"
 	"time"
 	"sync/atomic"
 	"sync"

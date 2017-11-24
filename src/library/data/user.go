@@ -4,7 +4,8 @@ import (
     "library/file"
     "database/sql"
     _ "github.com/mattn/go-sqlite3"
-    log "library/log"
+    //log "library/log"
+    log "github.com/sirupsen/logrus"
 )
 var user_data_path string
 func init() {

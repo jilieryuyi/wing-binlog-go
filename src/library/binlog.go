@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	log "library/log"
-	//log "github.com/sirupsen/logrus"
+	//log "library/log"
+	log "github.com/sirupsen/logrus"
 
 	"strconv"
 	"library/services"

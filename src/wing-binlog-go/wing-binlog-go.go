@@ -1,7 +1,7 @@
 package main
 
 import (
-	log "library/log"
+	//log "library/log"
 	"library"
 	"library/services"
 	_ "library/data"
@@ -19,7 +19,7 @@ import (
 	"library/file"
 	"flag"
 	syslog "log"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 
@@ -39,10 +39,10 @@ func killPid() {
 
 func init() {
     fmt.Println("log init------------")
-    logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+    log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
         ForceColors:true,
         QuoteEmptyFields:true, FullTimestamp:true})
-    log.ResetOutHandler()
+    //log.ResetOutHandler()
 }
 
 var debug = flag.Bool("debug", false, "enable debug, default true")
@@ -50,7 +50,7 @@ var debug = flag.Bool("debug", false, "enable debug, default true")
 func main() {
 	flag.Parse()
 	syslog.Println("debug", *debug)
-	log.ResetOutHandler()
+	//log.ResetOutHandler()
 	u := data.User{"admin", "admin"}
 	log.Println("用户查询：",u.Get())
 
