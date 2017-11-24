@@ -37,7 +37,8 @@ var online_users_lock *sync.Mutex = new(sync.Mutex)
 
 func is_online(sign string) bool {
     online_users_lock.Lock()
-    _, ok := online_users[sign]
+    user, ok := online_users[sign]
+    user.LastPostTime = time.Now().Unix()
     online_users_lock.Unlock()
     return ok
 }
@@ -262,12 +263,17 @@ func (server *HttpServer) Start() {
             if err != nil {
                 is_leave = true
             } else {
-                _, ok := online_users[user_sign.Value]
+                online_users_lock.Lock()
+                user, ok := online_users[user_sign.Value]
                 if !ok {
                     // 清除ws连接
                     //server.ws.DeleteClient(user_sign.Value)
                     is_leave = true
+                } else {
+                    // 跟新空闲时间
+                    user.LastPostTime = time.Now().Unix()
                 }
+                online_users_lock.Unlock()
             }
             if is_leave {
                 // 清除cookie

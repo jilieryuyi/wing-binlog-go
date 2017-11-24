@@ -10,8 +10,10 @@ const CMD_EVENT   = 6;
 const CMD_RELOGIN = 8;
 
 //心跳包
-var tick_pack = String.fromCharCode(CMD_TICK) + String.fromCharCode(CMD_TICK >> 8);
-error_times = 0;
+//var tick_pack = String.fromCharCode(CMD_TICK) + String.fromCharCode(CMD_TICK >> 8);
+var error_times = 0;
+var user_sign = Cookies.get('user_sign');
+
 
 function ws_connect() {
     return new WebSocket("ws://127.0.0.1:9988/");
@@ -44,27 +46,48 @@ function clog(content) {
     console.log(cc);
 }
 
-//连接成功回调函数
-function on_connect() {
-    connect_status = 2;
-    // str="A";
-    // code = str.charCodeAt();
-    // 打包set_pro数据包
-    // 2字节cmd
+function pack(cmd, content)
+{
+    if (!content) {
+        content = "";
+    }
     var r = "";
     r += String.fromCharCode(CMD_AUTH);
     r += String.fromCharCode(CMD_AUTH >> 8);
 
-    var user_sign = Cookies.get('user_sign');
-    if (!user_sign) {
-        return;
-        //alert("连接出错");
-    }
+    // var slen = user_sign.length
+    // r += String.fromCharCode(slen);
+    // r += String.fromCharCode(slen >> 8);
     // 签名
     r += user_sign;
+    r += content;
+
+    clog("发送消息", r);
+
+    return r;
+}
+
+
+//连接成功回调函数
+function on_connect() {
+    // str="A";
+    // code = str.charCodeAt();
+    // 打包set_pro数据包
+    // 2字节cmd
+    // var r = "";
+    // r += String.fromCharCode(CMD_AUTH);
+    // r += String.fromCharCode(CMD_AUTH >> 8);
+    //
+    // var user_sign = Cookies.get('user_sign');
+    // if (!user_sign) {
+    //     return;
+    //     //alert("连接出错");
+    // }
+    // // 签名
+    // r += user_sign;
 
     //连接成功后发送注册到分组事件
-    ws.send(r)
+    ws.send(pack(CMD_AUTH))
 }
 
 //收到消息回调函数
@@ -140,7 +163,6 @@ function start_service() {
 }
 
 
-var user_sign = Cookies.get('user_sign');
 if (!user_sign) {
     window.location.href="/login.html";
 } else {
@@ -148,7 +170,7 @@ if (!user_sign) {
     start_service();
     //5秒发送一次心跳
     window.setInterval(function () {
-        ws.send(tick_pack);
+        ws.send(pack(CMD_TICK));
     }, 5000);
     window.setInterval(function () {
         if (error_times > 0) {

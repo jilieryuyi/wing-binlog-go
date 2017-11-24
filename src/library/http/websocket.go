@@ -201,57 +201,60 @@ func (tcp *WebSocketService) DeleteClient(key string) {
 
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, size int) {
-		clen := len(msg)
-		if clen < 2 {
-			return
+	log.Println("收到消息",len(msg), "==>",msg)
+	clen := len(msg)
+	if clen < 34 { // 2字节cmd，32字节签名
+		return
+	}
+
+	//2字节 command
+	cmd := int(msg[0]) + int(msg[1] << 8)
+	//签名
+	sign := string(msg[2:34])
+	log.Println("签名：",sign)
+	if !is_online(sign) {
+		conn.send_queue <- tcp.pack(CMD_RELOGIN, "需要重新登录")
+		return
+	}
+
+	//log.Println("content：", msg)
+	//log.Println("cmd：", cmd)
+	switch cmd {
+	case CMD_AUTH:
+		//log.Println("收到认证消息")
+		//if len(msg) < 3 {
+		//	return
+		//}
+
+		//签名
+		//sign := string(msg[2:])
+		//log.Println("sign：", sign)
+		tcp.lock.Lock()
+		(*conn.conn).SetReadDeadline(time.Time{})
+		conn.send_queue <- tcp.pack(CMD_AUTH, "ok")
+		//log.Println("发送CMD_AUTH ok")
+		tcp.clients[sign] = conn// = append(tcp.clients, conn)
+		atomic.AddInt32(&tcp.clients_count, int32(1))
+		tcp.lock.Unlock()
+	case CMD_CONNECT:
+		client := &ssh.SSH{
+			Ip: "127.0.0.1",
+			User : "root",
+			Port:22,
+			Cert:"123456",
 		}
-
-		//2字节 command
-		cmd := int(msg[0]) + int(msg[1] << 8)
-
-		//log.Println("content：", msg)
-		//log.Println("cmd：", cmd)
-		switch cmd {
-		case CMD_AUTH:
-			log.Println("收到认证消息")
-			if len(msg) < 3 {
-				return
-			}
-
-			//签名
-			sign := string(msg[2:])
-			log.Println("sign：", sign)
-			if !is_online(sign) {
-				conn.send_queue <- tcp.pack(CMD_RELOGIN, "需要重新登录")
-				return
-			}
-
-			tcp.lock.Lock()
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- tcp.pack(CMD_AUTH, "ok")
-			//log.Println("发送CMD_AUTH ok")
-			tcp.clients[sign] = conn// = append(tcp.clients, conn)
-			atomic.AddInt32(&tcp.clients_count, int32(1))
-			tcp.lock.Unlock()
-		case CMD_CONNECT:
-			client := &ssh.SSH{
-				Ip: "127.0.0.1",
-				User : "root",
-				Port:22,
-				Cert:"123456",
-			}
-			client.Connect(ssh.CERT_PASSWORD)
-			client.RunCmd("ls /home")
-			client.Close()
-		case CMD_TICK:
-			//log.Println("收到心跳消息")
-			conn.send_queue <- tcp.pack(CMD_TICK, "ok")
-			//log.Println("发送CMD_TICK ok")
-		//心跳包
-		default:
-			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
-			//log.Println("发送CMD_ERROR ",fmt.Sprintf("不支持的指令：%d", cmd))
-		}
+		client.Connect(ssh.CERT_PASSWORD)
+		client.RunCmd("ls /home")
+		client.Close()
+	case CMD_TICK:
+		//log.Println("收到心跳消息")
+		conn.send_queue <- tcp.pack(CMD_TICK, "ok")
+		//log.Println("发送CMD_TICK ok")
+	//心跳包
+	default:
+		conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+		//log.Println("发送CMD_ERROR ",fmt.Sprintf("不支持的指令：%d", cmd))
+	}
 }
 
 func (tcp *WebSocketService) Start() {
