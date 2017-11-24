@@ -12,27 +12,15 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "library/log"
 
-	//"log"
-	//"os/signal"
-	//"syscall"
-	//"strings"
-	//"database/sql"
-	//"reflect"
-	//"encoding/json"
 	"strconv"
 	"library/services"
+	"library/file"
+	wstring "library/string"
 
 	"reflect"
 )
-
-func init() {
-	//fmt.Println("binlog init")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true})
-}
 
 type Binlog struct {
 	DB_Config *AppConfig
@@ -380,7 +368,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
 }
 
 func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
-	wfile := WFile{GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
 	str := wfile.ReadAll()
 
 	if str == "" {
@@ -393,10 +381,10 @@ func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
 		return "", int64(0), int64(0)
 	}
 
-	wstr := WString{res[1]}
+	wstr := wstring.WString{res[1]}
 	pos := wstr.ToInt64()
 
-	wstr2 := WString{res[2]}
+	wstr2 := wstring.WString{res[2]}
 	index := wstr2.ToInt64()
 
 	return res[0], pos, index
@@ -458,7 +446,7 @@ websocket_service *services.WebSocketService, http_service *services.HttpService
 	}
 
 	go func() {
-		wfile := WFile{GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+		wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
 		for {
 			select {
 			case pos := <-h.binlog_handler.chan_save_position:

@@ -3,12 +3,11 @@ package services
 import (
 	"fmt"
 	"net"
-	"log"
+	log "library/log"
 	"time"
 	"sync/atomic"
 	"sync"
 	"regexp"
-	//"os"
 )
 
 type tcp_client_node struct {
@@ -240,11 +239,15 @@ func (tcp *TcpService) clientSendService(node *tcp_client_node) {
 	for {
 		if !node.is_connected {
 			log.Println("clientSendService退出")
-			break
+			return
 		}
 
 		select {
-		case  msg := <-node.send_queue:
+		case  msg, ok := <-node.send_queue:
+			if !ok {
+				log.Println("tcp发送消息channel通道关闭")
+				return
+			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
 			size, err := (*node.conn).Write(msg)
 			atomic.AddInt64(&node.send_times, int64(1))

@@ -3,6 +3,7 @@ package library
 import (
 	"github.com/larspensjo/config"
 	"library/debug"
+	"library/file"
 )
 
 type Ini struct {
@@ -12,7 +13,7 @@ type Ini struct {
 type Config map[string]map[string]interface{}
 
 func (ini *Ini) Parse() Config {
-	p := WFile{ini.Config_path}
+	p := file.WFile{ini.Config_path}
 	if !p.Exists() {
 		debug.Print("config file " + ini.Config_path + " does not exists")
 		return nil

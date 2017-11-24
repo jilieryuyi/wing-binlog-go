@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
-	"log"
+	log "library/log"
 	"net/http"
 	"sync"
 	"time"
@@ -219,11 +219,15 @@ func (tcp *WebSocketService) clientSendService(node *websocket_client_node) {
 	for {
 		if !node.is_connected {
 			log.Println("websocket-clientSendService退出")
-			break
+			return
 		}
 
 		select {
-		case  msg := <-node.send_queue:
+		case  msg, ok:= <-node.send_queue:
+			if !ok {
+				log.Println("websocket发送消息channel通道关闭")
+				return
+			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
 			//size, err := (*node.conn).Write(msg)
 			err := (*node.conn).WriteMessage(1, msg)

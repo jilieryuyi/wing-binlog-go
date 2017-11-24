@@ -1,10 +1,10 @@
 package main
 
 import (
+	log "library/log"
 	"library"
 	"library/services"
 	_ "library/data"
-	log "github.com/sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
 	"os"
@@ -16,16 +16,20 @@ import (
 	"io/ioutil"
 	"strconv"
 	"library/data"
+	"library/file"
+	"flag"
+	syslog "log"
+	"github.com/sirupsen/logrus"
 )
 
 
 func writePid() {
 	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
-	ioutil.WriteFile(library.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
+	ioutil.WriteFile(file.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
 }
 
 func killPid() {
-	dat, _ := ioutil.ReadFile(library.GetCurrentPath() + "/wing-binlog-go.pid")
+	dat, _ := ioutil.ReadFile(file.GetCurrentPath() + "/wing-binlog-go.pid")
 	fmt.Print(string(dat))
 	pid, _ := strconv.Atoi(string(dat))
 	log.Println("给进程发送终止信号：", pid)
@@ -34,14 +38,19 @@ func killPid() {
 }
 
 func init() {
-	//fmt.Println("binlog init")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true})
+    fmt.Println("log init------------")
+    logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+        ForceColors:true,
+        QuoteEmptyFields:true, FullTimestamp:true})
+    log.ResetOutHandler()
 }
 
-func main() {
+var debug = flag.Bool("debug", false, "enable debug, default true")
 
+func main() {
+	flag.Parse()
+	syslog.Println("debug", *debug)
+	log.ResetOutHandler()
 	u := data.User{"admin", "admin"}
 	log.Println("用户查询：",u.Get())
 
@@ -56,7 +65,7 @@ func main() {
 	writePid()
 
 	//标准输出重定向
-	library.Reset()
+	//library.Reset()
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
 		//go tool pprof logDemo.exe --text a.prof
@@ -67,7 +76,7 @@ func main() {
 		//然后执行 text
 		//go tool pprof -alloc_space http://127.0.0.1:6060/debug/pprof/heap
 		//top20 -cum
-		log.Println(http.ListenAndServe("localhost:6060", nil))
+		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
@@ -97,7 +106,7 @@ func main() {
 	//指定cpu为多核运行 旧版本兼容
 	runtime.GOMAXPROCS(cpu)
 
-	current_path := library.GetCurrentPath()
+	current_path := file.GetCurrentPath()
 	log.Println(current_path)
 
 	config_file := current_path + "/config/mysql.toml"

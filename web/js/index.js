@@ -1,6 +1,8 @@
- $("#login-button").click(function(event){
-		 event.preventDefault();
-	 
-	 $('form').fadeOut(500);
-	 $('.wrapper').addClass('form-success');
-});
+/**
+ * Created by yuyi on 2017/11/23.
+ */
+function logout()
+{
+    $.get("/user/logout");
+    window.location.href="/login.html";
+}
