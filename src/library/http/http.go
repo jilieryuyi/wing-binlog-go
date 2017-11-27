@@ -41,10 +41,11 @@ func is_online(sign string) bool {
 
 
 var http_errors map[int] string = map[int] string{
-    200 : "login ok",
+    200 : "ok",
     201 : "login error",
     202 : "logout error",
     203 : "logout ok",
+    204 : "please relogin",
 }
 
 const HTTP_POST_TIMEOUT = 3 //3秒超时
@@ -82,8 +83,8 @@ func randString() string {
     return string(result)
 }
 
-func output(code int, msg string) string{
-    return fmt.Sprintf("{\"code\":%d, \"message\":\"%s\"}", code, msg)
+func output(code int, msg string, data string) string{
+    return fmt.Sprintf("{\"code\":%d, \"message\":\"%s\", \"data\":\"%s\"}", code, msg, data)
 }
 
 func OnUserLogin(w http.ResponseWriter, req *http.Request) {
@@ -109,16 +110,16 @@ func OnUserLogin(w http.ResponseWriter, req *http.Request) {
             MaxAge: 86400,
         }
         http.SetCookie(w, &cookie)
-        w.Write([]byte(output(200, http_errors[200])))
+        w.Write([]byte(output(200, http_errors[200], "")))
     } else {
-        w.Write([]byte(output(201, http_errors[201])))
+        w.Write([]byte(output(201, http_errors[201], "")))
     }
 }
 
 func OnUserLogout(w http.ResponseWriter, req *http.Request) {
     user_sign, err:= req.Cookie("user_sign")
     if err != nil {
-        w.Write([]byte(output(202, http_errors[202])))
+        w.Write([]byte(output(202, http_errors[202], "")))
         return
     }
     cookie := http.Cookie{
@@ -133,10 +134,10 @@ func OnUserLogout(w http.ResponseWriter, req *http.Request) {
     if ok {
         log.Println("delete online user ", user_sign.Value)
         delete(online_users, user_sign.Value)
-        w.Write([]byte(output(203, http_errors[203])))
+        w.Write([]byte(output(203, http_errors[203], "")))
     } else {
         log.Println("delete error, session does not exists ", user_sign.Value)
-        w.Write([]byte(output(202, http_errors[202])))
+        w.Write([]byte(output(202, http_errors[202], "")))
     }
     online_users_lock.Unlock()
 }
@@ -195,6 +196,23 @@ func (server *HttpServer) Start() {
             static_http_handler.ServeHTTP(w, req)
         })
         http.HandleFunc("/user/login", OnUserLogin)
+        http.HandleFunc("/get/websocket/port", func(w http.ResponseWriter, req *http.Request) {
+            user_sign, err:= req.Cookie("user_sign")
+            if err != nil {
+                w.Write([]byte(output(202, http_errors[202], "")))
+                return
+            }
+
+            online_users_lock.Lock()
+            _, ok := online_users[user_sign.Value]
+            online_users_lock.Unlock()
+            if ok {
+                w.Write([]byte(output(200, http_errors[200], fmt.Sprintf("%d", server.ws.Port))))
+            } else {
+                w.Write([]byte(output(204, http_errors[204], "")))
+            }
+        })
+
         http.HandleFunc("/user/logout", func(w http.ResponseWriter, req *http.Request){
             user_sign, err:= req.Cookie("user_sign")
             if err == nil {

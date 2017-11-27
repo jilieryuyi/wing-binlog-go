@@ -20,7 +20,6 @@ type tcpc struct {
 type websocketc struct {
     Listen string
     Port int
-    Service_ip string
 }
 
 type http_service_config struct{

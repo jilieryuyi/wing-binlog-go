@@ -12,11 +12,29 @@ const CMD_RELOGIN = 8;
 var error_times = 0;
 var user_sign   = Cookies.get('user_sign');
 var ws          = null;
+var ws_port     = 0;
+
+// 获取websocket服务的服务端口
+$.ajax({
+    type  : "get",
+    url   : "/get/websocket/port",
+    async : false,
+    success : function(data){
+        clog(data);
+        data = JSON.parse(data);
+        if (data.code == 200) {
+            ws_port = data.data;
+        }
+    }
+});
+
+clog(ws_port)
 
 //获取一个新的ws实例
 function ws_connect()
 {
-    return new WebSocket("ws://127.0.0.1:9988/");
+    var host = window.location.host.replace(":" + window.location.port, "");
+    return new WebSocket("ws://" + host + ":" + ws_port + "/");
 }
 
 //获取当前的时间，格式为 Y-m-d H:i:s
