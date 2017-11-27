@@ -52,8 +52,8 @@ var ERR_STATUS error =  errors.New("错误的状态码")
 
 
 func init() {
-    ws_config, _ := getWebsocketConfig()
-    ws := NewWebSocketService(ws_config.Listen, ws_config.Port);
+    config, _ := getServiceConfig()
+    ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port);
     ws.Start()
 
     //dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -61,11 +61,10 @@ func init() {
     //    log.Fatal(err)
     //}
     //path := strings.Replace(dir, "\\", "/", -1)
-    http_config, _ := getHttpConfig()
     server := &HttpServer{
         Path : file.GetCurrentPath()+"/web",
-        Ip   : http_config.Listen,
-        Port : http_config.Port,
+        Ip   : config.Http.Listen,
+        Port : config.Http.Port,
         ws   : ws,
     }
     server.Start()

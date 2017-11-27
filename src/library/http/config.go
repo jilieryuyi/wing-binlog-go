@@ -12,41 +12,21 @@ var (
     ErrorFileParse = errors.New("parse config error")
 )
 
-type tcpg struct {
-    Mode int     // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
-    Name string  // = "group1"
-    Filter []string
-}
 type tcpc struct {
     Listen string
     Port int
 }
-type TcpConfig struct {
-    Enable bool
-    Groups map[string]tcpg
-    Tcp tcpc
-}
 
-type HttpConfig struct {
-    Enable bool
-    Groups map[string]httpNodeConfig
-}
-
-type httpNodeConfig struct {
-    Mode int
-    Nodes [][]string
-    Filter []string
-}
 type websocketc struct {
     Listen string
     Port int
     Service_ip string
 }
 
-const (
-    MODEL_BROADCAST = 1  // 广播
-    MODEL_WEIGHT    = 2  // 权重
-)
+type http_service_config struct{
+    Http tcpc
+    Websocket websocketc
+}
 
 const (
     CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
@@ -67,8 +47,8 @@ const (
     TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
 )
 
-func getHttpConfig() (*tcpc, error) {
-    var tcp_config tcpc
+func getServiceConfig() (*http_service_config, error) {
+    var tcp_config http_service_config
     config_file := file.GetCurrentPath()+"/config/admin.toml"
     wfile := file.WFile{config_file}
     if !wfile.Exists() {
@@ -84,18 +64,3 @@ func getHttpConfig() (*tcpc, error) {
 }
 
 
-func getWebsocketConfig() (*websocketc, error) {
-    var tcp_config websocketc
-    config_file := file.GetCurrentPath()+"/config/admin.toml"
-    wfile := file.WFile{config_file}
-    if !wfile.Exists() {
-        log.Printf("config file %s does not exists", config_file)
-        return nil, ErrorFileNotFound
-    }
-
-    if _, err := toml.DecodeFile(config_file, &tcp_config); err != nil {
-        log.Println(err)
-        return nil, ErrorFileParse
-    }
-    return &tcp_config, nil
-}
