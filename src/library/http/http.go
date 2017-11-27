@@ -38,7 +38,9 @@ var online_users_lock *sync.Mutex = new(sync.Mutex)
 func is_online(sign string) bool {
     online_users_lock.Lock()
     user, ok := online_users[sign]
-    user.LastPostTime = time.Now().Unix()
+    if ok {
+        user.LastPostTime = time.Now().Unix()
+    }
     online_users_lock.Unlock()
     return ok
 }
