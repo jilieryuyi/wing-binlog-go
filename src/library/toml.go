@@ -3,7 +3,7 @@ package library
 import (
     "github.com/BurntSushi/toml"
     "log"
-    "github.com/juju/errors"
+    "errors"
     "library/services"
     "library/file"
 )
