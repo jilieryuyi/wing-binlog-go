@@ -1,0 +1,12 @@
+##管理员web服务相关配置
+##admin功能使用http+websocket协议，所以这里需要两种配置
+[http]
+listen = "0.0.0.0"
+port = 9989
+
+[websocket]
+listen = "0.0.0.0"
+port = 9988
+service_ip = "127.0.0.1"
+##websocket的服务ip，当管理员登录admin时，
+##通过此service_ip链接websocket服务，线上部署时，使用外网ip，内网可以直接使用127.0.0.1

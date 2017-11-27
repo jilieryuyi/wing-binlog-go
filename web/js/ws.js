@@ -9,13 +9,13 @@ const CMD_TICK    = 5;
 const CMD_EVENT   = 6;
 const CMD_RELOGIN = 8;
 
-//心跳包
-//var tick_pack = String.fromCharCode(CMD_TICK) + String.fromCharCode(CMD_TICK >> 8);
 var error_times = 0;
-var user_sign = Cookies.get('user_sign');
+var user_sign   = Cookies.get('user_sign');
+var ws          = null;
 
-
-function ws_connect() {
+//获取一个新的ws实例
+function ws_connect()
+{
     return new WebSocket("ws://127.0.0.1:9988/");
 }
 
@@ -39,13 +39,14 @@ function get_daytime() {
 //打印debug信息
 function clog(content) {
     var len = arguments.length;
-    var cc = get_daytime() + " ", i = 0;
-    for (i = 0; i < len; i++) {
+    var cc = get_daytime() + " ";
+    for (var i = 0; i < len; i++) {
         cc += arguments[i] + " ";
     }
     console.log(cc);
 }
 
+//封包数据
 function pack(cmd, content)
 {
     if (!content) {
@@ -70,29 +71,13 @@ function pack(cmd, content)
 
 //连接成功回调函数
 function on_connect() {
-    // str="A";
-    // code = str.charCodeAt();
-    // 打包set_pro数据包
-    // 2字节cmd
-    // var r = "";
-    // r += String.fromCharCode(CMD_AUTH);
-    // r += String.fromCharCode(CMD_AUTH >> 8);
-    //
-    // var user_sign = Cookies.get('user_sign');
-    // if (!user_sign) {
-    //     return;
-    //     //alert("连接出错");
-    // }
-    // // 签名
-    // r += user_sign;
-
     //连接成功后发送注册到分组事件
     ws.send(pack(CMD_AUTH))
 }
 
 //收到消息回调函数
 function on_message(msg) {
-    var cmd = msg[0].charCodeAt() + msg[1].charCodeAt();
+    var cmd = msg[0].charCodeAt(0) + msg[1].charCodeAt(0);
     var content = msg.substr(2, msg.length - 2);
 
     switch (cmd) {
@@ -130,10 +115,6 @@ function on_message(msg) {
 function on_close() {
     clog("客户端断线，尝试重新连接");
     error_times++;
-    // window.setTimeout(function () {
-    //     ws = ws_connect();
-    //     start_service();
-    // }, 3000);
 }
 
 //发生错误回调函数
@@ -148,30 +129,28 @@ function start_service() {
     ws.onopen = function () {
         on_connect();
     };
-
     ws.onmessage = function (e) {
         on_message(e.data);
     };
-
     ws.onclose = function () {
         on_close();
     };
-
-    ws.onerror = function (e) {
+    ws.onerror = function () {
         on_error();
     };
 }
 
-
 if (!user_sign) {
+    //重新登录
     window.location.href="/login.html";
 } else {
-    var ws = ws_connect();
+    ws = ws_connect();
     start_service();
     //5秒发送一次心跳
     window.setInterval(function () {
         ws.send(pack(CMD_TICK));
     }, 5000);
+    //错误重连
     window.setInterval(function () {
         if (error_times > 0) {
             ws = ws_connect();

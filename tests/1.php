@@ -13,3 +13,8 @@ $len = (4) +
 
 
 var_dump($len);
+
+while(1) {
+    echo file_get_contents("http://localhost:9989/user/login?username=admin&password=admin");
+    //usleep(100000);
+}
