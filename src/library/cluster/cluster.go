@@ -6,108 +6,102 @@ import (
     "log"
     "time"
 )
-const (
-    TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
-    TCP_DEFAULT_CLIENT_SIZE       = 64
-    TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
-    TCP_RECV_DEFAULT_SIZE         = 4096
-    TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
-)
-type Cluster struct {
-    Ip string     //节点ip
-    Port int      //节点端口
-    next *Cluster //下一个节点
-    prev *Cluster //前一个节点
-    is_first bool //是否为第一个
-    is_last bool   //是否为最后一个
-    is_down bool  //是否已下线
-    index int
-}
 
-type tcp_client_node struct {
-    conn *net.Conn           // 客户端连接进来的资源句柄
-    is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
-    send_queue chan []byte   // 发送channel
-    send_failure_times int64 // 发送失败次数
-    weight int               // 权重 0 - 100
-    recv_buf []byte          // 读缓冲区
-    recv_bytes int           // 收到的待处理字节数量
-    connect_time int64       // 连接成功的时间戳
-    send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
-}
-
-var __first_point *Cluster
-var __last_point *Cluster
+//全局-第一个节点和最后一个节点
+var first_node *Cluster
+var last_node  *Cluster
+var current_node *Cluster
 
 // 初始化当前节点，
 func init() {
     //这里的参数应该是读取配置文件来的
-    ip   := "127.0.0.1";
+    ip   := "0.0.0.0";
     port := 9990
-    __first_point = NewCluster(ip, port)
-    __first_point.is_first = true
-    __first_point.is_last = true
-    __last_point = __first_point
+    first_node = NewCluster(ip, port)
+    first_node.is_first = true
+    first_node.is_last  = true
+    first_node.client   = &tcp_client {
+        ip         : "0.0.0.0",
+        port       : 9990,
+        is_closed  : false,
+        recv_times : 0,
+        recv_bytes : 0,
+        recv_buf   : make([]byte, TCP_RECV_DEFAULT_SIZE),
+    }
+    first_node.client.connect()
     start(ip, port)
+    current_node = first_node
+    last_node    = first_node
 }
 
+// 新建一个群集节点
 func NewCluster(ip string, port int) *Cluster {
-    c := &Cluster{
+    c := &Cluster {
         Ip : ip,
         Port:port,
     }
-    c.next = nil
-    c.prev = nil
-    c.index = 0
+    c.next     = nil
+    c.prev     = nil
+    c.index    = 0
     c.is_first = false
-    c.is_last = false
-    c.is_down = false
+    c.is_last  = false
+    c.is_down  = false
     return c
+}
+
+func sendAppend() {
+    //第一个节点的c端发送一个append节点的指令到连接的s端
+    first_node.client.send(CMD_APPEND_NODE, "")
+    //todo 追加节点还涉及到一个环形链表同步的问题
 }
 
 func Append(c *Cluster) {
 
-    if __first_point != __last_point {
-        //断开__last_point与__first_point的连接
+    sendAppend()
+
+    if first_node != last_node {
+        //断开last_node与first_node的连接
         //client to server
+        //发送追加节点的操作到最后一个节点
+
     }
 
-    last := __last_point
+    last := last_node
     last.next = c
     last.is_last = false
 
     c.is_last = true
     c.prev    = last
     c.index   = last.index+1
-    c.next    = __first_point  //最后一个节点的下一个肯定是第一个节点
-    __first_point.prev = c
+    c.next    = first_node  //最后一个节点的下一个肯定是第一个节点
+    first_node.prev = c
 
-    //__last_point 连接 c
+    //last_node 连接 c
     //把之前的节点同步到最后的节点上
 
-    __last_point = c
+    last_node = c
 
-    //__last_point连接__first_point
+    //last_node连接first_node
 
     //然后整体就形成了一个tcp连接环
 }
 
 // 打印环形链表 -- 测试
 func Print() {
-    c1 := NewCluster("127.0.0.1", 9989);
+    c1 := NewCluster("0.0.0.0", 9989);
     Append(c1);
-    c2 := NewCluster("127.0.0.1", 9988);
+    c2 := NewCluster("0.0.0.0", 9988);
     Append(c2);
-    c3 := NewCluster("127.0.0.1", 9987);
+    c3 := NewCluster("0.0.0.0", 9987);
     Append(c3);
 
-    current := __first_point
+    current := first_node
 
     for {
         fmt.Println(current.index, "=>", current.Ip, current.Port)
         current = current.next
 
-        if current == __first_point {
+        if current == first_node {
             fmt.Println(current.index, "=>", current.Ip, current.Port)
             break
         }
@@ -189,6 +183,61 @@ func onClose(conn *tcp_client_node) {
     //把当前节点的prev节点标志位已下线
 }
 
-func onMessage(node *tcp_client_node, buf []byte, size int) {
+func onMessage(conn *tcp_client_node, msg []byte, size int) {
+    //CMD_APPEND_NODE
+    conn.recv_buf = append(conn.recv_buf[:conn.recv_bytes - size], msg[0:size]...)
 
+    for {
+        clen := len(conn.recv_buf)
+        if clen < 6 {
+            return
+        } else if clen > TCP_RECV_DEFAULT_SIZE {
+            // 清除所有的读缓存，防止发送的脏数据不断的累计
+            conn.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
+            log.Println("新建缓冲区")
+            return
+        }
+
+        //4字节长度
+        content_len := int(conn.recv_buf[0]) +
+            int(conn.recv_buf[1] << 8) +
+            int(conn.recv_buf[2] << 16) +
+            int(conn.recv_buf[3] << 32)
+
+        //2字节 command
+        cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+
+        //log.Println("content：", conn.recv_buf)
+        //log.Println("content_len：", content_len)
+        //log.Println("cmd：", cmd)
+        switch cmd {
+        case CMD_APPEND_NODE:
+            log.Println("追加节点")
+
+            //断开当前的c端连接
+            current_node.client.close()
+            //c端连接的追加节点的s端
+            current_node.client.reset("ip", /*"port"*/0)
+            current_node.client.connect()
+            //给连接到的s端发送一个指令，让s端的c端连接的第一个节点的s端
+            current_node.client.send(0, "请链接到第一个节点的s端")
+
+            //4字节 weight
+            //weight := int(conn.recv_buf[6]) +
+            //    int(conn.recv_buf[7] << 8) +
+            //    int(conn.recv_buf[8] << 16) +
+            //    int(conn.recv_buf[9] << 32)
+
+            //log.Println("weight：", weight)
+            //心跳包
+        default:
+            //conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+        }
+
+        //数据移动
+        //log.Println(content_len + 4, conn.recv_bytes)
+        conn.recv_buf = append(conn.recv_buf[:0], conn.recv_buf[content_len + 4:conn.recv_bytes]...)
+        conn.recv_bytes = conn.recv_bytes - content_len - 4
+        //log.Println("移动后的数据：", conn.recv_bytes, len(conn.recv_buf), string(conn.recv_buf))
+    }
 }

@@ -7,6 +7,10 @@ import (
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 
+	"strconv"
+	"encoding/json"
+	"bufio"
+	"unicode"
 )
 
 
@@ -82,31 +86,56 @@ func (client *tcp_client) onClose(conn *net.Conn)  {
 
 }
 
-//func handleWrite(conn net.Conn) {
-//	//defer wg.Done()
-//	// write 10 条数据
-//	for i := 10; i > 0; i-- {
-//		d := "hello " + strconv.Itoa(i)
-//		msg := Msg{
-//			Data: d,
-//			Type: 1,
-//		}
-//		// 序列化数据
-//		b, _ := json.Marshal(msg)
-//		writer := bufio.NewWriter(conn)
-//		_, e := writer.Write(b)
-//		//_, e := conn.Write(b)
-//		if e != nil {
-//			fmt.Println("Error to send message because of ", e.Error())
-//			break
-//		}
-//		// 增加换行符导致server端可以readline
-//		//conn.Write([]byte("\n"))
-//		writer.Write([]byte("\n"))
-//		writer.Flush()
-//	}
-//	fmt.Println("Write Done!")
-//}
+func (tcp *tcp_client) pack(cmd int, msg string) []byte {
+	m := []byte(msg)
+	l := len(m)
+	r := make([]byte, l + 6)
+
+	cl := l + 2
+
+	r[0] = byte(cl)
+	r[1] = byte(cl >> 8)
+	r[2] = byte(cl >> 16)
+	r[3] = byte(cl >> 32)
+
+	r[4] = byte(cmd)
+	r[5] = byte(cmd >> 8)
+	copy(r[6:], m)
+
+	return r
+}
+
+func (client *tcp_client) reset(ip string, port int) {
+	client.ip = ip
+	client.port = port
+}
+
+func (client *tcp_client) send(cmd int, msg string) {
+	(*client.conn).Write(client.pack(cmd, msg))
+	//defer wg.Done()
+	// write 10 条数据
+	//for i := 10; i > 0; i-- {
+	//	d := "hello " + strconv.Itoa(i)
+	//	msg := Msg{
+	//		Data: d,
+	//		Type: 1,
+	//	}
+	//	// 序列化数据
+	//	b, _ := json.Marshal(msg)
+	//	writer := bufio.NewWriter(conn)
+	//	_, e := writer.Write(b)
+	//	//_, e := conn.Write(b)
+	//	if e != nil {
+	//		fmt.Println("Error to send message because of ", e.Error())
+	//		break
+	//	}
+	//	// 增加换行符导致server端可以readline
+	//	//conn.Write([]byte("\n"))
+	//	writer.Write([]byte("\n"))
+	//	writer.Flush()
+	//}
+	//fmt.Println("Write Done!")
+}
 
 //func (client *tcp_client) onMessage(conn net.Conn) {
 //	//defer wg.Done()
