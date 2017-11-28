@@ -69,6 +69,7 @@ func Append(c *Cluster) {
 
     if __first_point != __last_point {
         //断开__last_point与__first_point的连接
+        //client to server
     }
 
     last := __last_point
