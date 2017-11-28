@@ -199,7 +199,7 @@ func (server *HttpServer) Start() {
         http.HandleFunc("/get/websocket/port", func(w http.ResponseWriter, req *http.Request) {
             user_sign, err:= req.Cookie("user_sign")
             if err != nil {
-                w.Write([]byte(output(202, http_errors[202], "")))
+                w.Write([]byte(output(204, http_errors[204], "")))
                 return
             }
 
