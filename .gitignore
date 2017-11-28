@@ -5,6 +5,12 @@
 /*.log
 /*/*.log
 /*/*/*.log
+/bin/cache
+/bin/config
+/bin/data
+/bin/web
+/bin/wing-binlog-go
+/bin/wing-binlog-go.pid
 /bin
 /pkg
 /vendor/pkg/
