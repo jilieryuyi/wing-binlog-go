@@ -19,7 +19,7 @@ func (server *tcp_server) start(client *tcp_client) {
 	}
 	go func() {
 		defer listen.Close()
-		log.Println("cluster等待新的连接...")
+		log.Println("cluster server等待新的连接...")
 
 		for {
 			conn, err := listen.Accept()
@@ -41,7 +41,7 @@ func (server *tcp_server) send(cmd int, msg []string){
 }
 
 func (server *tcp_server) onConnect(conn net.Conn) {
-	log.Println("cluster新的连接：",conn.RemoteAddr().String())
+	log.Println("cluster server新的连接：",conn.RemoteAddr().String())
 
 	cnode := &tcp_client_node {
 		conn               : &conn,
@@ -55,7 +55,9 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		recv_bytes         : 0,
 	}
 
+	server.lock.Lock()
 	server.clients = append(server.clients, cnode)
+	server.lock.Unlock()
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
@@ -68,12 +70,12 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		}
 		size, err := conn.Read(buf)
 		if err != nil {
-			log.Println(conn.RemoteAddr().String(), "连接发生错误: ", err)
+			log.Println(conn.RemoteAddr().String(), "cluster server连接发生错误: ", err)
 			server.onClose(cnode)
 			conn.Close()
 			return
 		}
-		log.Println("cluster收到消息",size,"字节：", buf[:size], string(buf))
+		log.Println("cluster server收到消息",size,"字节：", buf[:size], string(buf))
 		cnode.recv_bytes += size
 		server.onMessage(cnode, buf, size)
 	}
@@ -81,11 +83,19 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 
 func (server *tcp_server) onClose(conn *tcp_client_node) {
 	//当前节点的 prev 挂了（conn为当前节点的prev）
-
 	//conn的prev 跳过断开的节点 直接连接到当前节点
 	//给 （conn的prev）发消息触发连接
-
 	//把当前节点的prev节点标志位已下线
+	server.lock.Lock()
+	for index, client := range server.clients {
+		if client.conn == conn.conn {
+			client.is_connected = false
+			log.Println("cluster server客户端掉线", (*client.conn).RemoteAddr().String())
+			server.clients = append(server.clients[:index], server.clients[index+1:]...)
+			break
+		}
+	}
+	server.lock.Unlock()
 }
 
 func (tcp *tcp_server) pack(cmd int, msg []byte) []byte {
@@ -118,7 +128,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 		} else if clen > TCP_RECV_DEFAULT_SIZE {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
 			conn.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
-			log.Println("新建缓冲区")
+			log.Println("cluster server新建缓冲区")
 			return
 		}
 
@@ -132,12 +142,14 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
 		content := conn.recv_buf[6: content_len + 4]
 
+		log.Println("cluster server收到消息，cmd=", cmd, "content=", string(content))
+
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)
 		//log.Println("cmd：", cmd)
 		switch cmd {
 		case CMD_APPEND_NET:
-			log.Println("收到追加网络节点消息")
+			log.Println("cluster server收到追加网络节点消息")
 
 			//断开当前的c端连接
 			//current_node.client.close()
@@ -156,7 +168,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 			//log.Println("weight：", weight)
 			//心跳包
 		case CMD_APPEND_NODE:
-			log.Println("收到追加链表节点消息")
+			log.Println("cluster server收到追加链表节点消息")
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
 		default:

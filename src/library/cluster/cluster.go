@@ -5,6 +5,7 @@ import (
     "library/util"
    // "time"
     "log"
+    "sync"
 )
 
 //全局-第一个节点和最后一个节点
@@ -14,7 +15,8 @@ var current_node *Cluster
 
 // 初始化当前节点，
 func init() {
-    log.Println("cluster init ...............")
+    log.Println("cluster server初始化 ...............")
+    log.Println("listen: 0.0.0.0:9990")
     //这里的参数应该是读取配置文件来的
     ip   := "0.0.0.0";
     port := 9990
@@ -43,6 +45,7 @@ func init() {
         port    : port,
         client  : first_node.client,
         clients : make([]*tcp_client_node, 4),
+        lock    : new(sync.Mutex),
     }
 
     first_node.server.start(first_node.client)
@@ -51,7 +54,7 @@ func init() {
     //first_node.client.connect()
 
     //debug
-    first_node.client.send(0, []string{"hello word"})
+    first_node.client.send(99, []string{"hello word"})
     // s端服务开启
     current_node = first_node
     last_node    = first_node

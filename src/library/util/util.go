@@ -17,3 +17,8 @@ func RandString() string {
 
 	return string(result)
 }
+
+
+func RemoveSlice(s []string, i int) []string {
+	return append(s[:i], s[i+1:]...)
+}

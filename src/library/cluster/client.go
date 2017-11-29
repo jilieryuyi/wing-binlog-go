@@ -186,6 +186,9 @@ func (client *tcp_client) onMessage(msg []byte, size int) {
 
 		//2字节 command
 		cmd := int(client.recv_buf[4]) + int(client.recv_buf[5] << 8)
+		content := client.recv_buf[6: content_len + 4]
+
+		log.Println("cluster client收到消息，cmd=", cmd, "content=", string(content))
 
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)

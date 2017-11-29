@@ -1,6 +1,9 @@
 package cluster
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
 const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
@@ -56,4 +59,5 @@ type tcp_server struct {
 	port int
 	client *tcp_client
 	clients []*tcp_client_node
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 }
