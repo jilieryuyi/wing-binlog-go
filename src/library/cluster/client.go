@@ -52,7 +52,7 @@ func (client *tcp_client) connect() {
 				client.close();
 				return
 			}
-			log.Println("收到消息",size,"字节：", buf[:size], string(buf))
+			log.Println("cluster client 收到消息", size, "字节：",  buf[:size],  string(buf))
 			atomic.AddInt64(&client.recv_times, int64(1))
 			client.recv_bytes += int64(size)
 			client.onMessage(buf, size)
@@ -123,7 +123,9 @@ func (client *tcp_client) reset(ip string, port int) {
 }
 
 func (client *tcp_client) send(cmd int, msgs []string) {
-	(*client.conn).Write(client.pack(cmd, msgs))
+	pack := client.pack(cmd, msgs)
+	log.Println("cluster client发送消息", len(pack), string(pack))
+	(*client.conn).Write(pack)
 	//defer wg.Done()
 	// write 10 条数据
 	//for i := 10; i > 0; i-- {
@@ -170,7 +172,7 @@ func (client *tcp_client) send(cmd int, msgs []string) {
 
 func (client *tcp_client) onMessage(msg []byte, size int) {
 	//如果收到自己发出去的消息，则终止转发
-
+	//bytes.Buffer{}
 	client.recv_buf = append(client.recv_buf[:client.recv_bytes - int64(size)], msg[0:size]...)
 
 	for {
@@ -193,13 +195,16 @@ func (client *tcp_client) onMessage(msg []byte, size int) {
 		//2字节 command
 		cmd       := int(client.recv_buf[4]) + int(client.recv_buf[5] << 8)
 		client_id := client.recv_buf[6: 38]
-		content   := client.recv_buf[38: content_len + 4]
+		content   := client.recv_buf[42: content_len + 4]
 
-		log.Println("cluster client收到消息，cmd=", cmd, "content=", string(content), len(client_id), string(client_id))
+		log.Println("cluster client收到消息，cmd=", cmd, "content=", string(content),content, len(client_id), string(client_id))
 
 		if string(client_id) == client.client_id {
 			log.Println("cluster client收到消息闭环", string(client_id))
-		}
+		} //else {
+			//链路转发
+			client.send(cmd, []string{string(content)})
+		//}
 
 
 		//log.Println("content：", conn.recv_buf)

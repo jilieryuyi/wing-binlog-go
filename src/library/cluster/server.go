@@ -39,7 +39,9 @@ func (server *tcp_server) send(cmd int, client_id []byte, msg []string){
 	server.lock.Lock()
 	log.Println("---clients", server.clients)
 	for _, client := range server.clients {
-		(*client.conn).Write(server.pack(cmd, client_id, msg))
+		pack := server.pack(cmd, client_id, msg)
+		log.Println("cluster server发送消息：", len(pack), pack, string(pack))
+		(*client.conn).Write(pack)
 	}
 	server.lock.Unlock()
 }
@@ -171,9 +173,11 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 		cmd       := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
 		// 32字节的client_id
 		client_id := conn.recv_buf[6: 38]
-		content   := conn.recv_buf[38: content_len + 4]
 
-		log.Println("cluster server收到消息，cmd=", cmd, "content=", string(content), len(client_id), string(client_id))
+		// 这部分的数据包含了4字节的前缀长度，所以这里是38+4=42
+		content   := conn.recv_buf[42: content_len + 4]
+
+		log.Println("cluster server收到消息，cmd=", cmd, "content=", string(content),content, len(client_id), string(client_id))
 
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)
