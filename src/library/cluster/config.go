@@ -12,6 +12,7 @@ const (
 
 const (
 	CMD_APPEND_NODE = 1
+	CMD_APPEND_NET  = 2
 )
 
 type Cluster struct {
@@ -24,6 +25,18 @@ type Cluster struct {
 	is_down bool  //是否已下线
 	index int
 	client *tcp_client
+	server *tcp_server
+}
+
+type tcp_client struct {
+	ip string
+	port int
+	conn *net.Conn
+	is_closed bool
+	recv_times int64
+	recv_bytes int64
+	recv_buf []byte
+	client_id string //用来标识一个客户端，随机字符串
 }
 
 type tcp_client_node struct {
@@ -36,4 +49,11 @@ type tcp_client_node struct {
 	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
+}
+
+type tcp_server struct {
+	listen string
+	port int
+	client *tcp_client
+	clients []*tcp_client_node
 }

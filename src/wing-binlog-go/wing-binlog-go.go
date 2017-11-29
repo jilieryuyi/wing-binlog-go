@@ -20,6 +20,7 @@ import (
 	"flag"
 	syslog "log"
 	log "github.com/sirupsen/logrus"
+	_ "library/cluster"
 )
 
 

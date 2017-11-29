@@ -6,11 +6,6 @@ import (
 	"os"
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
-
-	"strconv"
-	"encoding/json"
-	"bufio"
-	"unicode"
 )
 
 
@@ -24,15 +19,7 @@ import (
 //	Status int  `json:"status"`
 //}
 
-type tcp_client struct {
-	ip string
-	port int
-	conn *net.Conn
-	is_closed bool
-	recv_times int64
-	recv_bytes int64
-	recv_buf []byte
-}
+
 
 func (client *tcp_client) connect() {
 
@@ -86,11 +73,16 @@ func (client *tcp_client) onClose(conn *net.Conn)  {
 
 }
 
-func (tcp *tcp_client) pack(cmd int, msg string) []byte {
-	m := []byte(msg)
-	l := len(m)
+func (tcp *tcp_client) pack(cmd int, msgs []string) []byte {
+	l := 0
+	for _,msg := range msgs {
+		l += len([]byte(msg)) + 4
+	}
+
+	// l+2 为实际的包内容长度，前缀4字节存放包长度
 	r := make([]byte, l + 6)
 
+	// l+2 为实际的包内容长度
 	cl := l + 2
 
 	r[0] = byte(cl)
@@ -100,7 +92,21 @@ func (tcp *tcp_client) pack(cmd int, msg string) []byte {
 
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
-	copy(r[6:], m)
+
+	base_start := 6
+	for _, msg := range msgs {
+		m  := []byte(msg)
+		ml := len(m)
+		// 前4字节存放长度
+		r[base_start + 0] = byte(ml)
+		r[base_start + 1] = byte(ml >> 8)
+		r[base_start + 2] = byte(ml >> 16)
+		r[base_start + 3] = byte(ml >> 32)
+		base_start += 4
+		// 实际的内容
+		copy(r[base_start:], m)
+		base_start += len(m)
+	}
 
 	return r
 }
@@ -110,8 +116,8 @@ func (client *tcp_client) reset(ip string, port int) {
 	client.port = port
 }
 
-func (client *tcp_client) send(cmd int, msg string) {
-	(*client.conn).Write(client.pack(cmd, msg))
+func (client *tcp_client) send(cmd int, msgs []string) {
+	(*client.conn).Write(client.pack(cmd, msgs))
 	//defer wg.Done()
 	// write 10 条数据
 	//for i := 10; i > 0; i-- {
@@ -157,6 +163,8 @@ func (client *tcp_client) send(cmd int, msg string) {
 //}
 
 func (client *tcp_client) onMessage(msg []byte, size int) {
+	//如果收到自己发出去的消息，则终止转发
+
 	client.recv_buf = append(client.recv_buf[:client.recv_bytes - int64(size)], msg[0:size]...)
 
 	for {
@@ -183,8 +191,8 @@ func (client *tcp_client) onMessage(msg []byte, size int) {
 		//log.Println("content_len：", content_len)
 		//log.Println("cmd：", cmd)
 		switch cmd {
-		//case CMD_SET_PRO:
-		//
+		case CMD_APPEND_NODE:
+			client.send(CMD_APPEND_NODE, []string{""})
 		//case CMD_TICK:
 			//log.Println("收到心跳消息")
 			//conn.send_queue <- tcp.pack(CMD_TICK, "ok")
