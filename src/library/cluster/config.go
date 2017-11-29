@@ -3,6 +3,7 @@ package cluster
 import (
 	"net"
 	"sync"
+	"library/buffer"
 )
 
 const (
@@ -19,13 +20,13 @@ const (
 )
 
 type Cluster struct {
-	Ip string     //节点ip
-	Port int      //节点端口
-	next *Cluster //下一个节点
-	prev *Cluster //前一个节点
-	is_first bool //是否为第一个
+	Ip string      //节点ip
+	Port int       //节点端口
+	next *Cluster  //下一个节点
+	prev *Cluster  //前一个节点
+	is_first bool  //是否为第一个
 	is_last bool   //是否为最后一个
-	is_down bool  //是否已下线
+	is_down bool   //是否已下线
 	index int
 	client *tcp_client
 	server *tcp_server
@@ -37,9 +38,8 @@ type tcp_client struct {
 	conn *net.Conn
 	is_closed bool
 	recv_times int64
-	recv_bytes int64
-	recv_buf []byte
-	client_id string //用来标识一个客户端，随机字符串
+	recv_buf *buffer.WBuffer //[]byte
+	client_id string         //用来标识一个客户端，随机字符串
 }
 
 type tcp_client_node struct {
@@ -48,7 +48,7 @@ type tcp_client_node struct {
 	send_queue chan []byte   // 发送channel
 	send_failure_times int64 // 发送失败次数
 	weight int               // 权重 0 - 100
-	recv_buf []byte          // 读缓冲区
+	recv_buf *buffer.WBuffer //[]byte          // 读缓冲区
 	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
@@ -59,6 +59,6 @@ type tcp_server struct {
 	port int
 	client *tcp_client
 	clients []*tcp_client_node
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 	clients_count int
 }

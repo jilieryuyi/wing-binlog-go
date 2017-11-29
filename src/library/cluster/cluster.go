@@ -6,6 +6,7 @@ import (
    // "time"
     "log"
     "sync"
+    "library/buffer"
 )
 
 //全局-第一个节点和最后一个节点
@@ -34,8 +35,7 @@ func init() {
         port       : 9990,
         is_closed  : false,
         recv_times : 0,
-        recv_bytes : 0,
-        recv_buf   : make([]byte, TCP_RECV_DEFAULT_SIZE),
+        recv_buf   : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),//make([]byte, TCP_RECV_DEFAULT_SIZE),
         client_id  : util.RandString(),
     }
 
@@ -55,7 +55,7 @@ func init() {
     //first_node.client.connect()
 
     //debug
-    first_node.client.send(99, []string{"hello word"})
+    first_node.client.send(99, []string{"hello word", "你好"})
     // s端服务开启
     current_node = first_node
     last_node    = first_node
