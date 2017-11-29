@@ -7,21 +7,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (server *tcp_server) start() {
+func (server *tcp_server) start(client *tcp_client) {
+
+	//建立socket，监听端口
+	dns := fmt.Sprintf("%s:%d", server.listen, server.port)
+	listen, err := net.Listen("tcp", dns)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	go func() {
-		//建立socket，监听端口
-		dns := fmt.Sprintf("%s:%d", server.listen, server.port)
-		listen, err := net.Listen("tcp", dns)
-
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		defer func() {
-			listen.Close();
-		}()
-
+		defer listen.Close()
 		log.Println("cluster等待新的连接...")
 
 		for {
@@ -33,10 +30,14 @@ func (server *tcp_server) start() {
 			go server.onConnect(conn)
 		}
 	} ()
+	client.connect()
 }
 
-func (server *tcp_server) send(cmd int, msgs []string){
-
+// 广播
+func (server *tcp_server) send(cmd int, msg []string){
+	//for _, client := range server.clients {
+	//	(*client.conn).Write(server.pack(cmd, msg))
+	//}
 }
 
 func (server *tcp_server) onConnect(conn net.Conn) {
@@ -87,9 +88,9 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 	//把当前节点的prev节点标志位已下线
 }
 
-func (tcp *tcp_server) pack(cmd int, msg string) []byte {
-	m := []byte(msg)
-	l := len(m)
+func (tcp *tcp_server) pack(cmd int, msg []byte) []byte {
+
+	l := len(msg)
 	r := make([]byte, l + 6)
 
 	cl := l + 2
@@ -101,7 +102,7 @@ func (tcp *tcp_server) pack(cmd int, msg string) []byte {
 
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
-	copy(r[6:], m)
+	copy(r[6:], msg)
 
 	return r
 }
@@ -129,6 +130,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 
 		//2字节 command
 		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+		content := conn.recv_buf[6: content_len + 4]
 
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)
@@ -156,8 +158,9 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 		case CMD_APPEND_NODE:
 			log.Println("收到追加链表节点消息")
 			//转发给自己的client端
-			(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
+			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
 		default:
+			server.send(cmd, []string{string(content)})
 			//conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 

@@ -3,7 +3,7 @@ package cluster
 import (
     "fmt"
     "library/util"
-    "time"
+   // "time"
     "log"
 )
 
@@ -45,10 +45,10 @@ func init() {
         clients : make([]*tcp_client_node, 4),
     }
 
-    first_node.server.start()
+    first_node.server.start(first_node.client)
     // c端连接
-    time.Sleep(time.Second)
-    first_node.client.connect()
+    //time.Sleep(time.Second)
+    //first_node.client.connect()
 
     //debug
     first_node.client.send(0, []string{"hello word"})
