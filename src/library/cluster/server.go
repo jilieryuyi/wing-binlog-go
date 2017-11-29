@@ -34,12 +34,12 @@ func (server *tcp_server) start(client *tcp_client) {
 }
 
 // 广播
-func (server *tcp_server) send(cmd int, msg []string){
+func (server *tcp_server) send(cmd int, client_id []byte, msg []string){
 	// todo 这里需要加入channel和select，超时机制
 	server.lock.Lock()
 	log.Println("---clients", server.clients)
 	for _, client := range server.clients {
-		(*client.conn).Write(server.pack(cmd, msg))
+		(*client.conn).Write(server.pack(cmd, client_id, msg))
 	}
 	server.lock.Unlock()
 }
@@ -104,17 +104,18 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 	server.lock.Unlock()
 }
 
-func (tcp *tcp_server) pack(cmd int, msgs []string) []byte {
+func (tcp *tcp_server) pack(cmd int, client_id []byte, msgs []string) []byte {
+	client_id_len := len(client_id)
 	l := 0
 	for _,msg := range msgs {
 		l += len([]byte(msg)) + 4
 	}
 
 	// l+2 为实际的包内容长度，前缀4字节存放包长度
-	r := make([]byte, l + 6)
+	r := make([]byte, l + 6 + client_id_len)
 
 	// l+2 为实际的包内容长度
-	cl := l + 2
+	cl := l + 2 + client_id_len
 
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -124,7 +125,9 @@ func (tcp *tcp_server) pack(cmd int, msgs []string) []byte {
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 
-	base_start := 6
+	copy(r[6:], client_id)
+
+	base_start := 6 + client_id_len
 	for _, msg := range msgs {
 		m  := []byte(msg)
 		ml := len(m)
@@ -164,11 +167,13 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 			int(conn.recv_buf[2] << 16) +
 			int(conn.recv_buf[3] << 32)
 
-		//2字节 command
-		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
-		content := conn.recv_buf[6: content_len + 4]
+		// 2字节 command
+		cmd       := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+		// 32字节的client_id
+		client_id := conn.recv_buf[6: 38]
+		content   := conn.recv_buf[38: content_len + 4]
 
-		log.Println("cluster server收到消息，cmd=", cmd, "content=", string(content))
+		log.Println("cluster server收到消息，cmd=", cmd, "content=", string(content), len(client_id), string(client_id))
 
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)
@@ -198,7 +203,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
 		default:
-			server.send(cmd, []string{string(content)})
+			server.send(cmd, client_id, []string{string(content)})
 			//conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 

@@ -83,6 +83,7 @@ func Append(c *Cluster) {
     //这里的client连接的就是最后一个节点的s端
     first_node.server.send(
         CMD_APPEND_NODE,
+        []byte(first_node.client.client_id),
         []string{
             first_node.client.client_id,
             c.Ip,

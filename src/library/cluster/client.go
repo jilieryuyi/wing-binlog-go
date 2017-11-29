@@ -74,16 +74,20 @@ func (client *tcp_client) onClose(conn *net.Conn)  {
 }
 
 func (tcp *tcp_client) pack(cmd int, msgs []string) []byte {
+
+	client_id_len := len(tcp.client_id)
+
+	// 获取实际包长度
 	l := 0
 	for _,msg := range msgs {
 		l += len([]byte(msg)) + 4
 	}
 
 	// l+2 为实际的包内容长度，前缀4字节存放包长度
-	r := make([]byte, l + 6)
+	r := make([]byte, l + 6 + client_id_len)
 
-	// l+2 为实际的包内容长度
-	cl := l + 2
+	// l+2 为实际的包内容长度，2字节cmd
+	cl := l + 2 + client_id_len
 
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -93,7 +97,9 @@ func (tcp *tcp_client) pack(cmd int, msgs []string) []byte {
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 
-	base_start := 6
+	copy(r[6:], []byte(tcp.client_id))
+
+	base_start := 6 + client_id_len
 	for _, msg := range msgs {
 		m  := []byte(msg)
 		ml := len(m)
@@ -185,10 +191,16 @@ func (client *tcp_client) onMessage(msg []byte, size int) {
 			int(client.recv_buf[3] << 32)
 
 		//2字节 command
-		cmd := int(client.recv_buf[4]) + int(client.recv_buf[5] << 8)
-		content := client.recv_buf[6: content_len + 4]
+		cmd       := int(client.recv_buf[4]) + int(client.recv_buf[5] << 8)
+		client_id := client.recv_buf[6: 38]
+		content   := client.recv_buf[38: content_len + 4]
 
-		log.Println("cluster client收到消息，cmd=", cmd, "content=", string(content))
+		log.Println("cluster client收到消息，cmd=", cmd, "content=", string(content), len(client_id), string(client_id))
+
+		if string(client_id) == client.client_id {
+			log.Println("cluster client收到消息闭环", string(client_id))
+		}
+
 
 		//log.Println("content：", conn.recv_buf)
 		//log.Println("content_len：", content_len)
