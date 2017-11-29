@@ -59,7 +59,7 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	//conn.SetReadDeadline(time.Now().Add(time.Second*3))
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
