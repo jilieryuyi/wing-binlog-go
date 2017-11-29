@@ -60,4 +60,5 @@ type tcp_server struct {
 	client *tcp_client
 	clients []*tcp_client_node
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	clients_count int
 }

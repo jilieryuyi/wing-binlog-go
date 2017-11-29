@@ -46,6 +46,7 @@ func init() {
         client  : first_node.client,
         clients : make([]*tcp_client_node, 4),
         lock    : new(sync.Mutex),
+        clients_count : 0,
     }
 
     first_node.server.start(first_node.client)

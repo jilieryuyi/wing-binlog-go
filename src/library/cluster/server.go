@@ -35,9 +35,13 @@ func (server *tcp_server) start(client *tcp_client) {
 
 // 广播
 func (server *tcp_server) send(cmd int, msg []string){
-	//for _, client := range server.clients {
-	//	(*client.conn).Write(server.pack(cmd, msg))
-	//}
+	// todo 这里需要加入channel和select，超时机制
+	server.lock.Lock()
+	log.Println("---clients", server.clients)
+	for _, client := range server.clients {
+		(*client.conn).Write(server.pack(cmd, msg))
+	}
+	server.lock.Unlock()
 }
 
 func (server *tcp_server) onConnect(conn net.Conn) {
@@ -56,7 +60,8 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 	}
 
 	server.lock.Lock()
-	server.clients = append(server.clients, cnode)
+	server.clients = append(server.clients[:server.clients_count], cnode)
+	server.clients_count++
 	server.lock.Unlock()
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 
@@ -90,6 +95,7 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 	for index, client := range server.clients {
 		if client.conn == conn.conn {
 			client.is_connected = false
+			server.clients_count--
 			log.Println("cluster server客户端掉线", (*client.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
 			break
@@ -98,11 +104,16 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 	server.lock.Unlock()
 }
 
-func (tcp *tcp_server) pack(cmd int, msg []byte) []byte {
+func (tcp *tcp_server) pack(cmd int, msgs []string) []byte {
+	l := 0
+	for _,msg := range msgs {
+		l += len([]byte(msg)) + 4
+	}
 
-	l := len(msg)
+	// l+2 为实际的包内容长度，前缀4字节存放包长度
 	r := make([]byte, l + 6)
 
+	// l+2 为实际的包内容长度
 	cl := l + 2
 
 	r[0] = byte(cl)
@@ -112,10 +123,25 @@ func (tcp *tcp_server) pack(cmd int, msg []byte) []byte {
 
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
-	copy(r[6:], msg)
+
+	base_start := 6
+	for _, msg := range msgs {
+		m  := []byte(msg)
+		ml := len(m)
+		// 前4字节存放长度
+		r[base_start + 0] = byte(ml)
+		r[base_start + 1] = byte(ml >> 8)
+		r[base_start + 2] = byte(ml >> 16)
+		r[base_start + 3] = byte(ml >> 32)
+		base_start += 4
+		// 实际的内容
+		copy(r[base_start:], m)
+		base_start += len(m)
+	}
 
 	return r
 }
+
 
 
 func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int) {
