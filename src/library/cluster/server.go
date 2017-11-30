@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
 	"library/util"
+	"strconv"
 )
 
 func (server *tcp_server) start(client *tcp_client) {
@@ -172,7 +173,11 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
 		case CMD_CONNECT_FIRST:
-			log.Println("cluster server收到追加闭环消息")
+			log.Println("cluster server收到追加闭环消息：", content[0] + ":" + content[1])
+			server.client.close()
+			port, _:= strconv.Atoi(content[1])
+			server.client.reset(content[0], port)
+			server.client.connect()
 		default:
 			server.send(cmd, client_id, content)
 		}
