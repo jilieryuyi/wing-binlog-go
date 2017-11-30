@@ -6,24 +6,21 @@ import (
 	"time"
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
-	"library/util"
+	//"library/util"
 	"strconv"
 )
 
-func (server *tcp_server) start(client *tcp_client) {
-
-	//建立socket，监听端口
-	dns := fmt.Sprintf("%s:%d", server.listen, server.port)
-	listen, err := net.Listen("tcp", dns)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
+func (server *tcp_server) start() {
 	go func() {
+		//建立socket，监听端口
+		dns := fmt.Sprintf("%s:%d", server.listen, server.port)
+		listen, err := net.Listen("tcp", dns)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 		defer listen.Close()
 		log.Println("cluster server等待新的连接...")
-
 		for {
 			conn, err := listen.Accept()
 			if err != nil {
@@ -33,20 +30,6 @@ func (server *tcp_server) start(client *tcp_client) {
 			go server.onConnect(conn)
 		}
 	} ()
-	client.connect()
-
-	//debug
-	go func() {
-		time.Sleep(time.Second * 2)
-		//追加节点之前，要全局加锁，锁定这个环形网络，追加完之后，释放锁，或者超时
-		first_node.server.send(
-			CMD_APPEND_NODE,
-			[]byte(util.RandString()),
-			[]string{
-				"172.16.214.144",
-				"9990",
-			})
-	}()
 }
 
 // 广播

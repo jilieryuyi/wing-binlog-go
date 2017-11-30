@@ -4,8 +4,15 @@ import (
 	"net"
 	"sync"
 	"library/buffer"
+	"library/file"
+	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
+	"errors"
 )
-
+var (
+	ErrorFileNotFound = errors.New("config file not fount")
+	ErrorFileParse = errors.New("parse config error")
+)
 const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
@@ -21,16 +28,13 @@ const (
 )
 
 type Cluster struct {
-	Ip string      //节点ip
-	Port int       //节点端口
-	next *Cluster  //下一个节点
-	prev *Cluster  //前一个节点
-	is_first bool  //是否为第一个
-	is_last bool   //是否为最后一个
-	is_down bool   //是否已下线
-	index int
+	Listen string      //监听ip，一般为0.0.0.0即可
+	Port int           //节点端口
+	ServiceIp string   //对外服务ip
+	is_down bool       //是否已下线
 	client *tcp_client
 	server *tcp_server
+
 }
 
 type tcp_client struct {
@@ -62,4 +66,30 @@ type tcp_server struct {
 	clients []*tcp_client_node
 	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 	clients_count int
+}
+
+type cluster_config struct{
+	Cluster node_config
+}
+
+type node_config struct {
+	Listen string
+	Port int
+	ServiceIp string
+}
+
+func getServiceConfig() (*cluster_config, error) {
+	var config cluster_config
+	config_file := file.GetCurrentPath()+"/config/cluster.toml"
+	wfile := file.WFile{config_file}
+	if !wfile.Exists() {
+		log.Printf("config file %s does not exists", config_file)
+		return nil, ErrorFileNotFound
+	}
+
+	if _, err := toml.DecodeFile(config_file, &config); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	return &config, nil
 }

@@ -122,10 +122,10 @@ func (client *tcp_client) onMessage(msg []byte) {
 				client.reset(content[0], port)
 				client.connect()
 				//发送闭环指令
-				client.send(CMD_CONNECT_FIRST, []string{
-					"10.0.33.75",
-					fmt.Sprintf("%d", first_node.Port),
-				})
+				//client.send(CMD_CONNECT_FIRST, []string{
+				//	"10.0.33.75",
+				//	fmt.Sprintf("%d", first_node.Port),
+				//})
 
 			default:
 				//链路转发
