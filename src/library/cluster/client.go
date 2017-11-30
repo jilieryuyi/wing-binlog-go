@@ -103,14 +103,15 @@ func (client *tcp_client) onMessage(msg []byte) {
 
 		if string(client_id) == client.client_id {
 			log.Println("cluster client收到消息闭环", string(client_id))
-		} else {
-			//链路转发
-			client.send(cmd, content)
+			client.recv_buf.ResetPos()
+			return
 		}
+		//链路转发
+		client.send(cmd, content)
 		switch cmd {
-		case CMD_APPEND_NODE:
-			client.send(CMD_APPEND_NODE, []string{""})
-		default:
+			case CMD_APPEND_NODE:
+				client.send(CMD_APPEND_NODE, []string{""})
+			default:
 		}
 		client.recv_buf.ResetPos()
 	}
