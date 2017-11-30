@@ -6,6 +6,7 @@ import (
 	"time"
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
+	"library/util"
 )
 
 func (server *tcp_server) start(client *tcp_client) {
@@ -32,6 +33,19 @@ func (server *tcp_server) start(client *tcp_client) {
 		}
 	} ()
 	client.connect()
+
+	//debug
+	go func() {
+		time.Sleep(time.Second * 2)
+		//追加节点之前，要全局加锁，锁定这个环形网络，追加完之后，释放锁，或者超时
+		first_node.server.send(
+			CMD_APPEND_NODE,
+			[]byte(util.RandString()),
+			[]string{
+				"172.16.214.144",
+				"9990",
+			})
+	}()
 }
 
 // 广播
@@ -157,6 +171,8 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			log.Println("cluster server收到追加链表节点消息")
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
+		case CMD_CONNECT_FIRST:
+			log.Println("cluster server收到追加闭环消息")
 		default:
 			server.send(cmd, client_id, content)
 		}

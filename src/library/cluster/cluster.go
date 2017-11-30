@@ -81,14 +81,6 @@ func Append(c *Cluster) {
 
     //todo 追加节点还涉及到一个环形链表同步的问题
     //这里的client连接的就是最后一个节点的s端
-    first_node.server.send(
-        CMD_APPEND_NODE,
-        []byte(first_node.client.client_id),
-        []string{
-            first_node.client.client_id,
-            c.Ip,
-            fmt.Sprintf("%s", c.Port),
-        })
 
     // 以下为标准的链表操作，追加链表，首尾相连
     last := last_node

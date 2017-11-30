@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
+	//"strconv"
 )
 
 func (client *tcp_client) connect() {
@@ -106,12 +107,27 @@ func (client *tcp_client) onMessage(msg []byte) {
 			client.recv_buf.ResetPos()
 			return
 		}
-		//链路转发
-		client.send(cmd, content)
+
 		switch cmd {
 			case CMD_APPEND_NODE:
-				client.send(CMD_APPEND_NODE, []string{""})
+				//client.send(CMD_APPEND_NODE, []string{""})
+				log.Println("cluster client收到追加节点消息")
+				log.Println("cluster client追加节点：", content[0] + ":" + content[1])
+
+				/*client.close()
+				port, _:= strconv.Atoi(content[1])
+				client.reset(content[0], port)
+				client.connect()
+
+				//发送闭环指令
+				client.send(CMD_CONNECT_FIRST, []string{
+					"10.0.33.75",
+					fmt.Sprintf("%d", first_node.Port),
+				})*/
+
 			default:
+				//链路转发
+				client.send(cmd, content)
 		}
 		client.recv_buf.ResetPos()
 	}

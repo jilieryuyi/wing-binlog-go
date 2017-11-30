@@ -15,8 +15,9 @@ const (
 )
 
 const (
-	CMD_APPEND_NODE = 1
-	CMD_APPEND_NET  = 2
+	CMD_APPEND_NODE   = 1
+	CMD_APPEND_NET    = 2
+	CMD_CONNECT_FIRST = 3
 )
 
 type Cluster struct {
