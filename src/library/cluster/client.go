@@ -61,37 +61,32 @@ func (client *tcp_client) send(cmd int, msgs []string) {
 }
 
 func (client *tcp_client) onMessage(msg []byte, size int) {
-	client.recv_buf.Write(msg, size)
-
+	client.recv_buf.Write(msg[0:size])
 	for {
 		clen := client.recv_buf.Size()
 		log.Println("cluster client buf size ", clen)
 		if clen < 6 {
 			return
 		}
-
 		// 2字节 command
 		cmd, _         := client.recv_buf.ReadInt16()
 		client_id, _   := client.recv_buf.Read(32)
 		content        := make([]string, 1)
 		index          := 0
 		log.Println("cluster client收到消息，cmd=", cmd, len(client_id), string(client_id))
-
 		for {
 			// 4字节长度，即int32
 			l, err := client.recv_buf.ReadInt32()
 			if err != nil {
 				break
 			}
-
 			cb, err := client.recv_buf.Read(l)
 			if err != nil {
 				break
 			}
-
 			content = append(content[:index], string(cb))
+			log.Println("cluster client收到消息content=", l, index, content[index], cb)
 			index++
-			log.Println("cluster client收到消息content=", l, index, content[index-1], cb)
 		}
 
 		if string(client_id) == client.client_id {

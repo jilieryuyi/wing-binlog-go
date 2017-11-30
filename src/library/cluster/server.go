@@ -108,7 +108,7 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 }
 
 func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int) {
-	conn.recv_buf.Write(msg, size)
+	conn.recv_buf.Write(msg[0:size])
 	for {
 		clen := conn.recv_buf.Size()
 		if clen < 6 {
@@ -131,8 +131,8 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int)
 				break
 			}
 			content = append(content[:index], string(cb))
+			log.Println("cluster server收到消息content=", l, index, content[index], cb)
 			index++
-			log.Println("cluster server收到消息content=", l, index, content[index-1], cb)
 		}
 
 		switch cmd {
