@@ -36,6 +36,7 @@ func init() {
         recv_times : 0,
         recv_buf   : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),//make([]byte, TCP_RECV_DEFAULT_SIZE),
         client_id  : util.RandString(),
+        lock       : new(sync.Mutex),
     }
 
     // 分布式节点的s端

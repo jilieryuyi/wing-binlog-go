@@ -59,7 +59,6 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		connect_time       : time.Now().Unix(),
 		send_times         : int64(0),
 		recv_buf           : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),//make([]byte, TCP_RECV_DEFAULT_SIZE),
-		recv_bytes         : 0,
 	}
 
 	server.lock.Lock()
@@ -83,9 +82,8 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 			conn.Close()
 			return
 		}
-		log.Println("cluster server收到消息",size,"字节：", buf[:size], string(buf))
-		cnode.recv_bytes += size
-		server.onMessage(cnode, buf, size)
+		log.Println("cluster server收到消息",size,"字节：", buf[:size], string(buf[:size]))
+		server.onMessage(cnode, buf[:size])
 	}
 }
 
@@ -107,8 +105,8 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 	server.lock.Unlock()
 }
 
-func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte, size int) {
-	conn.recv_buf.Write(msg[0:size])
+func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
+	conn.recv_buf.Write(msg)
 	for {
 		clen := conn.recv_buf.Size()
 		if clen < 6 {

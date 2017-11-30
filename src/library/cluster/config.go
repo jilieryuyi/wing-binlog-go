@@ -40,6 +40,7 @@ type tcp_client struct {
 	recv_times int64
 	recv_buf *buffer.WBuffer //[]byte
 	client_id string         //用来标识一个客户端，随机字符串
+	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 }
 
 type tcp_client_node struct {
@@ -49,7 +50,6 @@ type tcp_client_node struct {
 	send_failure_times int64 // 发送失败次数
 	weight int               // 权重 0 - 100
 	recv_buf *buffer.WBuffer //[]byte          // 读缓冲区
-	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
 }

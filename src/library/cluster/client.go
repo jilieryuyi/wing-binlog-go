@@ -14,7 +14,9 @@ func (client *tcp_client) connect() {
 		fmt.Println("Error connecting:", err)
 		os.Exit(1)
 	}
-	client.conn       = &conn
+	client.lock.Lock()
+	client.conn = &conn
+	client.lock.Unlock()
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
@@ -26,18 +28,24 @@ func (client *tcp_client) connect() {
 			size, err := conn.Read(buf)
 			if err != nil {
 				log.Println(conn.RemoteAddr().String(), "连接发生错误: ", err)
+				client.lock.Lock()
 				client.onClose(&conn);
-				client.close();
+				if !client.is_closed {
+					client.close();
+				}
+				client.lock.Unlock()
 				return
 			}
-			log.Println("cluster client 收到消息", size, "字节：",  buf[:size],  string(buf))
+			log.Println("cluster client 收到消息", size, "字节：",  buf[:size],  string(buf[:size]))
 			atomic.AddInt64(&client.recv_times, int64(1))
-			client.onMessage(buf, size)
+			client.onMessage(buf[:size])
 		}
 	}()
 }
 
 func (client *tcp_client) close() {
+	client.lock.Lock()
+	defer client.lock.Unlock()
 	if client.is_closed {
 		return
 	}
@@ -50,18 +58,22 @@ func (client *tcp_client) onClose(conn *net.Conn)  {
 }
 
 func (client *tcp_client) reset(ip string, port int) {
+	client.lock.Lock()
+	defer client.lock.Unlock()
 	client.ip   = ip
 	client.port = port
 }
 
+// todo 这里应该使用新的channel服务进行发送
 func (client *tcp_client) send(cmd int, msgs []string) {
 	send_msg := pack(cmd, client.client_id, msgs)
 	log.Println("cluster client发送消息", len(send_msg), string(send_msg), send_msg)
 	(*client.conn).Write(send_msg)
 }
 
-func (client *tcp_client) onMessage(msg []byte, size int) {
-	client.recv_buf.Write(msg[0:size])
+// 收到消息回调函数
+func (client *tcp_client) onMessage(msg []byte) {
+	client.recv_buf.Write(msg)
 	for {
 		clen := client.recv_buf.Size()
 		log.Println("cluster client buf size ", clen)
@@ -91,10 +103,10 @@ func (client *tcp_client) onMessage(msg []byte, size int) {
 
 		if string(client_id) == client.client_id {
 			log.Println("cluster client收到消息闭环", string(client_id))
-		} //else {
+		} else {
 			//链路转发
 			client.send(cmd, content)
-		//}
+		}
 		switch cmd {
 		case CMD_APPEND_NODE:
 			client.send(CMD_APPEND_NODE, []string{""})
