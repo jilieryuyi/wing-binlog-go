@@ -19,12 +19,14 @@ const (
 	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
 	TCP_RECV_DEFAULT_SIZE         = 4096
 	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
+	CLUSTER_NODE_DEFAULT_SIZE     = 4
 )
 
 const (
 	CMD_APPEND_NODE   = 1
 	CMD_APPEND_NET    = 2
 	CMD_CONNECT_FIRST = 3
+	CMD_APPEND_NODE_SURE = 4
 )
 
 type Cluster struct {
@@ -34,7 +36,15 @@ type Cluster struct {
 	is_down bool       //是否已下线
 	client *tcp_client
 	server *tcp_server
+	nodes []*cluster_node
+	nodes_count int
+	lock *sync.Mutex
+}
 
+type cluster_node struct {
+	service_ip string
+	port int
+	is_enable bool
 }
 
 type tcp_client struct {
@@ -61,6 +71,8 @@ type tcp_client_node struct {
 
 type tcp_server struct {
 	listen string
+	service_ip string
+	cluster *Cluster
 	port int
 	client *tcp_client
 	clients []*tcp_client_node

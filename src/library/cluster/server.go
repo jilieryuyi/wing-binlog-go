@@ -155,14 +155,30 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			log.Println("cluster server收到追加链表节点消息")
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
-		case CMD_CONNECT_FIRST:
-			log.Println("cluster server收到追加闭环消息：", content[0] + ":" + content[1])
-			server.client.close()
+
+			ip     := content[0]
 			port, _:= strconv.Atoi(content[1])
-			server.client.reset(content[0], port)
-			server.client.connect()
+			server.client.reset(ip, port)
+			if server.client.connect() {
+				server.client.send(CMD_APPEND_NODE_SURE, []string{
+					server.service_ip,
+					fmt.Sprintf("%d", server.port),
+				})
+			}
+
+
+		case CMD_CONNECT_FIRST:
+			//log.Println("cluster server收到追加闭环消息：", content[0] + ":" + content[1])
+			//server.client.close()
+			//port, _:= strconv.Atoi(content[1])
+			//server.client.reset(content[0], port)
+			//server.client.connect()
+		case CMD_APPEND_NODE_SURE:
+			ip     := content[0]
+			port, _:= strconv.Atoi(content[1])
+			server.cluster.enableNode(ip, port)
 		default:
-			server.send(cmd, client_id, content)
+			//server.send(cmd, client_id, content)
 		}
 		conn.recv_buf.ResetPos()
 	}

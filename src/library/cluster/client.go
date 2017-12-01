@@ -3,21 +3,21 @@ package cluster
 import (
 	"fmt"
 	"net"
-	"os"
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	//"strconv"
 	"strconv"
 )
 
-func (client *tcp_client) connect() {
+func (client *tcp_client) connect() bool {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", client.ip, client.port))
 	if err != nil {
 		fmt.Println("Error connecting:", err)
-		os.Exit(1)
+		return false
 	}
 	client.lock.Lock()
 	client.conn = &conn
+	client.is_closed = false
 	client.lock.Unlock()
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
@@ -43,6 +43,7 @@ func (client *tcp_client) connect() {
 			client.onMessage(buf[:size])
 		}
 	}()
+	return true
 }
 
 func (client *tcp_client) close() {
