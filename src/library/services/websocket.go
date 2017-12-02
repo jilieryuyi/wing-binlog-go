@@ -18,8 +18,6 @@ type websocket_client_node struct {
 	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
 	send_queue chan []byte   // 发送channel
 	send_failure_times int64 // 发送失败次数
-	mode int                 // broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight int               // 权重 0 - 100
 	group string             // 所属分组
 	recv_bytes int           // 收到的待处理字节数量
 	connect_time int64       // 连接成功的时间戳
@@ -35,7 +33,6 @@ type WebSocketService struct {
 	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*websocket_client_node // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
@@ -49,7 +46,6 @@ func NewWebSocketService(config *TcpConfig) *WebSocketService {
 		lock               : new(sync.Mutex),
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*websocket_client_node),
-		groups_mode        : make(map[string] int),
 		groups_filter      : make(map[string] []string),
 		recv_times         : 0,
 		send_times         : 0,
@@ -59,7 +55,6 @@ func NewWebSocketService(config *TcpConfig) *WebSocketService {
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocket_client_node
 		tcp.groups[v.Name]      = con[:0]
-		tcp.groups_mode[v.Name] = v.Mode
 
 		flen := len(v.Filter)
 		tcp.groups_filter[v.Name] = make([]string, flen)
@@ -96,8 +91,6 @@ func (tcp *WebSocketService) broadcast() {
 				if len(clients) <= 0 {
 					continue
 				}
-				// 分组的模式
-				mode   := tcp.groups_mode[group_name]
 				filter := tcp.groups_filter[group_name]
 				flen   := len(filter)
 
@@ -124,39 +117,12 @@ func (tcp *WebSocketService) broadcast() {
 					}
 				}
 
-				// 如果不等于权重，即广播模式
-				if mode != MODEL_WEIGHT {
-					for _, conn := range clients {
-						if !conn.is_connected {
-							continue
-						}
-						log.Println("发送广播消息")
-						conn.send_queue <- msg[table_len+2:]
+				for _, conn := range clients {
+					if !conn.is_connected {
+						continue
 					}
-				} else {
-					// 负载均衡模式
-					// todo 根据已经send_times的次数负载均衡
-					clen := len(clients)
-					target := clients[0]
-					//将发送次数/权重 作为负载基数，每次选择最小的发送
-					js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-
-					for i := 1; i < clen; i++ {
-						stimes := atomic.LoadInt64(&clients[i].send_times)
-						//conn.send_queue <- msg
-						if stimes == 0 {
-							//优先发送没有发过的
-							target = clients[i]
-							break
-						}
-						_js := float64(stimes)/float64(clients[i].weight)
-						if _js < js {
-							js = _js
-							target = clients[i]
-						}
-					}
-					log.Println("发送权重消息，", (*target.conn).RemoteAddr().String())
-					target.send_queue <- msg[table_len+2:]
+					log.Println("发送广播消息")
+					conn.send_queue <- msg[table_len+2:]
 				}
 			}
 			tcp.lock.Unlock()
@@ -255,8 +221,6 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 		is_connected       : true,
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		send_failure_times : 0,
-		weight             : 0,
-		mode               : MODEL_BROADCAST,
 		connect_time       : time.Now().Unix(),
 		send_times         : int64(0),
 		recv_bytes         : 0,
@@ -304,23 +268,12 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Println("收到注册分组消息")
-			if len(msg) < 6 {
-				return
-			}
-			//4字节 weight
-			weight := int(msg[2]) +
-				int(msg[3] << 8) +
-				int(msg[4] << 16) +
-				int(msg[5] << 32)
-
-			//log.Println("weight：", weight)
-			if weight < 0 || weight > 100 {
-				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
+			if len(msg) < 2 {
 				return
 			}
 
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(msg[6:])
+			group := string(msg[2:])
 			log.Println("group：", group)
 
 			tcp.lock.Lock()
@@ -341,34 +294,10 @@ func (tcp *WebSocketService) onMessage(conn *websocket_client_node, msg []byte, 
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
 
-			conn.group  = group
-			conn.mode   = tcp.groups_mode[group]
-			conn.weight = weight
+			conn.group = group
 
 			tcp.groups[group] = append(tcp.groups[group], conn)
 
-			if conn.mode == MODEL_WEIGHT {
-				//weight 合理性格式化，保证所有的weight的和是100
-				all_weight := 0
-				for _, _conn := range tcp.groups[group] {
-					w := _conn.weight
-					if w <= 0 {
-						w = 100
-					}
-					all_weight += w
-				}
-
-				gl := len(tcp.groups[group])
-				yg := 0
-				for k, _conn := range tcp.groups[group] {
-					if k == gl - 1 {
-						_conn.weight = 100 - yg
-					} else {
-						_conn.weight = int(_conn.weight * 100 / all_weight)
-						yg += _conn.weight
-					}
-				}
-			}
 			atomic.AddInt32(&tcp.clients_count, int32(1))
 			tcp.lock.Unlock()
 

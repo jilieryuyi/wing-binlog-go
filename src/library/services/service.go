@@ -1,11 +1,5 @@
 package services
 
-
-const (
-    MODEL_BROADCAST = 1  // 广播
-    MODEL_WEIGHT    = 2  // 权重
-)
-
 const (
     CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
     CMD_AUTH    = 2 // 认证（暂未使用）

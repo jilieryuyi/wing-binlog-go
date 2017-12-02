@@ -6,7 +6,6 @@ import (
     "time"
     "sync/atomic"
     "sync"
-    "strconv"
     "regexp"
     "library/http"
 )
@@ -19,9 +18,8 @@ var ERR_STATUS error =  errors.New("错误的状态码")
 
 type HttpService struct {
     send_queue chan []byte     // 发送channel
-    groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
-    groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
-    groups_filter [][]string     // 分组过滤器
+    groups [][]*httpNode       // 客户端分组
+    groups_filter [][]string   // 分组过滤器
     lock *sync.Mutex           // 互斥锁，修改资源时锁定
     send_failure_times int64   // 发送失败次数
     enable bool
@@ -30,7 +28,6 @@ type HttpService struct {
 type httpNode struct {
     url string                  // url
     send_queue chan []byte      // 发送channel
-    weight int                  // 权重 0 - 100
     send_times int64            // 发送次数
     send_failure_times int64    // 发送失败次数
     is_down bool                // 是否因为故障下线的节点
@@ -52,7 +49,6 @@ func NewHttpService(config *HttpConfig) *HttpService {
         send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
         lock               : new(sync.Mutex),
         groups             : make([][]*httpNode, glen),
-        groups_mode        : make([]int, glen),
         groups_filter      : make([][]string, glen),
         send_failure_times : int64(0),
         enable             : config.Enable,
@@ -61,15 +57,12 @@ func NewHttpService(config *HttpConfig) *HttpService {
     for _, v := range config.Groups {
         l := len(v.Nodes)
         client.groups[index]      = make([]*httpNode, l)
-        client.groups_mode[index] = v.Mode
         client.groups_filter[index] = make([]string, len(v.Filter))
         client.groups_filter[index] = append(client.groups_filter[index][:0], v.Filter...)
         log.Println("filter => ",client.groups_filter[index])
         for i := 0; i < l; i++ {
-            w, _ := strconv.Atoi(v.Nodes[i][1])
             client.groups[index][i] = &httpNode{
                 url                : v.Nodes[i][0],
-                weight             : w,
                 send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
                 send_times         : int64(0),
                 send_failure_times : int64(0),
@@ -238,8 +231,6 @@ func (client *HttpService) broadcast() {
                 if len(clients) <= 0 {
                     continue
                 }
-                // 分组的模式
-                mode   := client.groups_mode[index]
                 filter := client.groups_filter[index]
                 flen   := len(filter)
 
@@ -267,36 +258,9 @@ func (client *HttpService) broadcast() {
                     }
                 }
 
-                // 如果不等于权重，即广播模式
-                if mode != MODEL_WEIGHT {
-                    for _, conn := range clients {
-                        log.Println("http发送广播消息")
-                        conn.send_queue <- msg[table_len+2:]
-                    }
-                } else {
-                    // 负载均衡模式
-                    // todo 根据已经send_times的次数负载均衡
-                    clen := len(clients)
-                    target := clients[0]
-                    //将发送次数/权重 作为负载基数，每次选择最小的发送
-                    js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-                    for i := 1; i < clen; i++ {
-                        stimes := atomic.LoadInt64(&clients[i].send_times)
-                        //conn.send_queue <- msg
-                        if stimes == 0 {
-                            //优先发送没有发过的
-                            target = clients[i]
-                            break
-                        }
-                        _js := float64(stimes)/float64(clients[i].weight)
-                        log.Println("权重基数",float64(stimes),float64(clients[i].weight), _js, js)
-                        if _js < js {
-                            js = _js
-                            target = clients[i]
-                        }
-                    }
-                    log.Println("http发送权重消息，", (*target).url)
-                    target.send_queue <- msg[table_len+2:]
+                for _, conn := range clients {
+                    log.Println("http发送广播消息")
+                    conn.send_queue <- msg[table_len+2:]
                 }
             }
             client.lock.Unlock()

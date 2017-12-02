@@ -16,8 +16,6 @@ type tcp_client_node struct {
 	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
 	send_queue chan []byte   // 发送channel
 	send_failure_times int64 // 发送失败次数
-	mode int                 // broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight int               // 权重 0 - 100
 	group string             // 所属分组
 	recv_buf []byte          // 读缓冲区
 	recv_bytes int           // 收到的待处理字节数量
@@ -34,7 +32,6 @@ type TcpService struct {
 	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*tcp_client_node  // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
@@ -48,7 +45,6 @@ func NewTcpService(config *TcpConfig) *TcpService {
 		lock               : new(sync.Mutex),
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*tcp_client_node),
-		groups_mode        : make(map[string] int),
 		groups_filter      : make(map[string] []string),
 		recv_times         : 0,
 		send_times         : 0,
@@ -59,7 +55,6 @@ func NewTcpService(config *TcpConfig) *TcpService {
 		flen := len(v.Filter)
 		var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node
 		tcp.groups[v.Name]      = con[:0]
-		tcp.groups_mode[v.Name] = v.Mode
 		tcp.groups_filter[v.Name] = make([]string, flen)
 		tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
 	}
@@ -99,7 +94,6 @@ func (tcp *TcpService) broadcast() {
 					continue
 				}
 				// 分组的模式
-				mode   := tcp.groups_mode[group_name]
 				filter := tcp.groups_filter[group_name]
 				flen   := len(filter)
 				//2字节长度
@@ -126,39 +120,12 @@ func (tcp *TcpService) broadcast() {
 					}
 				}
 
-				// 如果不等于权重，即广播模式
-				if mode != MODEL_WEIGHT {
-					for _, conn := range clients {
-						if !conn.is_connected {
-							continue
-						}
-						log.Println("发送广播消息")
-						conn.send_queue <- msg[table_len+2:]
+				for _, conn := range clients {
+					if !conn.is_connected {
+						continue
 					}
-				} else {
-					// 负载均衡模式
-					// todo 根据已经send_times的次数负载均衡
-					clen := len(clients)
-					target := clients[0]
-					//将发送次数/权重 作为负载基数，每次选择最小的发送
-					js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-
-					for i := 1; i < clen; i++ {
-						stimes := atomic.LoadInt64(&clients[i].send_times)
-						//conn.send_queue <- msg
-						if stimes == 0 {
-							//优先发送没有发过的
-							target = clients[i]
-							break
-						}
-						_js := float64(stimes)/float64(clients[i].weight)
-						if _js < js {
-							js = _js
-							target = clients[i]
-						}
-					}
-					log.Println("发送权重消息，", (*target.conn).RemoteAddr().String())
-					target.send_queue <- msg[table_len+2:]
+					log.Println("发送广播消息")
+					conn.send_queue <- msg[table_len+2:]
 				}
 			}
 			tcp.lock.Unlock()
@@ -244,23 +211,23 @@ func (tcp *TcpService) clientSendService(node *tcp_client_node) {
 		}
 
 		select {
-		case  msg, ok := <-node.send_queue:
-			if !ok {
-				log.Println("tcp发送消息channel通道关闭")
-				return
-			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
-			size, err := (*node.conn).Write(msg)
-			atomic.AddInt64(&node.send_times, int64(1))
-
-			if (size <= 0 || err != nil) {
-				atomic.AddInt64(&tcp.send_failure_times, int64(1))
-				atomic.AddInt64(&node.send_failure_times, int64(1))
-
-				log.Println((*node.conn).RemoteAddr().String(), "失败次数：", node.send_failure_times)
-			}
-		case <-to.C://time.After(time.Second*3):
-			//log.Println("发送超时...", tcp)
+			case  msg, ok := <-node.send_queue:
+				if !ok {
+					log.Println("tcp发送消息channel通道关闭")
+					return
+				}
+				(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
+				size, err := (*node.conn).Write(msg)
+				atomic.AddInt64(&node.send_times, int64(1))
+				
+				if (size <= 0 || err != nil) {
+					atomic.AddInt64(&tcp.send_failure_times, int64(1))
+					atomic.AddInt64(&node.send_failure_times, int64(1))
+					
+					log.Println((*node.conn).RemoteAddr().String(), "失败次数：", node.send_failure_times)
+				}
+			case <-to.C://time.After(time.Second*3):
+				//log.Println("发送超时...", tcp)
 		}
 	}
 }
@@ -274,8 +241,6 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		is_connected       : true,
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		send_failure_times : 0,
-		weight             : 0,
-		mode               : MODEL_BROADCAST,
 		connect_time       : time.Now().Unix(),
 		send_times         : int64(0),
 		recv_buf           : make([]byte, TCP_RECV_DEFAULT_SIZE),
@@ -333,86 +298,51 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 		//2字节 command
 		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
 
-		//log.Println("content：", conn.recv_buf)
-		//log.Println("content_len：", content_len)
-		//log.Println("cmd：", cmd)
+		log.Println("content：", conn.recv_buf)
+		log.Println("content_len：", content_len)
+		log.Println("cmd：", cmd)
 		switch cmd {
-		case CMD_SET_PRO:
-			log.Println("收到注册分组消息")
-			if len(conn.recv_buf) < 10 {
-				return
-			}
-			//4字节 weight
-			weight := int(conn.recv_buf[6]) +
-				int(conn.recv_buf[7] << 8) +
-				int(conn.recv_buf[8] << 16) +
-				int(conn.recv_buf[9] << 32)
-
-			//log.Println("weight：", weight)
-			if weight < 0 || weight > 100 {
-				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
-				return
-			}
-
-			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(conn.recv_buf[10:content_len + 4])
-			//log.Println("group：", group)
-
-			tcp.lock.Lock()
-			is_find := false
-			for g, _ := range tcp.groups {
-				//log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
-				if g == group {
-					is_find = true
-					break
+			case CMD_SET_PRO:
+				log.Println("收到注册分组消息")
+				if len(conn.recv_buf) < 6 {
+					return
 				}
-			}
-			if !is_find {
-				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
+				
+				//内容长度+4字节的前缀（存放内容长度的数值）
+				//group := string(conn.recv_buf[6:content_len + 4])
+				group := string(conn.recv_buf[6:content_len + 4])
+				log.Println("group：", group)
+				
+				tcp.lock.Lock()
+				is_find := false
+				for g, _ := range tcp.groups {
+					//log.Println(g, len(g), ">" + g + "<", len(group), ">" + group + "<")
+					if g == group {
+						is_find = true
+						break
+					}
+				}
+				if !is_find {
+					conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
+					tcp.lock.Unlock()
+					return
+				}
+				
+				(*conn.conn).SetReadDeadline(time.Time{})
+				conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
+				
+				conn.group = group
+				
+				tcp.groups[group] = append(tcp.groups[group], conn)
+				
+				atomic.AddInt32(&tcp.clients_count, int32(1))
 				tcp.lock.Unlock()
-				return
-			}
-
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- tcp.pack(CMD_SET_PRO, "ok")
-
-			conn.group  = group
-			conn.mode   = tcp.groups_mode[group]
-			conn.weight = weight
-
-			tcp.groups[group] = append(tcp.groups[group], conn)
-
-			if conn.mode == MODEL_WEIGHT {
-				//weight 合理性格式化，保证所有的weight的和是100
-				all_weight := 0
-				for _, _conn := range tcp.groups[group] {
-					w := _conn.weight
-					if w <= 0 {
-						w = 100
-					}
-					all_weight += w
-				}
-
-				gl := len(tcp.groups[group])
-				yg := 0
-				for k, _conn := range tcp.groups[group] {
-					if k == gl - 1 {
-						_conn.weight = 100 - yg
-					} else {
-						_conn.weight = int(_conn.weight * 100 / all_weight)
-						yg += _conn.weight
-					}
-				}
-			}
-			atomic.AddInt32(&tcp.clients_count, int32(1))
-			tcp.lock.Unlock()
-
-		case CMD_TICK:
-			//log.Println("收到心跳消息")
-			conn.send_queue <- tcp.pack(CMD_TICK, "ok")
-		//心跳包
-		default:
-			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+			case CMD_TICK:
+				log.Println("收到心跳消息")
+				conn.send_queue <- tcp.pack(CMD_TICK, "ok")
+			//心跳包
+			default:
+				conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 
 		//数据移动

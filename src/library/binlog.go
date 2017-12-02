@@ -37,7 +37,7 @@ type positionCache struct {
 
 const (
 	MAX_CHAN_FOR_SAVE_POSITION = 128
-    defaultBufSize = 4096
+	defaultBufSize = 4096
 	DEFAULT_FLOAT_PREC = 6
 )
 
@@ -59,7 +59,6 @@ func (h *binlogHandler) notify(msg []byte) {
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
-
 	//log.Println(e.Table.Schema, e.Table.Name,
 	//e.Table.Columns,
 	//e.Table.Indexes,
@@ -90,7 +89,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	// ,"event_type":"update","time":1510309349},"event_index":253131297,"table":"bw_active_payout"}
 
 	log.Println("bufinfo: ",len(h.buf), cap(h.buf))
-
+	
 	db := []byte(e.Table.Schema)
 	point := []byte(".")
 	table := []byte(e.Table.Name)
@@ -100,7 +99,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 		for i := 0; i < len(e.Rows); i+=2 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 			buf := h.buf[:0]
-
+			
 			buf = append(buf, byte(dblen))
 			buf = append(buf, byte(dblen >> 8))
 			buf = append(buf, db...)
@@ -110,7 +109,6 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
-
 
 			for k, col := range e.Table.Columns {
 				buf = append(buf, "\""...)
@@ -202,7 +200,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 
 				default:
 
-						log.Println(col.Name, "不支持的类型：", reflect.TypeOf(edata))
+					log.Println(col.Name, "不支持的类型：", reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -233,7 +231,6 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 		for i := 0; i < len(e.Rows); i += 1 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 			buf := h.buf[:0]
-
 			buf = append(buf, byte(dblen))
 			buf = append(buf, byte(dblen >> 8))
 			buf = append(buf, db...)
@@ -314,7 +311,6 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			h.notify(buf)
 		}
 	}
-
 
 	return nil
 }
@@ -398,7 +394,7 @@ websocket_service *services.WebSocketService, http_service *services.HttpService
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
 	cfg.User     = h.DB_Config.Mysql.User
 	cfg.Password = h.DB_Config.Mysql.Password//"123456"
-	cfg.Flavor   = "mysql"
+	cfg.Flavor   = "mariadb"
 
 	cfg.ReadTimeout        = 90*time.Second//*readTimeout
 	cfg.HeartbeatPeriod    = 10*time.Second//*heartbeatPeriod
