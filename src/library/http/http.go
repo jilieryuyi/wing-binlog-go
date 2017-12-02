@@ -62,7 +62,7 @@ func onUserLogin(w http.ResponseWriter, req *http.Request) {
     log.Println("http服务", req.Form, username[0], password[0])
     user := data.User{username[0], password[0]}
     if ok1 && ok2 && user.Get() {
-        log.Println("http服务，用户" + username[0] + "登陆成功")
+        log.Infof("http服务，用户 %s 登陆成功", username[0])
         user_sign := util.RandString()
         online_users_lock.Lock()
         online_users[user_sign] = &OnLineUser{
@@ -99,11 +99,11 @@ func onUserLogout(w http.ResponseWriter, req *http.Request) {
     online_users_lock.Lock()
     _, ok := online_users[user_sign.Value]
     if ok {
-        log.Println("http服务删除在线用户：", user_sign.Value)
+        log.Infof("http服务删除在线用户：%s", user_sign.Value)
         delete(online_users, user_sign.Value)
         w.Write([]byte(output(203, http_errors[203], "")))
     } else {
-        log.Println("http服务删除在线用户错误，session不存在：", user_sign.Value)
+        log.Infof("http服务删除在线用户错误，session不存在：%s", user_sign.Value)
         w.Write([]byte(output(202, http_errors[202], "")))
     }
     online_users_lock.Unlock()
@@ -115,7 +115,7 @@ func (server *HttpServer) checkLoginTimeout() {
         for key, user := range online_users {
             now := time.Now().Unix()
             if now - user.LastPostTime > DEFAULT_LOGIN_TIMEOUT {
-                log.Println("http服务检测到登录超时：", key, user.Name)
+                log.Infof("http服务检测到登录超时：", key, user.Name)
                 server.ws.DeleteClient(key)
                 delete(online_users, key)
             }
@@ -128,8 +128,8 @@ func (server *HttpServer) checkLoginTimeout() {
 func (server *HttpServer) Start() {
     go server.checkLoginTimeout()
     go func() {
-        log.Println("http服务器启动...")
-        log.Printf("http服务监听: %s:%d", server.Ip, server.Port)
+        log.Infof("http服务器启动...")
+        log.Infof("http服务监听: %s:%d", server.Ip, server.Port)
         static_http_handler := http.FileServer(http.Dir(server.Path))
         http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request){
             // 判断是否在线
@@ -185,7 +185,7 @@ func (server *HttpServer) Start() {
         dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
         err := http.ListenAndServe(dns, nil)
         if err != nil {
-            log.Fatal("http服务启动失败: ", err)
+            log.Fatalf("http服务启动失败: %v", err)
         }
     }()
 }

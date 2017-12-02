@@ -35,7 +35,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {
-		log.Println("websocket服务发送缓冲区满...")
+		log.Warnf("websocket服务发送缓冲区满...")
 		return false
 	}
 	tcp.send_queue <- tcp.pack(CMD_EVENT, string(msg))
@@ -51,7 +51,7 @@ func (tcp *WebSocketService) broadcast() {
 				if !conn.is_connected {
 					continue
 				}
-				log.Println("websocket服务发送广播消息")
+				log.Debugf("websocket服务发送广播消息")
 				conn.send_queue <- msg
 			}
 			tcp.lock.Unlock()
@@ -79,25 +79,25 @@ func (tcp *WebSocketService) onClose(conn *websocketClientNode) {
 		if con == conn {
 			con.is_connected = false
 			delete(tcp.clients, index)
-			log.Println("websocket服务连接发生错误，删除资源", index)
+			log.Warnf("websocket服务连接发生错误，删除资源 %d", index)
 			break
 		}
 	}
 	tcp.lock.Unlock()
 	atomic.AddInt32(&tcp.clients_count, int32(-1))
-	log.Println("websocket服务当前连输的客户端：", len(tcp.clients), tcp.clients)
+	log.Debugf("websocket服务当前连输的客户端：%d %v", len(tcp.clients), tcp.clients)
 }
 
 func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 	for {
 		if !node.is_connected {
-			log.Println("websocket服务clientSendService退出")
+			log.Debugf("websocket服务clientSendService退出")
 			return
 		}
 		select {
 		case  msg, ok:= <-node.send_queue:
 			if !ok {
-				log.Println("websocket服务通道关闭")
+				log.Debugf("websocket服务通道关闭")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
@@ -106,14 +106,14 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 			if (err != nil) {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
-				log.Println("websocket服务发送失败：", msg)
+				log.Warnf("websocket服务发送失败：%v", msg)
 			}
 		}
 	}
 }
 
 func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
-	log.Println("websocket服务新的连接：",conn.RemoteAddr().String())
+	log.Infof("websocket服务新的连接：%s", conn.RemoteAddr().String())
 	cnode := &websocketClientNode {
 		conn               : conn,
 		is_connected       : true,
@@ -129,9 +129,9 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println(conn.RemoteAddr().String(), "websocket服务连接发生错误: ", err)
+			log.Errorf("%s websocket服务连接发生错误: %v", conn.RemoteAddr().String(), err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("websocket服务error: %v", err)
+				log.Errorf("websocket服务error: %v", err)
 			}
 			tcp.onClose(cnode)
 			conn.Close();
@@ -145,7 +145,7 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 }
 
 func (tcp *WebSocketService) DeleteClient(key string) {
-	log.Println("websocket服务删除ws资源", key)
+	log.Infof("websocket服务删除ws资源 %s", key)
 	tcp.lock.Lock()
 	conn, ok := tcp.clients[key]
 	if ok {
@@ -158,14 +158,14 @@ func (tcp *WebSocketService) DeleteClient(key string) {
 
 // 收到消息回调函数
 func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, size int) {
-	log.Println("websocket服务收到消息",len(msg), msg, string(msg))
+	log.Debugf("websocket服务收到消息 %d %v %s", len(msg), msg, string(msg))
 	clen := len(msg)
 	if clen < 34 {
 		return
 	}
 	cmd := int(msg[0]) + int(msg[1] << 8) //2字节 command
 	sign := string(msg[2:34])             //签名
-	log.Println("websocket服务签名：", sign)
+	log.Debugf("websocket服务签名：%s", sign)
 	if !isOnline(sign) {
 		conn.send_queue <- tcp.pack(CMD_RELOGIN, "需要重新登录")
 		return
@@ -196,7 +196,7 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 }
 
 func (tcp *WebSocketService) Start() {
-	log.Println("websocket服务等待新的连接...")
+	log.Debugf("websocket服务等待新的连接...")
 	go tcp.broadcast()
 	go func() {
 		m := martini.Classic()
@@ -215,11 +215,11 @@ func (tcp *WebSocketService) Start() {
 				log.Println(err)
 				return
 			}
-			log.Println("websocket服务新的连接：" + conn.RemoteAddr().String())
+			log.Infof("websocket服务新的连接：%s", conn.RemoteAddr().String())
 			go tcp.onConnect(conn)
 		})
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
-		log.Println("websocket服务监听: ", dns)
+		log.Infof("websocket服务监听: %s", dns)
 		m.RunOnAddr(dns)
 	} ()
 }

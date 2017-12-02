@@ -67,14 +67,14 @@ func NewTcpService() *TcpService {
 
 // 对外的广播发送接口
 func (tcp *TcpService) SendAll(msg []byte) bool {
-	log.Println("tcp-sendall")
+	log.Debugf("tcp-sendall")
 	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
-		log.Println("tcp-sendall-clients_count 0")
+		log.Debugf("tcp-sendall-clients_count 0")
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {
-		log.Println("tcp发送缓冲区满...")
+		log.Debugf("tcp发送缓冲区满...")
 		return false
 	}
 
@@ -89,7 +89,7 @@ func (tcp *TcpService) broadcast() {
 	for {
 		select {
 		case  msg := <-tcp.send_queue:
-			log.Println("tcp广播消息")
+			log.Debugf("tcp广播消息")
 			tcp.lock.Lock()
 			for group_name, clients := range tcp.groups {
 				// 如果分组里面没有客户端连接，跳过
@@ -104,7 +104,7 @@ func (tcp *TcpService) broadcast() {
 				table_len := int(msg[0]) + int(msg[1] << 8);
 				table     := string(msg[2:table_len+2])
 
-				log.Println("tcp数据表：", table_len, table)
+				log.Debugf("tcp数据表：%d %s", table_len, table)
 				log.Println(msg)
 				//log.Println(filter)
 
@@ -130,7 +130,7 @@ func (tcp *TcpService) broadcast() {
 						if !conn.is_connected {
 							continue
 						}
-						log.Println("发送广播消息")
+						log.Debugf("发送广播消息")
 						conn.send_queue <- msg[table_len+2:]
 					}
 				} else {
@@ -155,7 +155,7 @@ func (tcp *TcpService) broadcast() {
 							target = clients[i]
 						}
 					}
-					log.Println("发送权重消息，", (*target.conn).RemoteAddr().String())
+					log.Debugf("发送权重消息，%s", (*target.conn).RemoteAddr().String())
 					target.send_queue <- msg[table_len+2:]
 				}
 			}
@@ -237,14 +237,14 @@ func (tcp *TcpService) clientSendService(node *tcp_client_node) {
 	to := time.NewTimer(time.Second*1)
 	for {
 		if !node.is_connected {
-			log.Println("clientSendService退出")
+			log.Warnf("clientSendService退出")
 			return
 		}
 
 		select {
 		case  msg, ok := <-node.send_queue:
 			if !ok {
-				log.Println("tcp发送消息channel通道关闭")
+				log.Warnf("tcp发送消息channel通道关闭")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
@@ -300,7 +300,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			conn.Close();
 			return
 		}
-		log.Println("收到消息",size,"字节：", buf[:size], string(buf))
+		log.Println("收到消息", size, "字节：", buf[:size], string(buf))
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
 		tcp.onMessage(cnode, buf, size)
@@ -318,7 +318,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 		} else if clen > TCP_RECV_DEFAULT_SIZE {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
 			conn.recv_buf = make([]byte, TCP_RECV_DEFAULT_SIZE)
-			log.Println("新建缓冲区")
+			log.Debugf("新建缓冲区")
 			return
 		}
 
@@ -336,7 +336,7 @@ func (tcp *TcpService) onMessage(conn *tcp_client_node, msg []byte, size int) {
 		//log.Println("cmd：", cmd)
 		switch cmd {
 		case CMD_SET_PRO:
-			log.Println("收到注册分组消息")
+			log.Debugf("收到注册分组消息")
 			if len(conn.recv_buf) < 10 {
 				return
 			}
@@ -440,7 +440,7 @@ func (tcp *TcpService) Start() {
 			close(tcp.send_queue)
 		}()
 
-		log.Println("等待新的连接...")
+		log.Infof("等待新的连接...")
 
 		for {
 			conn, err := listen.Accept()

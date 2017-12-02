@@ -61,7 +61,7 @@ func NewHttpService() *HttpService {
         client.groups_mode[index]   = v.Mode
         client.groups_filter[index] = make([]string, len(v.Filter))
         client.groups_filter[index] = append(client.groups_filter[index][:0], v.Filter...)
-        log.Println("http service过滤器", client.groups_filter[index])
+        log.Debugf("http service过滤器 %s", client.groups_filter[index])
         for i := 0; i < nodes_len; i++ {
             w, _ := strconv.Atoi(v.Nodes[i][1])
             client.groups[index][i] = &httpNode{
@@ -99,7 +99,7 @@ func (client *HttpService) cacheInit(node *httpNode) {
     if node.cache_is_init {
         return
     }
-    log.Println("http service初始化失败重试使用的cache")
+    log.Infof("http service初始化失败重试使用的cache")
     node.cache = make([][]byte, HTTP_CACHE_LEN)
     for k := 0; k < HTTP_CACHE_LEN; k++ {
         node.cache[k] = make([]byte, HTTP_CACHE_BUFFER_SIZE)
@@ -113,7 +113,7 @@ func (client *HttpService) cacheInit(node *httpNode) {
 func (client *HttpService) addCache(node *httpNode, msg []byte) {
     node.cache[node.cache_index] = append(node.cache[node.cache_index][:0], msg...)
     node.cache_index++
-    log.Println("http service添加cache数据", node.cache_index)
+    log.Debugf("http service添加cache数据 %d", node.cache_index)
     if node.cache_index >= HTTP_CACHE_LEN {
         node.cache_index = 0;
         node.cache_full = true
@@ -127,14 +127,14 @@ func (client *HttpService) sendCache(node *httpNode) {
         if node.cache_full {
             for j := node.cache_index; j < HTTP_CACHE_LEN; j++ {
                 //重发
-                log.Println( "http service数据重发(缓冲区满)", node.cache_index)
+                log.Warnf( "http service数据重发(缓冲区满) %d", node.cache_index)
                 node.send_queue <- node.cache[j]
             }
             node.cache_full = false
         }
         for j := 0; j < node.cache_index; j++ {
             //重发
-            log.Println("http service数据重发")
+            log.Warnf("http service数据重发")
             node.send_queue <- node.cache[j]
             node.cache_index--
         }
@@ -152,7 +152,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
             if err == nil {
                 //重新上线
                 node.is_down = false
-                log.Println("http service节点恢复", node.url)
+                log.Warnf("http service节点恢复 %s", node.url)
                 //对失败的cache进行重发
                 client.sendCache(node)
             }
@@ -173,7 +173,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
             node.lock.Lock()
             if !node.is_down {
                 atomic.AddInt64(&node.send_times, int64(1))
-                log.Println("http service post数据到url：", node.url)
+                log.Debugf("http service post数据到url：%s", node.url)
                 data, err := http.Post(node.url, msg)
                 if (err != nil) {
                     atomic.AddInt64(&client.send_failure_times, int64(1))
@@ -183,10 +183,10 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     // 如果连续3次错误，标志位故障
                     if failure_times >= 3 {
                         //发生故障
-                        log.Println(node.url, "http service发生错误，下线节点", node.url)
+                        log.Warnf("http service发生错误，下线节点 %s", node.url)
                         node.is_down = true
                     }
-                    log.Println("http service失败url和次数：", node.url, node.send_failure_times)
+                    log.Warnf("http service失败url和次数：%s %d", node.url, node.send_failure_times)
                     client.cacheInit(node)
                     client.addCache(node, msg)
                 } else {
@@ -201,7 +201,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
                     //对失败的cache进行重发
                     client.sendCache(node)
                 }
-                log.Println("http service post返回值：", node.url, string(data))
+                log.Debug("http service post返回值：%s %s", node.url, string(data))
             } else {
                 // 故障节点，缓存需要发送的数据
                 // 这里就需要一个map[string][10000][]byte，最多缓存10000条
@@ -234,7 +234,7 @@ func (client *HttpService) broadcast() {
                 //2字节长度
                 table_len := int(msg[0]) + int(msg[1] << 8);
                 table := string(msg[2:table_len+2])
-                log.Println("http service事件发生的数据表：", table_len, table)
+                log.Debugf("http service事件发生的数据表：%s %s", table_len, table)
                 //分组过滤
                 //log.Println(filter)
                 if flen > 0 {
@@ -255,7 +255,7 @@ func (client *HttpService) broadcast() {
                 // 如果不等于权重，即广播模式
                 if mode != MODEL_WEIGHT {
                     for _, conn := range clients {
-                        log.Println("http service发送广播消息")
+                        log.Debugf("http service发送广播消息")
                         conn.send_queue <- msg[table_len+2:]
                     }
                 } else {
@@ -280,7 +280,7 @@ func (client *HttpService) broadcast() {
                             target = clients[i]
                         }
                     }
-                    log.Println("http service发送权重消息，", (*target).url)
+                    log.Debugf("http service发送权重消息， %s", (*target).url)
                     target.send_queue <- msg[table_len+2:]
                 }
             }
@@ -296,7 +296,7 @@ func (client *HttpService) SendAll(msg []byte) bool {
         return false
     }
     if len(client.send_queue) >= cap(client.send_queue) {
-        log.Println("http service发送缓冲区满...")
+        log.Warnf("http service发送缓冲区满...")
         return false
     }
     client.send_queue <- msg

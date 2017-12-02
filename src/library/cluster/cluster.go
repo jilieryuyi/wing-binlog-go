@@ -11,8 +11,8 @@ import (
 func init() {
     return
     config, _:= getServiceConfig()
-    log.Println("cluster server初始化 ...............")
-    log.Println("listen: ", fmt.Sprintf("%s:%d", config.Cluster.Listen, config.Cluster.Port))
+    log.Infof("cluster server初始化 ...............")
+    log.Infof("listen: %s:%d", config.Cluster.Listen, config.Cluster.Port)
     // 新建一个分布式节点
     node := &Cluster {
         Listen      : config.Cluster.Listen,

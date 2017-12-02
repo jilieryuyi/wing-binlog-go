@@ -45,7 +45,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {
-		log.Println("websocket服务-发送缓冲区满...")
+		log.Debugf("websocket服务-发送缓冲区满...")
 		return false
 	}
 	table_len := int(msg[0]) + int(msg[1] << 8);
@@ -70,8 +70,8 @@ func (tcp *WebSocketService) broadcast() {
 				//2字节长度
 				table_len := int(msg[0]) + int(msg[1] << 8);
 				table     := string(msg[2:table_len+2])
-				log.Println("websocket服务-数据表：", table)
-				log.Println("websocket服务：", filter)
+				log.Debugf("websocket服务-数据表：%s", table)
+				log.Debugf("websocket服务：%v", filter)
 				if flen > 0 {
 					is_match := false
 					for _, f := range filter {
@@ -93,7 +93,7 @@ func (tcp *WebSocketService) broadcast() {
 						if !conn.is_connected {
 							continue
 						}
-						log.Println("websocket服务-发送广播消息")
+						log.Debugf("websocket服务-发送广播消息")
 						conn.send_queue <- msg[table_len+2:]
 					}
 				} else {
@@ -118,7 +118,7 @@ func (tcp *WebSocketService) broadcast() {
 							target = clients[i]
 						}
 					}
-					log.Println("websocket服务-发送权重消息，", (*target.conn).RemoteAddr().String())
+					log.Debugf("websocket服务-发送权重消息，%s", (*target.conn).RemoteAddr().String())
 					target.send_queue <- msg[table_len+2:]
 				}
 			}
@@ -176,13 +176,13 @@ func (tcp *WebSocketService) onClose(conn *websocketClientNode) {
 func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 	for {
 		if !node.is_connected {
-			log.Println("websocket服务-clientSendService退出")
+			log.Warnf("websocket服务-clientSendService退出")
 			return
 		}
 		select {
 		case  msg, ok:= <-node.send_queue:
 			if !ok {
-				log.Println("websocket服务-发送消息channel通道关闭")
+				log.Warnf("websocket服务-发送消息channel通道关闭")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
@@ -198,7 +198,7 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 }
 
 func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
-	log.Println("websocket服务-新的连接：", conn.RemoteAddr().String())
+	log.Infof("websocket服务-新的连接：", conn.RemoteAddr().String())
 	cnode := &websocketClientNode {
 		conn               : conn,
 		is_connected       : true,
@@ -219,13 +219,13 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 		if err != nil {
 			log.Println(conn.RemoteAddr().String(), "websocket服务-连接发生错误: ", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("websocket服务-error: %v", err)
+				log.Errorf("websocket服务-error: %v", err)
 			}
 			tcp.onClose(cnode)
 			conn.Close()
 			return
 		}
-		log.Println("websocket服务-收到消息：", string(message))
+		log.Debugf("websocket服务-收到消息：%s", string(message))
 		size := len(message)
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
@@ -241,11 +241,11 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 	}
 	//2字节 command
 	cmd := int(msg[0]) + int(msg[1] << 8)
-	log.Println("websocket服务-content：", msg)
-	log.Println("websocket服务-cmd：", cmd)
+	log.Debugf("websocket服务-content：%v", msg)
+	log.Debugf("websocket服务-cmd：%d", cmd)
 	switch cmd {
 	case CMD_SET_PRO:
-		log.Println("websocket服务-收到注册分组消息")
+		log.Infof("websocket服务-收到注册分组消息")
 		if len(msg) < 6 {
 			return
 		}
@@ -260,7 +260,7 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 		}
 		//内容长度+4字节的前缀（存放内容长度的数值）
 		group := string(msg[6:])
-		log.Println("websocket服务-group：", group)
+		log.Debugf("websocket服务-group：%s", group)
 		tcp.lock.Lock()
 		if _, ok := tcp.groups[group]; !ok {
 			conn.send_queue <- tcp.pack(CMD_ERROR, fmt.Sprintf("组不存在：%s", group))
@@ -305,7 +305,7 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 }
 
 func (tcp *WebSocketService) Start() {
-	log.Println("websocket服务-等待新的连接...")
+	log.Infof("websocket服务-等待新的连接...")
 	go tcp.broadcast()
 	go func() {
 		m := martini.Classic()
@@ -326,11 +326,11 @@ func (tcp *WebSocketService) Start() {
 				log.Println(err)
 				return
 			}
-			log.Println("websocket服务-新的连接：" + conn.RemoteAddr().String())
+			log.Infof("websocket服务-新的连接：%s", conn.RemoteAddr().String())
 			go tcp.onConnect(conn)
 		})
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
-		log.Println("websocket服务-监听: ", dns)
+		log.Infof("websocket服务-监听: %s", dns)
 		m.RunOnAddr(dns)
 	} ()
 }
