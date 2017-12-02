@@ -215,7 +215,7 @@ func (tcp *WebSocketService) Start() {
 				log.Println(err)
 				return
 			}
-			log.Infof("websocket服务新的连接：%s", conn.RemoteAddr().String())
+			log.Info("websocket服务新的连接：", conn.RemoteAddr().String())
 			go tcp.onConnect(conn)
 		})
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)

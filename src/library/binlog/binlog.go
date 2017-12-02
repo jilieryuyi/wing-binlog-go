@@ -362,7 +362,6 @@ func (h *Binlog) Start(
 	var err error*/
 	h.handler, err = canal.NewCanal(cfg)
 	if err != nil {
-<<<<<<< HEAD
 		log.Panic("binlog创建canal错误：", err)
 		os.Exit(1)
 	}
@@ -372,17 +371,6 @@ func (h *Binlog) Start(
 	//	h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
 	//}
 	f, p, index := h.GetBinlogPositionCache()
-=======
-		log.Errorf("create canal err %v", err)
-		os.Exit(1)
-	}
-	log.Debugf("binlog忽略的表 %s", h.DB_Config.Client.Ignore_tables)
-	for _, v := range h.DB_Config.Client.Ignore_tables {
-		db_table := strings.Split(v, ".")
-		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
-	}
-	f, p, index := h.GetBinlogPostionCache()
->>>>>>> acdc0c5bba8236dca894c645c9753df2fd3022cc
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:0]
