@@ -1,20 +1,18 @@
 基于mysql数据库binlog的分布式增量订阅&消费
 ====
->此仓库为wing-binlog的go版本          
-开发中...          
+>此仓库为wing-binlog的go版本，1.0.0版本               
 
 https://github.com/jilieryuyi/wing-binlog
 
 mac, linux 或者其他 unix 系统，只需要运行 build.sh 即可完成全自动化构建         
 windows下运行 build.bat 即可    
   
-future
+特点-Feature
 ----    
-1、高可用，支持分布式多节点部署    
-2、去中心化    
-3、多协议支持（tcp、websocket、http、redis、kafka、ssh）    
-4、自带负载均衡    
-5、节点以及订阅者支持容错和自动检测恢复
+1、支持tcp服务协议 - 支持分组、广播、负载均衡、过滤器
+2、支持websocket服务协议 - 支持分组、广播、负载均衡、过滤器
+3、支持http服务协议- 支持分组、广播、负载均衡、过滤器
+4、支持http节点故障熔断移除、自动检测恢复与数据重发
 
 已知问题-Known issues
 ----
