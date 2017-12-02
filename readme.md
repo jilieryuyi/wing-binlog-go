@@ -17,6 +17,11 @@ windows下运行 build.bat 即可
 3、支持http服务协议- 支持分组、广播、负载均衡、过滤器      
 4、支持http节点故障熔断移除、自动检测恢复与数据重发      
 
+使用-Usage
+----
+1、./bin/wing-binlog-go启动服务       
+2、./bin/wing-binlog-go -version查看版本    
+
 已知问题-Known issues
 ----
 DDL操作（数据表结构表更）      
