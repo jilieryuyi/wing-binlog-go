@@ -23,6 +23,7 @@ var http_errors map[int] string = map[int] string {
 
 // 初始化，系统自动执行
 func init() {
+    return
     log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
         ForceColors:true,
         QuoteEmptyFields:true, FullTimestamp:true,

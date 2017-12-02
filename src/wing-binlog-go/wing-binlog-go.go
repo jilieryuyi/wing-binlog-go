@@ -14,13 +14,12 @@ import (
 	"io/ioutil"
 	"strconv"
 	"library/file"
-	"flag"
-	syslog "log"
+	_ "flag"
 	log "github.com/sirupsen/logrus"
 	_ "library/cluster"
 )
 
-var debug = flag.Bool("debug", false, "enable debug, default true")
+//var debug = flag.Bool("debug", false, "enable debug, default true")
 
 func writePid() {
 	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
@@ -56,8 +55,7 @@ func init() {
 	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
 		ForceColors:true,
 		QuoteEmptyFields:true, FullTimestamp:true})
-	flag.Parse()
-	syslog.Println("debug", *debug)
+
 	//log.ResetOutHandler()
 	//u := data.User{"admin", "admin"}
 	//log.Println("用户查询：",u.Get())
@@ -69,7 +67,8 @@ func init() {
 }
 
 func main() {
-
+	//flag.Parse()
+	//syslog.Println("debug", *debug)
 	if len(os.Args) > 1 && os.Args[1] == "stop" {
 		killPid()
 		return

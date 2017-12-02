@@ -98,7 +98,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 				default:
-					log.Println(col.Name, "binlog不支持的类型：", reflect.TypeOf(edata))
+					log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -150,7 +150,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 				default:
-						log.Println(col.Name, "binlog不支持的类型：", reflect.TypeOf(edata))
+						log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -223,7 +223,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
 				default:
-						log.Println(col.Name, "binlog不支持的类型：", reflect.TypeOf(edata))
+						log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {

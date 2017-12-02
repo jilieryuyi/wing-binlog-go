@@ -1,7 +1,8 @@
-var count      = 1;       //事件计数器
-var group_name = "group1";//需要注册到的分组
-var weight     = 100;     //权重
-var ws         = new WebSocket("ws://127.0.0.1:9997/");
+var count       = 1;           // 事件计数器
+var group_name  = "group1";    // 需要注册到的分组
+var weight      = 100;         // 权重
+var ws          = ws_connect();// websocket资源
+var error_times = 0;           // 发生错误的次数
 
 //事件
 const CMD_SET_PRO = 1;
@@ -18,22 +19,28 @@ const MODE_WEIGHT    = 2; //权重
 //心跳包
 var tick_pack  = String.fromCharCode(CMD_TICK) + String.fromCharCode(CMD_TICK >> 8);
 
-//获取当前的时间，格式为 Y-m-d H:i:s
+// 连接websocket
+function ws_connect()
+{
+    return new WebSocket("ws://127.0.0.1:9997/");
+}
+
+// 获取当前的时间，格式为 Y-m-d H:i:s
 function get_daytime()
 {
     //获取时间
     var myDate = new Date();
-    var month=myDate.getMonth()+1;
-    month=month<10?"0"+month:month;
-    var day=myDate.getDate();
-    day=day<10?"0"+day:day;
-    var hour=myDate.getHours();
-    hour=hour<10?"0"+hour:hour;
-    var minute=myDate.getMinutes();
-    minute=minute<10?"0"+minute:minute;
-    var seconds=myDate.getSeconds();
-    seconds=seconds<10?"0"+seconds:seconds;
-    return myDate.getFullYear()+'-'+month + '-' + day + ' '+hour+':'+minute+":"+seconds;
+    var month  = myDate.getMonth() + 1;
+    month = month < 10? "0" + month : month;
+    var day = myDate.getDate();
+    day = day < 10? "0" + day : day;
+    var hour = myDate.getHours();
+    hour = hour < 10? "0" + hour : hour;
+    var minute = myDate.getMinutes();
+    minute = minute<10? "0" + minute : minute;
+    var seconds = myDate.getSeconds();
+    seconds = seconds < 10? "0" + seconds:seconds;
+    return myDate.getFullYear() + '-' + month + '-' + day + ' ' + hour + ':' + minute + ":" + seconds;
 }
 
 //打印debug信息
@@ -50,9 +57,6 @@ function clog(content)
 //连接成功回调函数
 function on_connect()
 {
-    // str="A";
-    // code = str.charCodeAt();
-    // 打包set_pro数据包
     // 2字节cmd
     var r = "";
     r +=  String.fromCharCode(CMD_SET_PRO);
@@ -103,44 +107,50 @@ function on_message(msg)
     }
 }
 
-//客户端关闭回调函数
+// 客户端关闭回调函数
 function on_close()
 {
     clog("客户端断线，尝试重新连接");
-    ws = new WebSocket("ws://127.0.0.1:9997/");
-    start_service();
+    error_times++;
 }
 
-//发生错误回调函数
+// 发生错误回调函数
 function on_error()
 {
     clog("客户端发生错误，尝试重新连接");
-    ws = new WebSocket("ws://127.0.0.1:9997/");
-    start_service();
+    error_times++;
 }
 
-//开始服务
+// 开始服务
 function start_service()
 {
     ws.onopen = function() {
         on_connect();
     };
-
     ws.onmessage = function(e) {
         on_message(e.data);
     };
-
     ws.onclose = function() {
         on_close();
     };
-
     ws.onerror = function(e) {
         on_error();
     };
 }
 
 start_service();
-//3秒发送一次心跳
+// 3秒发送一次心跳
 window.setInterval(function(){
-   ws.send(tick_pack);
+    if (error_times <= 0) {
+        ws.send(tick_pack);
+    }
+}, 3000);
+
+// 3秒检测重连
+window.setInterval(function(){
+    if (error_times > 0) {
+        ws = ws_connect();
+        start_service();
+        error_times = 0;
+    }
 }, 3000);
