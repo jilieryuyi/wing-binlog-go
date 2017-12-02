@@ -19,7 +19,8 @@ import (
 
 func NewBinlog() *Binlog {
 	config, _ := GetMysqlConfig()
-	return &Binlog{DB_Config:config}
+	log.Debug("binlog配置：", config)
+	return &Binlog{Config:config}
 }
 
 func (h *binlogHandler) notify(msg []byte) {
@@ -338,6 +339,14 @@ func (h *Binlog) Start(
 	websocket_service.Start()
 	http_service.Start()
 
+	config_file := file.GetCurrentPath() + "/config/canal.toml"
+	cfg, err := canal.NewConfigWithFile(config_file)
+	if err != nil {
+		log.Panic("binlog错误：", err)
+		os.Exit(1)
+	}
+	log.Debug("binlog配置：", cfg)
+	/*
 	cfg         := canal.NewDefaultConfig()
 	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
 	cfg.User     = h.DB_Config.Mysql.User
@@ -350,17 +359,17 @@ func (h *Binlog) Start(
 	cfg.Dump.ExecutionPath = ""//mysqldump" 不支持mysqldump写为空
 	cfg.Dump.DiscardErr    = false
 
-	var err error
+	var err error*/
 	h.handler, err = canal.NewCanal(cfg)
 	if err != nil {
-		log.Printf("create canal err %v", err)
+		log.Panic("binlog创建canal错误：", err)
 		os.Exit(1)
 	}
-	log.Println("binlog忽略的表", h.DB_Config.Client.Ignore_tables)
-	for _, v := range h.DB_Config.Client.Ignore_tables {
-		db_table := strings.Split(v, ".")
-		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
-	}
+	//log.Println("binlog忽略的表", h.DB_Config.Client.Ignore_tables)
+	//for _, v := range h.DB_Config.Client.Ignore_tables {
+	//	db_table := strings.Split(v, ".")
+	//	h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
+	//}
 	f, p, index := h.GetBinlogPositionCache()
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
@@ -372,8 +381,8 @@ func (h *Binlog) Start(
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 	h.handler.SetEventHandler(&h.binlog_handler)
 	h.is_connected = true
-	bin_file := h.DB_Config.Client.Bin_file
-	bin_pos  := h.DB_Config.Client.Bin_pos
+	bin_file := h.Config.BinFile
+	bin_pos  := h.Config.BinPos
 	if f != "" {
 		bin_file = f
 	}

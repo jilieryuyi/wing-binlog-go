@@ -8,6 +8,7 @@ import (
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
+	"time"
 )
 
 var (
@@ -16,28 +17,38 @@ var (
 )
 
 type AppConfig struct {
-	Client   ClientConfig
-	Mysql    MysqlConfig
+	Addr     string `toml:"addr"`
+	User     string `toml:"user"`
+	Password string `toml:"password"`
+
+	Charset         string        `toml:"charset"`
+	ServerID        uint32        `toml:"server_id"`
+	Flavor          string        `toml:"flavor"`
+	HeartbeatPeriod time.Duration `toml:"heartbeat_period"`
+	ReadTimeout     time.Duration `toml:"read_timeout"`
+
+	BinFile string `toml:"bin_file"`
+	BinPos int64  `toml:"bin_pos"`
 }
 
-type ClientConfig struct {
-	Slave_id int
-	Ignore_tables []string
-	Bin_file string
-	Bin_pos int64
-}
+//type ClientConfig struct {
+//	Slave_id int
+//	Ignore_tables []string
+//	Bin_file string
+//	Bin_pos int64
+//}
 
-type MysqlConfig struct {
-	Host string
-	User string
-	Password string
-	Port int
-	Charset string
-	DbName string
-}
+//type MysqlConfig struct {
+//	Host string
+//	User string
+//	Password string
+//	Port int
+//	Charset string
+//	DbName string
+//}
 
 type Binlog struct {
-	DB_Config *AppConfig
+	Config *AppConfig
 	handler *canal.Canal
 	is_connected bool
 	binlog_handler binlogHandler
@@ -67,7 +78,7 @@ type binlogHandler struct {
 // 获取mysql配置
 func GetMysqlConfig() (*AppConfig, error) {
 	var app_config AppConfig
-	config_file := file.GetCurrentPath() + "/config/mysql.toml"
+	config_file := file.GetCurrentPath() + "/config/canal.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Printf("配置文件%s不存在", config_file)
