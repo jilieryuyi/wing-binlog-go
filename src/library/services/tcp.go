@@ -39,8 +39,8 @@ type TcpService struct {
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
-func NewTcpService(config *TcpConfig) *TcpService {
-	//tcp_config.Tcp.Listen, tcp_config.Tcp.Port
+func NewTcpService() *TcpService {
+	config, _ := getTcpConfig()
 	tcp := &TcpService {
 		Ip                 : config.Tcp.Listen,
 		Port               : config.Tcp.Port,
@@ -54,7 +54,6 @@ func NewTcpService(config *TcpConfig) *TcpService {
 		send_times         : 0,
 		send_failure_times : 0,
 	}
-
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
 		var con [TCP_DEFAULT_CLIENT_SIZE]*tcp_client_node
@@ -63,7 +62,6 @@ func NewTcpService(config *TcpConfig) *TcpService {
 		tcp.groups_filter[v.Name] = make([]string, flen)
 		tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
 	}
-
 	return tcp
 }
 

@@ -39,7 +39,8 @@ type httpNode struct {
 }
 
 // 创建一个新的http服务
-func NewHttpService(config *HttpConfig) *HttpService {
+func NewHttpService() *HttpService {
+    config, _ := getHttpConfig()
     if !config.Enable {
         return &HttpService{enable:config.Enable}
     }

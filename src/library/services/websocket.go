@@ -40,8 +40,9 @@ type WebSocketService struct {
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
-func NewWebSocketService(config *TcpConfig) *WebSocketService {
+func NewWebSocketService() *WebSocketService {
 	//websocket_config.Tcp.Listen, websocket_config.Tcp.Port,
+	config, _ := getWebsocketConfig()
 	tcp := &WebSocketService {
 		Ip                 : config.Tcp.Listen,
 		Port               : config.Tcp.Port,
