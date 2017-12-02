@@ -91,6 +91,30 @@ type TcpService struct {
     clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
+type HttpService struct {
+    send_queue chan []byte     // 发送channel
+    groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
+    groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
+    groups_filter [][]string   // 分组过滤器
+    lock *sync.Mutex           // 互斥锁，修改资源时锁定
+    send_failure_times int64   // 发送失败次数
+    enable bool
+}
+
+type httpNode struct {
+    url string                  // url
+    send_queue chan []byte      // 发送channel
+    weight int                  // 权重 0 - 100
+    send_times int64            // 发送次数
+    send_failure_times int64    // 发送失败次数
+    is_down bool                // 是否因为故障下线的节点
+    failure_times_flag int32    // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
+    lock *sync.Mutex            // 互斥锁，修改资源时锁定
+    cache [][]byte
+    cache_index int
+    cache_is_init bool
+    cache_full bool
+}
 
 var (
     ErrorFileNotFound = errors.New("配置文件不存在")
@@ -113,6 +137,9 @@ const (
     TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
     TCP_RECV_DEFAULT_SIZE         = 4096
     TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
+
+    HTTP_CACHE_LEN         = 10000
+    HTTP_CACHE_BUFFER_SIZE = 4096
 )
 
 
