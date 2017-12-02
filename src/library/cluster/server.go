@@ -19,7 +19,7 @@ func (server *tcp_server) start() {
 			return
 		}
 		defer listen.Close()
-		log.Println("cluster server等待新的连接...")
+		log.Debugf("cluster server等待新的连接...")
 		for {
 			conn, err := listen.Accept()
 			if err != nil {
@@ -38,14 +38,14 @@ func (server *tcp_server) send(cmd int, client_id []byte, msg []string){
 	log.Println("---clients", server.clients)
 	for _, client := range server.clients {
 		send_msg := pack(cmd, string(client_id), msg)
-		log.Println("cluster server发送消息：", len(send_msg), send_msg, string(send_msg))
+		log.Debugf("cluster server发送消息：", len(send_msg), send_msg, string(send_msg))
 		(*client.conn).Write(send_msg)
 	}
 	server.lock.Unlock()
 }
 
 func (server *tcp_server) onConnect(conn net.Conn) {
-	log.Println("cluster server新的连接：",conn.RemoteAddr().String())
+	log.Infof("cluster server新的连接：%s", conn.RemoteAddr().String())
 	cnode := &tcp_client_node {
 		conn               : &conn,
 		is_connected       : true,
@@ -71,12 +71,12 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		}
 		size, err := conn.Read(buf)
 		if err != nil {
-			log.Println(conn.RemoteAddr().String(), "cluster server连接发生错误: ", err)
+			log.Errorf("%s cluster server连接发生错误: %v", conn.RemoteAddr().String(), err)
 			server.onClose(cnode)
 			conn.Close()
 			return
 		}
-		log.Println("cluster server收到消息",size,"字节：", buf[:size], string(buf[:size]))
+		log.Debugf("cluster server收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
 		server.onMessage(cnode, buf[:size])
 	}
 }
@@ -87,7 +87,7 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 		if client.conn == conn.conn {
 			client.is_connected = false
 			server.clients_count--
-			log.Println("cluster server客户端掉线", (*client.conn).RemoteAddr().String())
+			log.Warnf("cluster server客户端掉线 %s", (*client.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
 			break
 		}
@@ -105,7 +105,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 		cmd, _       := conn.recv_buf.ReadInt16() // 2字节 command
 		client_id, _ := conn.recv_buf.Read(32)    // 32字节的client_id
 		content      := make([]string, 1)
-		log.Println("cluster server收到消息，cmd=", cmd, len(client_id), string(client_id))
+		log.Debugf("cluster server收到消息，cmd=%d %d %s", cmd, len(client_id), string(client_id))
 
 		var index       = 0
 		var content_len = 0
@@ -120,13 +120,13 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 				break
 			}
 			content = append(content[:index], string(cb))
-			log.Println("cluster server收到消息content=", content_len, index, content[index], cb)
+			log.Debugf("cluster server收到消息content=%d %d %s %v", content_len, index, content[index], cb)
 			index++
 		}
 
 		switch cmd {
 		case CMD_APPEND_NET:
-			log.Println("cluster server收到追加网络节点消息")
+			log.Infof("cluster server收到追加网络节点消息")
 
 			//断开当前的c端连接
 			//current_node.client.close()
@@ -145,7 +145,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			//log.Println("weight：", weight)
 			//心跳包
 		case CMD_APPEND_NODE:
-			log.Println("cluster server收到追加链表节点消息")
+			log.Infof("cluster server收到追加链表节点消息")
 			//转发给自己的client端
 			//(*conn.conn).Write(server.pack(CMD_APPEND_NODE, ""))
 

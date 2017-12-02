@@ -350,7 +350,7 @@ func (tcp *TcpService) Start() {
 			listen.Close();
 			close(tcp.send_queue)
 		}()
-		log.Println("tcp服务-等待新的连接...")
+		log.Infof("tcp服务-等待新的连接...")
 		for {
 			conn, err := listen.Accept()
 			if err != nil {

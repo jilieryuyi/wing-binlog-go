@@ -26,12 +26,12 @@ func init() {
         db, err := sql.Open("sqlite3", data_path + "/wing.db")
         defer db.Close()
         if err != nil {
-            log.Println("sqlite3 open error", err)
+            log.Errorf("sqlite3 open error %v", err)
             return
         }
         _, err = db.Exec(create)
         if err != nil {
-            log.Println("sqlite3 exec error", err)
+            log.Errorf("sqlite3 exec error %v", err)
             return
         }
         // 添加默认用户
@@ -53,7 +53,7 @@ func (user *User) Add() bool {
     }
     db, err := sql.Open("sqlite3", user_data_path)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer db.Close()
@@ -61,20 +61,20 @@ func (user *User) Add() bool {
     //插入数据
     stmt, err := db.Prepare("INSERT INTO userinfo(username, password) values(?,?)")
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer stmt.Close()
 
     res, err := stmt.Exec(user.Name, user.Password)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 
     id, err := res.LastInsertId()
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 
@@ -88,7 +88,7 @@ func (user *User) Get() bool {
 
     db, err := sql.Open("sqlite3", user_data_path)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer db.Close()
@@ -127,7 +127,7 @@ func (user *User) Update(id int64) bool {
 
     db, err := sql.Open("sqlite3", user_data_path)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer db.Close()
@@ -135,20 +135,20 @@ func (user *User) Update(id int64) bool {
     //插入数据
     stmt, err := db.Prepare("update userinfo set username=?, password=? where id=?")
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer stmt.Close()
 
     res, err := stmt.Exec(user.Name, user.Password, id)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 
     num, err := res.RowsAffected()
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 
@@ -165,7 +165,7 @@ func (user *User) Delete() bool {
 
     db, err := sql.Open("sqlite3", user_data_path)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer db.Close()
@@ -173,20 +173,20 @@ func (user *User) Delete() bool {
     //插入数据
     stmt, err := db.Prepare("delete from userinfo where username=?")
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
     defer stmt.Close()
 
     res, err := stmt.Exec(user.Name)
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 
     num, err := res.RowsAffected()
     if err != nil {
-        log.Println("2-open sqlite3 error", err)
+        log.Errorf("2-open sqlite3 error %v", err)
         return false
     }
 

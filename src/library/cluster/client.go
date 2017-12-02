@@ -12,7 +12,7 @@ import (
 func (client *tcp_client) connect() bool {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", client.ip, client.port))
 	if err != nil {
-		fmt.Println("Error connecting:", err)
+		log.Errorf("Error connecting: %s", err)
 		return false
 	}
 	client.lock.Lock()
@@ -29,7 +29,7 @@ func (client *tcp_client) connect() bool {
 			}
 			size, err := conn.Read(buf)
 			if err != nil {
-				log.Println(conn.RemoteAddr().String(), "连接发生错误: ", err)
+				log.Errorf("%s 连接发生错误: %s", conn.RemoteAddr().String(), err)
 				client.lock.Lock()
 				client.onClose(&conn);
 				if !client.is_closed {
@@ -38,7 +38,7 @@ func (client *tcp_client) connect() bool {
 				client.lock.Unlock()
 				return
 			}
-			log.Println("cluster client 收到消息", size, "字节：",  buf[:size],  string(buf[:size]))
+			log.Debugf("cluster client 收到消息 %d 字节：%d %s",  size, buf[:size],  string(buf[:size]))
 			atomic.AddInt64(&client.recv_times, int64(1))
 			client.onMessage(buf[:size])
 		}
@@ -79,7 +79,7 @@ func (client *tcp_client) onMessage(msg []byte) {
 	client.recv_buf.Write(msg)
 	for {
 		clen := client.recv_buf.Size()
-		log.Println("cluster client buf size ", clen)
+		log.Debugf("cluster client buf size %s", clen)
 		if clen < 6 {
 			return
 		}
@@ -88,7 +88,7 @@ func (client *tcp_client) onMessage(msg []byte) {
 		client_id, _   := client.recv_buf.Read(32)
 		content        := make([]string, 1)
 		index          := 0
-		log.Println("cluster client收到消息，cmd=", cmd, len(client_id), string(client_id))
+		log.Debugf("cluster client收到消息，cmd=%d %d %s", cmd, len(client_id), string(client_id))
 		for {
 			// 4字节长度，即int32
 			l, err := client.recv_buf.ReadInt32()
@@ -100,12 +100,12 @@ func (client *tcp_client) onMessage(msg []byte) {
 				break
 			}
 			content = append(content[:index], string(cb))
-			log.Println("cluster client收到消息content=", l, index, content[index], cb)
+			log.Debugf("cluster client收到消息content=%d %d %s %v", l, index, content[index], cb)
 			index++
 		}
 
 		if string(client_id) == client.client_id {
-			log.Println("cluster client收到消息闭环", string(client_id))
+			log.Debugf("cluster client收到消息闭环 %s", string(client_id))
 			client.recv_buf.ResetPos()
 			return
 		}
@@ -113,8 +113,8 @@ func (client *tcp_client) onMessage(msg []byte) {
 		switch cmd {
 			case CMD_APPEND_NODE:
 				//client.send(CMD_APPEND_NODE, []string{""})
-				log.Println("cluster client收到追加节点消息")
-				log.Println("cluster client追加节点：", content[0] + ":" + content[1])
+				log.Debugf("cluster client收到追加节点消息")
+				log.Debugf("cluster client追加节点：%s", content[0] + ":" + content[1])
 
 				// 关闭client连接
 				client.close()

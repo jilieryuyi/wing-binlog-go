@@ -148,7 +148,7 @@ func getTcpConfig() (*TcpConfig, error) {
     tcp_config_file := file.GetCurrentPath() + "/config/tcp.toml"
     wfile := file.WFile{tcp_config_file}
     if !wfile.Exists() {
-        log.Printf("配置文件%s不存在", tcp_config_file)
+        log.Warnf("配置文件%s不存在 %s", tcp_config_file)
         return nil, ErrorFileNotFound
     }
     if _, err := toml.DecodeFile(tcp_config_file, &tcp_config); err != nil {
@@ -163,7 +163,7 @@ func getHttpConfig() (*HttpConfig, error) {
     http_config_file := file.GetCurrentPath() + "/config/http.toml"
     wfile := file.WFile{http_config_file}
     if !wfile.Exists() {
-        log.Printf("配置文件%s不存在", http_config_file)
+        log.Warnf("配置文件%s不存在 %s", http_config_file)
         return nil, ErrorFileNotFound
     }
     if _, err := toml.DecodeFile(http_config_file, &config); err != nil {
@@ -179,7 +179,7 @@ func getWebsocketConfig() (*TcpConfig, error) {
     config_file := file.GetCurrentPath() + "/config/websocket.toml"
     wfile := file.WFile{config_file}
     if !wfile.Exists() {
-        log.Printf("配置文件%s不存在", config_file)
+        log.Warnf("配置文件%s不存在 %s", config_file)
         return nil, ErrorFileNotFound
     }
     if _, err := toml.DecodeFile(config_file, &config); err != nil {

@@ -2,7 +2,7 @@ package binlog
 
 import (
 	"github.com/BurntSushi/toml"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"errors"
 	"library/file"
 	"library/services"
@@ -81,7 +81,7 @@ func GetMysqlConfig() (*AppConfig, error) {
 	config_file := file.GetCurrentPath() + "/config/canal.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
-		log.Printf("配置文件%s不存在", config_file)
+		log.Errorf("配置文件%s不存在 %s", config_file)
 		return nil, ErrorFileNotFound
 	}
 	if _, err := toml.DecodeFile(config_file, &app_config); err != nil {

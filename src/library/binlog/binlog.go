@@ -42,7 +42,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
 	columns_len := len(e.Table.Columns)
-	log.Println("binlog缓冲区详细信息: ", len(h.buf), cap(h.buf))
+	log.Debugf("binlog缓冲区详细信息: %d %d", len(h.buf), cap(h.buf))
 	db    := []byte(e.Table.Schema)
 	point := []byte(".")
 	table := []byte(e.Table.Name)
@@ -100,7 +100,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 				default:
-					log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
+					log.Warnf("binlog不支持的类型：%s %s", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -153,7 +153,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 				default:
-						log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
+						log.Warnf("binlog不支持的类型：%s %s", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -227,7 +227,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				case float32:
 					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
 				default:
-						log.Println("binlog不支持的类型：", col.Name, reflect.TypeOf(edata))
+						log.Warnf("binlog不支持的类型：%s %s", col.Name, reflect.TypeOf(edata))
 					if edata != nil {
 						buf = append(buf, "\"--unkonw type--\""...)
 					} else {
@@ -258,27 +258,27 @@ func (h *binlogHandler) String() string {
 }
 
 func (h *binlogHandler) OnRotate(e *replication.RotateEvent) error {
-	log.Println("binlog事件：OnRotate")
+	log.Debugf("binlog事件：OnRotate")
 	return nil
 }
 
 func (h *binlogHandler) OnDDL(p mysql.Position, e *replication.QueryEvent) error {
-	log.Println("binlog事件：OnDDL")
+	log.Debugf("binlog事件：OnDDL")
 	return nil
 }
 
 func (h *binlogHandler) OnXID(p mysql.Position) error {
-	log.Println("binlog事件：OnXID")
+	log.Debugf("binlog事件：OnXID")
 	return nil
 }
 
 func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
-	log.Println("binlog事件：OnGTID", g)
+	log.Debugf("binlog事件：OnGTID", g)
 	return nil
 }
 
 func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
-	log.Println("binlog事件：OnPosSynced", p, b)
+	log.Debugf("binlog事件：OnPosSynced %d %d", p, b)
 	h.SaveBinlogPostionCache(p)
 	return nil
 }
@@ -362,6 +362,7 @@ func (h *Binlog) Start(
 	var err error*/
 	h.handler, err = canal.NewCanal(cfg)
 	if err != nil {
+<<<<<<< HEAD
 		log.Panic("binlog创建canal错误：", err)
 		os.Exit(1)
 	}
@@ -371,13 +372,24 @@ func (h *Binlog) Start(
 	//	h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
 	//}
 	f, p, index := h.GetBinlogPositionCache()
+=======
+		log.Errorf("create canal err %v", err)
+		os.Exit(1)
+	}
+	log.Debugf("binlog忽略的表 %s", h.DB_Config.Client.Ignore_tables)
+	for _, v := range h.DB_Config.Client.Ignore_tables {
+		db_table := strings.Split(v, ".")
+		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
+	}
+	f, p, index := h.GetBinlogPostionCache()
+>>>>>>> acdc0c5bba8236dca894c645c9753df2fd3022cc
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:0]
 	// 3种服务
-	h.binlog_handler.tcp_service       = tcp_service
-	h.binlog_handler.websocket_service = websocket_service
-	h.binlog_handler.http_service      = http_service
+	h.binlog_handler.tcp_service        = tcp_service
+	h.binlog_handler.websocket_service  = websocket_service
+	h.binlog_handler.http_service       = http_service
 	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 	h.handler.SetEventHandler(&h.binlog_handler)
 	h.is_connected = true
@@ -397,7 +409,7 @@ func (h *Binlog) Start(
 		}
 		err = h.handler.RunFrom(startPos)
 		if err != nil {
-			log.Printf("start canal err %v", err)
+			log.Fatalf("start canal err %v", err)
 		}
 	}()
 }

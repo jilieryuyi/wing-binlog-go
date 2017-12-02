@@ -95,7 +95,7 @@ func getServiceConfig() (*cluster_config, error) {
 	config_file := file.GetCurrentPath()+"/config/cluster.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
-		log.Printf("config file %s does not exists", config_file)
+		log.Errorf("config file %s does not exists", config_file)
 		return nil, ErrorFileNotFound
 	}
 
