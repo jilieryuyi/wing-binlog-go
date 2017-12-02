@@ -67,6 +67,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				if k < rows_len {
 					edata = e.Rows[i][k]
 				} else {
+					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
 				switch edata.(type) {
@@ -119,6 +120,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				if k < rows_len {
 					edata = e.Rows[i+1][k]
 				} else {
+					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
 				switch edata.(type) {
@@ -192,6 +194,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				if k < rows_len {
 					edata = e.Rows[i][k]
 				} else {
+					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
 				switch edata.(type) {
@@ -297,7 +300,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
 	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
 }
 
-func (h *Binlog) GetBinlogPostionCache() (string, int64, int64) {
+func (h *Binlog) GetBinlogPositionCache() (string, int64, int64) {
 	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
 	str := wfile.ReadAll()
 	if str == "" {
@@ -358,7 +361,7 @@ func (h *Binlog) Start(
 		db_table := strings.Split(v, ".")
 		h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
 	}
-	f, p, index := h.GetBinlogPostionCache()
+	f, p, index := h.GetBinlogPositionCache()
 	h.binlog_handler = binlogHandler{Event_index: index}
 	var b [defaultBufSize]byte
 	h.binlog_handler.buf = b[:0]
