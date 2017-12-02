@@ -17,9 +17,18 @@ import (
 	_ "flag"
 	log "github.com/sirupsen/logrus"
 	_ "library/cluster"
+	"flag"
 )
 
-//var debug = flag.Bool("debug", false, "enable debug, default true")
+var (
+	debug = flag.Bool("debug", false, "启用调试模式，默认为false")
+	version = flag.Bool("version", false, "版本信息")
+)
+
+const (
+	VERSION = "1.0.0"
+)
+
 
 func writePid() {
 	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
@@ -67,10 +76,14 @@ func init() {
 }
 
 func main() {
-	//flag.Parse()
+	flag.Parse()
 	//syslog.Println("debug", *debug)
-	if len(os.Args) > 1 && os.Args[1] == "stop" {
-		killPid()
+	//if len(os.Args) > 1 && os.Args[1] == "stop" {
+	//	killPid()
+	//	return
+	//}
+	if (*version) {
+		fmt.Println("wing-binlog-go版本：", VERSION)
 		return
 	}
 
