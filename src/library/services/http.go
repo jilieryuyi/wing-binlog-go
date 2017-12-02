@@ -1,7 +1,7 @@
 package services
 
 import (
-    "log"
+    log "github.com/sirupsen/logrus"
     "time"
     "sync/atomic"
     "sync"

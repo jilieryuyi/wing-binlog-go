@@ -39,11 +39,9 @@ func killPid() {
 }
 
 func init() {
-    fmt.Println("log init------------")
     log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
         ForceColors:true,
         QuoteEmptyFields:true, FullTimestamp:true})
-    //log.ResetOutHandler()
 }
 
 var debug = flag.Bool("debug", false, "enable debug, default true")

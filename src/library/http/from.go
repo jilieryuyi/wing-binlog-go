@@ -41,7 +41,7 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		// 返回异常状态
 		log.Println("http post error, error status back: ", resp.StatusCode)
-		return nil, ERR_STATUS
+		return nil, ErrorHttpStatus
 	}
 	res, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

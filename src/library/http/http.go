@@ -4,32 +4,43 @@ import (
     "net/http"
     "time"
     log "github.com/sirupsen/logrus"
-    "errors"
     "fmt"
-    "math/rand"
+    "library/util"
     "library/data"
     "library/file"
     "sync"
 )
 
-type HttpServer struct{
-    Path string // web路径 当前路径/web
-    Ip string   // 监听ip 0.0.0.0
-    Port int    // 9989
-    ws *WebSocketService
-}
-
-type OnLineUser struct {
-    Name string
-    Password string
-    LastPostTime int64
-}
-
 var online_users map[string] *OnLineUser = make(map[string] *OnLineUser)
 var online_users_lock *sync.Mutex = new(sync.Mutex)
+var http_errors map[int] string = map[int] string {
+    200 : "ok",
+    201 : "login error",
+    202 : "logout error",
+    203 : "logout ok",
+    204 : "please relogin",
+}
 
+// 初始化，系统自动执行
+func init() {
+    log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
+        ForceColors:true,
+        QuoteEmptyFields:true, FullTimestamp:true,
+    })
+    config, _ := getServiceConfig()
+    ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port);
+    ws.Start()
+    server := &HttpServer{
+        Path : file.GetCurrentPath() + "/web",
+        Ip   : config.Http.Listen,
+        Port : config.Http.Port,
+        ws   : ws,
+    }
+    server.Start()
+}
 
-func is_online(sign string) bool {
+// 判断签名是否在线
+func isOnline(sign string) bool {
     online_users_lock.Lock()
     user, ok := online_users[sign]
     if ok {
@@ -39,63 +50,19 @@ func is_online(sign string) bool {
     return ok
 }
 
-
-var http_errors map[int] string = map[int] string{
-    200 : "ok",
-    201 : "login error",
-    202 : "logout error",
-    203 : "logout ok",
-    204 : "please relogin",
-}
-
-const HTTP_POST_TIMEOUT = 3 //3秒超时
-var ERR_STATUS error =  errors.New("错误的状态码")
-
-
-func init() {
-    config, _ := getServiceConfig()
-    ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port);
-    ws.Start()
-
-    //dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-    //if err != nil {
-    //    log.Fatal(err)
-    //}
-    //path := strings.Replace(dir, "\\", "/", -1)
-    server := &HttpServer{
-        Path : file.GetCurrentPath()+"/web",
-        Ip   : config.Http.Listen,
-        Port : config.Http.Port,
-        ws   : ws,
-    }
-    server.Start()
-    //ws.http = server
-}
-
-func randString() string {
-    str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    bt := []byte(str)
-    result := []byte{}
-    r := rand.New(rand.NewSource(time.Now().UnixNano()))
-    for i := 0; i < 32; i++ {
-        result = append(result, bt[r.Intn(len(bt))])
-    }
-    return string(result)
-}
-
-func output(code int, msg string, data string) string{
+func output(code int, msg string, data string) string {
     return fmt.Sprintf("{\"code\":%d, \"message\":\"%s\", \"data\":\"%s\"}", code, msg, data)
 }
 
-func OnUserLogin(w http.ResponseWriter, req *http.Request) {
+func onUserLogin(w http.ResponseWriter, req *http.Request) {
     req.ParseForm()
     username, ok1 := req.Form["username"]
     password, ok2 := req.Form["password"]
-    log.Println(req.Form, username[0], password[0])
+    log.Println("http服务", req.Form, username[0], password[0])
     user := data.User{username[0], password[0]}
     if ok1 && ok2 && user.Get() {
-        log.Println("login success")
-        user_sign := randString()
+        log.Println("http服务，用户" + username[0] + "登陆成功")
+        user_sign := util.RandString()
         online_users_lock.Lock()
         online_users[user_sign] = &OnLineUser{
             Name : username[0],
@@ -116,7 +83,7 @@ func OnUserLogin(w http.ResponseWriter, req *http.Request) {
     }
 }
 
-func OnUserLogout(w http.ResponseWriter, req *http.Request) {
+func onUserLogout(w http.ResponseWriter, req *http.Request) {
     user_sign, err:= req.Cookie("user_sign")
     if err != nil {
         w.Write([]byte(output(202, http_errors[202], "")))
@@ -128,43 +95,41 @@ func OnUserLogout(w http.ResponseWriter, req *http.Request) {
         MaxAge: -1,
     }
     http.SetCookie(w, &cookie)
-
     online_users_lock.Lock()
     _, ok := online_users[user_sign.Value]
     if ok {
-        log.Println("delete online user ", user_sign.Value)
+        log.Println("http服务删除在线用户：", user_sign.Value)
         delete(online_users, user_sign.Value)
         w.Write([]byte(output(203, http_errors[203], "")))
     } else {
-        log.Println("delete error, session does not exists ", user_sign.Value)
+        log.Println("http服务删除在线用户错误，session不存在：", user_sign.Value)
         w.Write([]byte(output(202, http_errors[202], "")))
     }
     online_users_lock.Unlock()
 }
 
-func (server *HttpServer) Start() {
-    go func() {
-        //登录超时检测
-        for {
-            online_users_lock.Lock()
-            for key, user := range online_users {
-                now := time.Now().Unix()
-                // 10分钟不活动强制退出
-                if now - user.LastPostTime > 600 {
-                    server.ws.DeleteClient(key)
-                    delete(online_users, key)
-                    log.Println("登录超时...", key)
-                }
+func (server *HttpServer) checkLoginTimeout() {
+    for {
+        online_users_lock.Lock()
+        for key, user := range online_users {
+            now := time.Now().Unix()
+            if now - user.LastPostTime > DEFAULT_LOGIN_TIMEOUT {
+                log.Println("http服务检测到登录超时：", key, user.Name)
+                server.ws.DeleteClient(key)
+                delete(online_users, key)
             }
-            online_users_lock.Unlock()
-            time.Sleep(time.Second*3)
         }
-    }()
+        online_users_lock.Unlock()
+        time.Sleep(time.Second*3)
+    }
+}
+
+func (server *HttpServer) Start() {
+    go server.checkLoginTimeout()
     go func() {
         log.Println("http服务器启动...")
-        log.Printf("http监听: %s:%d", server.Ip, server.Port)
+        log.Printf("http服务监听: %s:%d", server.Ip, server.Port)
         static_http_handler := http.FileServer(http.Dir(server.Path))
-
         http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request){
             // 判断是否在线
             user_sign, err := req.Cookie("user_sign")
@@ -175,8 +140,6 @@ func (server *HttpServer) Start() {
                 online_users_lock.Lock()
                 user, ok := online_users[user_sign.Value]
                 if !ok {
-                    // 清除ws连接
-                    //server.ws.DeleteClient(user_sign.Value)
                     is_leave = true
                 } else {
                     // 跟新空闲时间
@@ -195,14 +158,13 @@ func (server *HttpServer) Start() {
             }
             static_http_handler.ServeHTTP(w, req)
         })
-        http.HandleFunc("/user/login", OnUserLogin)
+        http.HandleFunc("/user/login", onUserLogin)
         http.HandleFunc("/get/websocket/port", func(w http.ResponseWriter, req *http.Request) {
             user_sign, err:= req.Cookie("user_sign")
             if err != nil {
                 w.Write([]byte(output(204, http_errors[204], "")))
                 return
             }
-
             online_users_lock.Lock()
             _, ok := online_users[user_sign.Value]
             online_users_lock.Unlock()
@@ -212,19 +174,17 @@ func (server *HttpServer) Start() {
                 w.Write([]byte(output(204, http_errors[204], "")))
             }
         })
-
         http.HandleFunc("/user/logout", func(w http.ResponseWriter, req *http.Request){
             user_sign, err:= req.Cookie("user_sign")
             if err == nil {
                 server.ws.DeleteClient(user_sign.Value)
             }
-            OnUserLogout(w, req)
+            onUserLogout(w, req)
         })
-
         dns := fmt.Sprintf("%s:%d", server.Ip, server.Port)
         err := http.ListenAndServe(dns, nil)
         if err != nil {
-            log.Fatal("启动http服务失败: ", err)
+            log.Fatal("http服务启动失败: ", err)
         }
     }()
 }
