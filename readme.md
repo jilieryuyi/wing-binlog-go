@@ -1,6 +1,9 @@
 基于mysql数据库binlog的分布式增量订阅&消费
 ====
->此仓库为wing-binlog的go版本，1.0.0版本               
+>wing-binlog-go是一个高性能数据中间件    
+wing-binlog是一个轻量化mysql数据库监控系统       
+wing-binlog可轻松实现不改变一句业务代码实现整库数据变化实时监控          
+......              
 
 https://github.com/jilieryuyi/wing-binlog
 
