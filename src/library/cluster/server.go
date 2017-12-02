@@ -6,7 +6,6 @@ import (
 	"time"
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
-	//"library/util"
 	"strconv"
 )
 
@@ -47,7 +46,6 @@ func (server *tcp_server) send(cmd int, client_id []byte, msg []string){
 
 func (server *tcp_server) onConnect(conn net.Conn) {
 	log.Println("cluster server新的连接：",conn.RemoteAddr().String())
-
 	cnode := &tcp_client_node {
 		conn               : &conn,
 		is_connected       : true,
@@ -58,13 +56,11 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		send_times         : int64(0),
 		recv_buf           : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),//make([]byte, TCP_RECV_DEFAULT_SIZE),
 	}
-
 	server.lock.Lock()
 	server.clients = append(server.clients[:server.clients_count], cnode)
 	server.clients_count++
 	server.lock.Unlock()
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
-
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	//conn.SetReadDeadline(time.Now().Add(time.Second*3))
 	for {
@@ -86,10 +82,6 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 }
 
 func (server *tcp_server) onClose(conn *tcp_client_node) {
-	//当前节点的 prev 挂了（conn为当前节点的prev）
-	//conn的prev 跳过断开的节点 直接连接到当前节点
-	//给 （conn的prev）发消息触发连接
-	//把当前节点的prev节点标志位已下线
 	server.lock.Lock()
 	for index, client := range server.clients {
 		if client.conn == conn.conn {
@@ -110,24 +102,25 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 		if clen < 6 {
 			return
 		}
-		// 2字节 command
-		cmd, _ := conn.recv_buf.ReadInt16()
-		// 32字节的client_id
-		client_id, _ := conn.recv_buf.Read(32)
-		content := make([]string, 1)
+		cmd, _       := conn.recv_buf.ReadInt16() // 2字节 command
+		client_id, _ := conn.recv_buf.Read(32)    // 32字节的client_id
+		content      := make([]string, 1)
 		log.Println("cluster server收到消息，cmd=", cmd, len(client_id), string(client_id))
-		index := 0
+
+		var index       = 0
+		var content_len = 0
+		var err error   = nil
 		for {
-			l, err := conn.recv_buf.ReadInt32()
+			content_len, err = conn.recv_buf.ReadInt32()
 			if err != nil {
 				break
 			}
-			cb, err := conn.recv_buf.Read(l)
+			cb, err := conn.recv_buf.Read(content_len)
 			if err != nil {
 				break
 			}
 			content = append(content[:index], string(cb))
-			log.Println("cluster server收到消息content=", l, index, content[index], cb)
+			log.Println("cluster server收到消息content=", content_len, index, content[index], cb)
 			index++
 		}
 

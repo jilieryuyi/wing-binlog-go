@@ -4,22 +4,16 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
-	//"github.com/siddontang/go-mysql/schema"
-
 	"sync/atomic"
 	"fmt"
 	"time"
 	"os"
 	"strings"
-
-	//log "library/log"
 	log "github.com/sirupsen/logrus"
-
 	"strconv"
 	"library/services"
 	"library/file"
 	wstring "library/string"
-
 	"reflect"
 )
 
@@ -44,11 +38,11 @@ const (
 type binlogHandler struct{
 	Event_index int64
 	canal.DummyEventHandler
-	chan_save_position chan positionCache//mysql.Position//   = make(chan SEND_BODY, MAX_QUEUE)
-	buf     []byte
-	tcp_service *services.TcpService
+	chan_save_position chan positionCache
+	buf               []byte
+	tcp_service       *services.TcpService
 	websocket_service *services.WebSocketService
-	http_service *services.HttpService
+	http_service      *services.HttpService
 }
 
 func (h *binlogHandler) notify(msg []byte) {
