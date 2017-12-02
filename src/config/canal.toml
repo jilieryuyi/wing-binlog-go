@@ -6,7 +6,7 @@ server_id = 9999
 flavor    = "mysql"
 
 heartbeat_period = 30000000000 ##单位为纳秒，这里的时间是30秒
-read_timeout     = 30000000000 ##单位为纳秒，这里的时间是30秒
+read_timeout     = 0 ##单位为纳秒
 bin_file         = "mysql-bin.000047"
 bin_pos          = 4176
     

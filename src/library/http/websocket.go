@@ -113,7 +113,7 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 }
 
 func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
-	log.Infof("websocket服务新的连接：%s", conn.RemoteAddr().String())
+	log.Info("websocket服务新的连接：", conn.RemoteAddr().String())
 	cnode := &websocketClientNode {
 		conn               : conn,
 		is_connected       : true,
