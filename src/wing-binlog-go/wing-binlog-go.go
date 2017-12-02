@@ -77,7 +77,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	//syslog.Println("debug", *debug)
+	//syslog.Println("debug",*debug)
 	//if len(os.Args) > 1 && os.Args[1] == "stop" {
 	//	killPid()
 	//	return
