@@ -1,18 +1,18 @@
 package services
 
-type tcpg struct {
+type tcpGroupConfig struct {
     Mode int     // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
     Name string  // = "group1"
     Filter []string
 }
-type tcpc struct {
+type tcpConfig struct {
     Listen string
     Port int
 }
 type TcpConfig struct {
     Enable bool
-    Groups map[string]tcpg
-    Tcp tcpc
+    Groups map[string]tcpGroupConfig
+    Tcp tcpConfig
 }
 
 type HttpConfig struct {

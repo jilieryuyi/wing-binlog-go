@@ -91,7 +91,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	dblen := len(db) + len(table) + len(point)
 
 	if e.Action == "update" {
-		for i := 0; i < len(e.Rows); i+=2 {
+		for i := 0; i < len(e.Rows); i += 2 {
 			atomic.AddInt64(&h.Event_index, int64(1))
 			buf := h.buf[:0]
 
@@ -105,12 +105,17 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, e.Table.Schema...)
 			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
 
-
+			rows_len := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				buf = append(buf, "\""...)
 				buf = append(buf, col.Name...)
 				buf = append(buf, "\":"...)
-				edata := e.Rows[i][k]
+				var edata interface{}
+				if k < rows_len {
+					edata = e.Rows[i][k]
+				} else {
+					edata = ""
+				}
 				//log.Println(reflect.TypeOf(edata))
 
 				switch edata.(type) {
@@ -158,12 +163,19 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 
 			buf = append(buf, "},\"new_data\":{"...)
 
+			rows_len = len(e.Rows[i+1])
 			for k, col := range e.Table.Columns {
 				//res1[col.Name] = e.Rows[i][k]
 				buf = append(buf, "\""...)
 				buf = append(buf, col.Name...)
 				buf = append(buf, "\":"...)
-				edata := e.Rows[i+1][k]
+
+				var edata interface{}
+				if k < rows_len {
+					edata = e.Rows[i+1][k]
+				} else {
+					edata = ""
+				}
 
 				switch edata.(type) {
 				case string:

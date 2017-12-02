@@ -43,7 +43,6 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 }
 
 func (tcp *WebSocketService) broadcast() {
-	//to := time.NewTimer(time.Second*1)
 	for {
 		select {
 		case  msg := <-tcp.send_queue:
@@ -56,7 +55,6 @@ func (tcp *WebSocketService) broadcast() {
 				conn.send_queue <- msg
 			}
 			tcp.lock.Unlock()
-		//case <-to.C://time.After(time.Second*3):
 		}
 	}
 }
