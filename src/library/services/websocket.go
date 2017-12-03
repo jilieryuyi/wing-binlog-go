@@ -40,8 +40,10 @@ func NewWebSocketService() *WebSocketService {
 
 // 对外的广播发送接口
 func (tcp *WebSocketService) SendAll(msg []byte) bool {
+	log.Debugf("websocket服务-发送广播")
 	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
+		log.Debugf("websocket服务-没有连接的客户端")
 		return false
 	}
 	if len(tcp.send_queue) >= cap(tcp.send_queue) {

@@ -9,8 +9,12 @@ import (
 
 func NewKafkaService() *WKafka {
 	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  []string{"localhost:9092"},
-		Topic:    "topic-A",
+		Brokers:  []string{
+			"172.16.214.194:9092",
+			"172.16.214.195:9092",
+			"172.16.214.196:9092",
+		},
+		Topic:    "wing-binlog-go",
 		Balancer: &kafka.LeastBytes{},
 	})
 	return &WKafka {
