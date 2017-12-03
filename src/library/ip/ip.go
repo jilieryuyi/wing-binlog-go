@@ -46,39 +46,39 @@ func Local() (string, error) {
 
 /**
 func GetLocalIP() string {
-    addrs, err := net.InterfaceAddrs()
-    if err != nil {
-        return ""
-    }
-    for _, address := range addrs {
-        // check the address type and if it is not a loopback the display it
-        if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-            if ipnet.IP.To4() != nil {
-                return ipnet.IP.String()
-            }
-        }
-    }
-    return ""
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback the display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }
 */
 
 /**
 import (
-    "log"
-    "net"
-    "strings"
+	"log"
+	"net"
+	"strings"
 )
 
 // Get preferred outbound ip of this machine
 func GetOutboundIP() net.IP {
-    conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer conn.Close()
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
 
-    localAddr := conn.LocalAddr().(*net.UDPAddr)
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-    return localAddr.IP
+	return localAddr.IP
 }
 */
