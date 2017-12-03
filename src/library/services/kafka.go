@@ -8,13 +8,16 @@ import (
 )
 
 func NewKafkaService() *WKafka {
+	config, _:= getKafkaConfig()
+	log.Debugf("kafka服务配置：%+v", config)
 	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:  []string {
+		Brokers:  config.Borkers,
+		/* []string {
 			"172.16.214.194:9092",
 			"172.16.214.195:9092",
 			"172.16.214.196:9092",
-		},
-		Topic:    "wing-binlog-go",
+		},*/
+		Topic:config.Topic,//    "wing-binlog-go",
 		Balancer: &kafka.LeastBytes{},
 	})
 	return &WKafka {

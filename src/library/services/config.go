@@ -136,6 +136,11 @@ type WKafka struct {
     send_queue chan []byte
 }
 
+type KafkaConfig struct {
+    Borkers []string `toml:"brokers"`
+    Topic string `toml:"topic"`
+}
+
 var (
     ErrorFileNotFound = errors.New("配置文件不存在")
     ErrorFileParse = errors.New("配置解析错误")
@@ -162,6 +167,20 @@ const (
     HTTP_CACHE_BUFFER_SIZE = 4096
 )
 
+func getKafkaConfig() (*KafkaConfig, error) {
+    var config KafkaConfig
+    config_file := file.GetCurrentPath() + "/config/kafka.toml"
+    wfile := file.WFile{config_file}
+    if !wfile.Exists() {
+        log.Errorf("配置文件%s不存在 %s", config_file)
+        return nil, ErrorFileNotFound
+    }
+    if _, err := toml.DecodeFile(config_file, &config); err != nil {
+        log.Errorf("配置文件解析错误：%+v", err)
+        return nil, ErrorFileParse
+    }
+    return &config, nil
+}
 
 func getTcpConfig() (*TcpConfig, error) {
     var tcp_config TcpConfig
