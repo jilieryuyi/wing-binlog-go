@@ -9,7 +9,7 @@ type WKafka struct {
 	writer *kafka.Writer
 }
 
-func NewKafkaService() *kafka.Writer{
+func NewKafkaService() *WKafka {
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Brokers:  []string{"localhost:9092"},
 		Topic:    "topic-A",
@@ -18,8 +18,8 @@ func NewKafkaService() *kafka.Writer{
 	return &WKafka{writer:w}
 }
 
-func (kafka *WKafka) SendAll() {
-	kafka.writer.WriteMessages(context.Background(),
+func (wk *WKafka) SendAll() {
+	wk.writer.WriteMessages(context.Background(),
 		kafka.Message{
 			Key:   []byte("Key-A"),
 			Value: []byte("Hello World!"),
@@ -33,5 +33,5 @@ func (kafka *WKafka) SendAll() {
 			Value: []byte("Two!"),
 		},
 	)
-	kafka.writer.Close()
+	wk.writer.Close()
 }
