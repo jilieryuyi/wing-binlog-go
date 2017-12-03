@@ -1,0 +1,9 @@
+##wing-binlog-go全局配置
+# 0 =	PanicLevel Level = iota
+# 1 =	FatalLevel
+# 2 =	ErrorLevel
+# 3 =	WarnLevel
+# 4 =	InfoLevel
+# 5 =	DebugLevel
+##日志级别，默认为5，即显示所有的日志信息
+log_level = 5

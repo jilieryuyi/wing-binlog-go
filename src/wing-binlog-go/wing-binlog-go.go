@@ -3,6 +3,7 @@ package main
 import (
 	"library/binlog"
 	"library/services"
+	"library/app"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
 	"os"
@@ -64,7 +65,9 @@ func init() {
 	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
 		ForceColors:true,
 		QuoteEmptyFields:true, FullTimestamp:true})
-
+	app_config, _ := app.GetAppConfig()
+	log.SetLevel(log.Level(app_config.LogLevel))//log.DebugLevel)
+	log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
 	//log.ResetOutHandler()
 	//u := data.User{"admin", "admin"}
 	//log.Println("用户查询：",u.Get())

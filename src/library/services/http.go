@@ -258,7 +258,7 @@ func (client *HttpService) broadcast() {
 
 // 对外的广播发送接口
 func (client *HttpService) SendAll(msg []byte) bool {
-    log.Warn("http服务-发送广播")
+    log.Info("http服务-发送广播")
     if !client.enable {
         return false
     }
