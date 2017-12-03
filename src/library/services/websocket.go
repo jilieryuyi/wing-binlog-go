@@ -334,3 +334,7 @@ func (tcp *WebSocketService) Start() {
 		m.RunOnAddr(dns)
 	} ()
 }
+
+func (tcp *WebSocketService) Close() {
+
+}

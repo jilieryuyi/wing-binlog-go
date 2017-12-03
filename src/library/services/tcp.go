@@ -153,7 +153,7 @@ func (tcp *TcpService) pack2(cmd int, msg []byte, table []byte) []byte {
 	r[tl+0] = byte(cl)
 	r[tl+1] = byte(cl >> 8)
 	r[tl+2] = byte(cl >> 16)
-	r[tl+3] = byte(cl >> 32)
+	r[tl+3] = byte(cl >> 24)
 	r[tl+4] = byte(cmd)
 	r[tl+5] = byte(cmd >> 8)
 	copy(r[tl+6:], msg)
@@ -360,4 +360,8 @@ func (tcp *TcpService) Start() {
 			go tcp.onConnect(conn)
 		}
 	} ()
+}
+
+func (tcp *TcpService) Close() {
+
 }

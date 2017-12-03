@@ -93,10 +93,16 @@ func main() {
 	tcp_service       := services.NewTcpService()
 	websocket_service := services.NewWebSocketService()
 	http_service      := services.NewHttpService()
+	kafaka_service    := services.NewKafkaService()
 
 	blog := binlog.NewBinlog()
 	defer blog.Close()
-	blog.Start(tcp_service, websocket_service, http_service)
+	// 注册服务
+	blog.BinlogHandler.TcpService = tcp_service
+	blog.BinlogHandler.WebsocketService = websocket_service
+	blog.BinlogHandler.HttpService = http_service
+	blog.BinlogHandler.Kafka = kafaka_service
+	blog.Start()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,

@@ -11,7 +11,6 @@ import (
 	"strings"
 	log "github.com/sirupsen/logrus"
 	"strconv"
-	"library/services"
 	"library/file"
 	wstring "library/string"
 	"reflect"
@@ -20,14 +19,44 @@ import (
 func NewBinlog() *Binlog {
 	config, _ := GetMysqlConfig()
 	log.Debug("binlog配置：", config)
-	return &Binlog{Config:config}
+
+	binlog := &Binlog{
+		Config:config,
+	}
+	config_file := file.GetCurrentPath() + "/config/canal.toml"
+	cfg, err := canal.NewConfigWithFile(config_file)
+	if err != nil {
+		log.Panic("binlog错误：", err)
+		os.Exit(1)
+	}
+	log.Debug("binlog配置：", cfg)
+	binlog.handler, err = canal.NewCanal(cfg)
+	if err != nil {
+		log.Panic("binlog创建canal错误：", err)
+		os.Exit(1)
+	}
+	f, p, index := binlog.GetBinlogPositionCache()
+	var b [defaultBufSize]byte
+	binlog.BinlogHandler = binlogHandler{Event_index: index}
+	binlog.BinlogHandler.buf = b[:0]
+	binlog.BinlogHandler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
+	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
+	binlog.is_connected = false
+	if f != "" {
+		binlog.Config.BinFile = f
+	}
+	if p > 0 {
+		binlog.Config.BinPos = p
+	}
+	return binlog
 }
 
 func (h *binlogHandler) notify(msg []byte) {
 	log.Println("binlog发送广播：", string(msg))
-	h.tcp_service.SendAll(msg)
-	h.websocket_service.SendAll(msg)
-	h.http_service.SendAll(msg)
+	h.TcpService.SendAll(msg)
+	h.WebsocketService.SendAll(msg)
+	h.HttpService.SendAll(msg)
+	h.Kafka.SendAll(msg)
 }
 
 func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
@@ -289,7 +318,10 @@ func (h *Binlog) Close() {
 	}
 	h.handler.Close()
 	h.is_connected = false
-	close(h.binlog_handler.chan_save_position)
+	close(h.BinlogHandler.chan_save_position)
+	//for _, service := range h.BinlogHandler.services {
+	//	service.(services.Service).Close()
+	//}
 }
 
 func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
@@ -322,82 +354,32 @@ func (h *Binlog) writeCache() {
 	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
 	for {
 		select {
-		case pos := <-h.binlog_handler.chan_save_position:
+		case pos := <-h.BinlogHandler.chan_save_position:
 			if pos.pos.Name != "" && pos.pos.Pos > 0 {
 				wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
 			}
 		}
 	}
 }
-func (h *Binlog) Start(
-	tcp_service *services.TcpService,
-	websocket_service *services.WebSocketService,
-	http_service *services.HttpService) {
 
-	// 服务支持
-	tcp_service.Start()
-	websocket_service.Start()
-	http_service.Start()
 
-	config_file := file.GetCurrentPath() + "/config/canal.toml"
-	cfg, err := canal.NewConfigWithFile(config_file)
-	if err != nil {
-		log.Panic("binlog错误：", err)
-		os.Exit(1)
-	}
-	log.Debug("binlog配置：", cfg)
-	/*
-	cfg         := canal.NewDefaultConfig()
-	cfg.Addr     = fmt.Sprintf("%s:%d", h.DB_Config.Mysql.Host, h.DB_Config.Mysql.Port)
-	cfg.User     = h.DB_Config.Mysql.User
-	cfg.Password = h.DB_Config.Mysql.Password
-	cfg.Flavor   = "mysql"
-
-	cfg.ReadTimeout        = 90*time.Second//*readTimeout
-	cfg.HeartbeatPeriod    = 10*time.Second//*heartbeatPeriod
-	cfg.ServerID           = uint32(h.DB_Config.Client.Slave_id)
-	cfg.Dump.ExecutionPath = ""//mysqldump" 不支持mysqldump写为空
-	cfg.Dump.DiscardErr    = false
-
-	var err error*/
-	h.handler, err = canal.NewCanal(cfg)
-	if err != nil {
-		log.Panic("binlog创建canal错误：", err)
-		os.Exit(1)
-	}
-	//log.Println("binlog忽略的表", h.DB_Config.Client.Ignore_tables)
-	//for _, v := range h.DB_Config.Client.Ignore_tables {
-	//	db_table := strings.Split(v, ".")
-	//	h.handler.AddDumpIgnoreTables(db_table[0], db_table[1])
-	//}
-	f, p, index := h.GetBinlogPositionCache()
-	h.binlog_handler = binlogHandler{Event_index: index}
-	var b [defaultBufSize]byte
-	h.binlog_handler.buf = b[:0]
-	// 3种服务
-	h.binlog_handler.tcp_service        = tcp_service
-	h.binlog_handler.websocket_service  = websocket_service
-	h.binlog_handler.http_service       = http_service
-	h.binlog_handler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
-	h.handler.SetEventHandler(&h.binlog_handler)
-	h.is_connected = true
-	bin_file := h.Config.BinFile
-	bin_pos  := h.Config.BinPos
-	if f != "" {
-		bin_file = f
-	}
-	if p > 0 {
-		bin_pos = p
-	}
+func (h *Binlog) Start() {
+	h.BinlogHandler.TcpService.Start()
+	h.BinlogHandler.WebsocketService.Start()
+	h.BinlogHandler.HttpService.Start()
+	h.BinlogHandler.Kafka.Start()
+	log.Println("binlog调试：", h.Config.BinFile, uint32(h.Config.BinPos))
 	go h.writeCache()
 	go func() {
 		startPos := mysql.Position{
-			Name: bin_file,
-			Pos:  uint32(bin_pos),
+			Name: h.Config.BinFile,
+			Pos:  uint32(h.Config.BinPos),
 		}
-		err = h.handler.RunFrom(startPos)
+		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			log.Fatalf("start canal err %v", err)
+			log.Fatalf("binlog服务：start canal err %v", err)
+			return
 		}
+		h.is_connected = true
 	}()
 }

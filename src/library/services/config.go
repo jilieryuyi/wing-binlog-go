@@ -3,12 +3,21 @@ package services
 import (
     "github.com/BurntSushi/toml"
     "github.com/gorilla/websocket"
+    kafka "github.com/segmentio/kafka-go"
     "library/file"
     log "github.com/sirupsen/logrus"
     "errors"
     "sync"
     "net"
 )
+// 标准服务接口
+type Service interface {
+    // 发送消息
+    SendAll(msg []byte) bool
+    // 开始服务
+    Start()
+    Close()
+}
 
 type tcpGroupConfig struct {
     Mode int     // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
@@ -50,6 +59,7 @@ type websocketClientNode struct {
 }
 
 type WebSocketService struct {
+    Service
     Ip string                             // 监听ip
     Port int                              // 监听端口
     recv_times int64                      // 收到消息的次数
@@ -78,6 +88,7 @@ type tcpClientNode struct {
 }
 
 type TcpService struct {
+    Service
     Ip string                             // 监听ip
     Port int                              // 监听端口
     recv_times int64                      // 收到消息的次数
@@ -92,6 +103,7 @@ type TcpService struct {
 }
 
 type HttpService struct {
+    Service
     send_queue chan []byte     // 发送channel
     groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
     groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
@@ -114,6 +126,14 @@ type httpNode struct {
     cache_index int
     cache_is_init bool
     cache_full bool
+}
+
+type WKafka struct {
+    Service
+    writer *kafka.Writer
+    is_closed bool
+    lock *sync.Mutex
+    send_queue chan []byte
 }
 
 var (

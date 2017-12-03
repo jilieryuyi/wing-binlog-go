@@ -51,7 +51,7 @@ type Binlog struct {
 	Config *AppConfig
 	handler *canal.Canal
 	is_connected bool
-	binlog_handler binlogHandler
+	BinlogHandler binlogHandler
 }
 
 type positionCache struct {
@@ -70,9 +70,10 @@ type binlogHandler struct {
 	canal.DummyEventHandler
 	chan_save_position chan positionCache
 	buf               []byte
-	tcp_service       *services.TcpService
-	websocket_service *services.WebSocketService
-	http_service      *services.HttpService
+	TcpService *services.TcpService
+	WebsocketService *services.WebSocketService
+	HttpService *services.HttpService
+	Kafka *services.WKafka
 }
 
 // 获取mysql配置

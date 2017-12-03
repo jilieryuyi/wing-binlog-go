@@ -268,3 +268,7 @@ func (client *HttpService) SendAll(msg []byte) bool {
     client.send_queue <- msg
     return true
 }
+
+func (client *HttpService) Close() {
+
+}
