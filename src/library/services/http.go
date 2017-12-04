@@ -133,7 +133,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 			}
 		}
 		node.lock.Unlock()
-		time.Sleep(time.Second*3)
+		time.Sleep(time.Second)
 	}
 }
 
