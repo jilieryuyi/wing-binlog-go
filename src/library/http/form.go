@@ -7,6 +7,8 @@ import (
 	"time"
 	"io/ioutil"
 	log "github.com/sirupsen/logrus"
+	"errors"
+	"fmt"
 )
 
 func Post(addr string, post_data []byte) ([]byte, error) {
@@ -40,8 +42,8 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	// 判断返回状态
 	if resp.StatusCode != http.StatusOK {
 		// 返回异常状态
-		log.Println("http post error, error status back: ", resp.StatusCode)
-		return nil, ErrorHttpStatus
+		//log.Errorf("http post error, error status back: %d", resp.StatusCode)
+		return nil, errors.New(fmt.Sprintf("错误的状态码：%d", resp.StatusCode))//ErrorHttpStatus
 	}
 	res, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
