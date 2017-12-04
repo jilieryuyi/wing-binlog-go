@@ -25,6 +25,7 @@ func NewKafkaService() *WKafka {
 		is_closed  : false,
 		lock       : new(sync.Mutex),
 		send_queue : make(chan []byte, TCP_MAX_SEND_QUEUE),
+		enable     : config.Enable,
 	}
 }
 
@@ -39,6 +40,9 @@ func (wk *WKafka) SendAll(msg []byte) bool {
 }
 
 func (wk *WKafka) Start() {
+	if !wk.enable {
+		return
+	}
 	go func() {
 		for {
 			if wk.is_closed {
