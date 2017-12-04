@@ -44,17 +44,19 @@ rm wing-binlog-go
 ##配置文件目录不存在即复制配置文件
 if [ ! -d "${bin_path}/config" ]
 then
+    mkdir ${current_path}/bin/config/
 	cp -rf ${current_path}/src/config/* ${current_path}/bin/config/
 fi
 
 ##Web文件目录不存在即复制Web文件
-##if [ ! -d "${bin_path}/web" ]
-##then
-	cp -rf ${current_path}/web/* ${current_path}/bin/web/
-##fi
+if [ ! -d "${bin_path}/web" ]
+then
+	mkdir ${current_path}/bin/web/
+fi
 
 ##cp -rf ${current_path}/src/library ${current_path}/vendor/
 ##cp -rf ${vendor_path}/src/* ${vendor_path}
+cp -rf ${current_path}/web/* ${current_path}/bin/web/
 
 echo "build success"
 echo ${current_path}/bin/wing-binlog-go
