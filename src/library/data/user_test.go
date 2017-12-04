@@ -1,10 +1,10 @@
 package data
 
 import (
-    "testing"
+	"testing"
 )
 
 func TestUser_Add(t *testing.T) {
-    u := User{"yuyi", "123456"}
-    u.Add()
+	u := User{"yuyi", "123456"}
+	u.Add()
 }

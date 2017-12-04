@@ -50,7 +50,7 @@ fi
 ##Web文件目录不存在即复制Web文件
 ##if [ ! -d "${bin_path}/web" ]
 ##then
-	cp -rf ${current_path}/web/ ${current_path}/bin/web/
+	cp -rf ${current_path}/web/* ${current_path}/bin/web/
 ##fi
 
 ##cp -rf ${current_path}/src/library ${current_path}/vendor/
