@@ -1,3 +1,3 @@
-enable=true
+enable = true
 brokers = ["172.16.214.194:9092", "172.16.214.195:9092", "172.16.214.196:9092"]
 topic = "wing-binlog-go"
