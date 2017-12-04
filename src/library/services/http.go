@@ -201,7 +201,7 @@ func (client *HttpService) broadcast() {
                 //2字节长度
                 table_len := int(msg[0]) + int(msg[1] << 8);
                 table := string(msg[2:table_len+2])
-                log.Debug("http服务事件发生的数据表：", table_len, table)
+                log.Debugf("http服务事件发生的数据表：%d, %s", table_len, table)
                 //分组过滤
                 //log.Println(filter)
                 if flen > 0 {

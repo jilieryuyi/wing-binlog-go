@@ -53,13 +53,18 @@ func (wk *WKafka) Start() {
 				}
 				table_len := int(msg[0]) + int(msg[1] << 8)
 				event := msg[table_len + 2:]
-				table := msg[:table_len + 2]
-				wk.writer.WriteMessages(context.Background(),
+				table := msg[2:table_len + 2]
+				log.Debugf("kafka服务-发送消息：%s %s", table, event)
+				log.Println(table_len, "--", table, "--", event)
+				err := wk.writer.WriteMessages(context.Background(),
 					kafka.Message{
-						Key:   table,
+						Key: table,
 						Value: event,
 					},
 				)
+				if err != nil {
+					log.Errorf("kafka服务-发送消息错误：%+v", err)
+				}
 			}
 		}
 	} ()
