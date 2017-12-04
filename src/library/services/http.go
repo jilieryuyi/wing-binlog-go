@@ -129,7 +129,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 				//对失败的cache进行重发
 				client.sendCache(node)
 			} else {
-				log.Errorf("http服务-故障节点发生错误")
+				log.Errorf("http服务-故障节点发生错误：%+v", err)
 			}
 		}
 		node.lock.Unlock()
