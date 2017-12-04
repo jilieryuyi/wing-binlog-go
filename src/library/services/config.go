@@ -1,22 +1,22 @@
 package services
 
 import (
-    "github.com/BurntSushi/toml"
-    "github.com/gorilla/websocket"
-    kafka "github.com/segmentio/kafka-go"
-    "library/file"
-    log "github.com/sirupsen/logrus"
-    "errors"
-    "sync"
-    "net"
+	"github.com/BurntSushi/toml"
+	"github.com/gorilla/websocket"
+	kafka "github.com/segmentio/kafka-go"
+	"library/file"
+	log "github.com/sirupsen/logrus"
+	"errors"
+	"sync"
+	"net"
 )
 // 标准服务接口
 type Service interface {
-    // 发送消息
-    SendAll(msg []byte) bool
-    // 开始服务
-    Start()
-    Close()
+	// 发送消息
+	SendAll(msg []byte) bool
+	// 开始服务
+	Start()
+	Close()
 }
 
 type tcpGroupConfig struct {
@@ -59,18 +59,18 @@ type websocketClientNode struct {
 }
 
 type WebSocketService struct {
-    Service
-    Ip string                             // 监听ip
-    Port int                              // 监听端口
-    recv_times int64                      // 收到消息的次数
-    send_times int64                      // 发送消息的次数
-    send_failure_times int64              // 发送失败的次数
-    send_queue chan []byte                // 发送队列-广播
-    lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-    groups map[string][]*websocketClientNode // 客户端分组，现在支持两种分组，广播组合负载均衡组
-    groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
-    groups_filter map[string] []string    // 分组的过滤器
-    clients_count int32                   // 成功连接（已经进入分组）的客户端数量
+	Service
+	Ip string                             // 监听ip
+	Port int                              // 监听端口
+	recv_times int64                      // 收到消息的次数
+	send_times int64                      // 发送消息的次数
+	send_failure_times int64              // 发送失败的次数
+	send_queue chan []byte                // 发送队列-广播
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	groups map[string][]*websocketClientNode // 客户端分组，现在支持两种分组，广播组合负载均衡组
+	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
+	groups_filter map[string] []string    // 分组的过滤器
+	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
 type tcpClientNode struct {
@@ -88,29 +88,29 @@ type tcpClientNode struct {
 }
 
 type TcpService struct {
-    Service
-    Ip string                             // 监听ip
-    Port int                              // 监听端口
-    recv_times int64                      // 收到消息的次数
-    send_times int64                      // 发送消息的次数
-    send_failure_times int64              // 发送失败的次数
-    send_queue chan []byte                // 发送队列-广播
-    lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-    groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
-    groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
-    groups_filter map[string] []string    // 分组的过滤器
-    clients_count int32                   // 成功连接（已经进入分组）的客户端数量
+	Service
+	Ip string                             // 监听ip
+	Port int                              // 监听端口
+	recv_times int64                      // 收到消息的次数
+	send_times int64                      // 发送消息的次数
+	send_failure_times int64              // 发送失败的次数
+	send_queue chan []byte                // 发送队列-广播
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
+	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
+	groups_filter map[string] []string    // 分组的过滤器
+	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 }
 
 type HttpService struct {
-    Service
-    send_queue chan []byte     // 发送channel
-    groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
-    groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
-    groups_filter [][]string   // 分组过滤器
-    lock *sync.Mutex           // 互斥锁，修改资源时锁定
-    send_failure_times int64   // 发送失败次数
-    enable bool
+	Service
+	send_queue chan []byte     // 发送channel
+	groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
+	groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
+	groups_filter [][]string   // 分组过滤器
+	lock *sync.Mutex           // 互斥锁，修改资源时锁定
+	send_failure_times int64   // 发送失败次数
+	enable bool
 }
 
 type httpNode struct {
@@ -129,16 +129,18 @@ type httpNode struct {
 }
 
 type WKafka struct {
-    Service
-    writer *kafka.Writer
-    is_closed bool
-    lock *sync.Mutex
-    send_queue chan []byte
+	Service
+	writer *kafka.Writer
+	is_closed bool
+	lock *sync.Mutex
+	send_queue chan []byte
+	enable bool
 }
 
 type KafkaConfig struct {
-    Borkers []string `toml:"brokers"`
-    Topic string `toml:"topic"`
+	Borkers []string `toml:"brokers"`
+	Topic string `toml:"topic"`
+	Enable bool `toml: "enable"`
 }
 
 var (
@@ -168,18 +170,18 @@ const (
 )
 
 func getKafkaConfig() (*KafkaConfig, error) {
-    var config KafkaConfig
-    config_file := file.GetCurrentPath() + "/config/kafka.toml"
-    wfile := file.WFile{config_file}
-    if !wfile.Exists() {
-        log.Errorf("配置文件%s不存在 %s", config_file)
-        return nil, ErrorFileNotFound
-    }
-    if _, err := toml.DecodeFile(config_file, &config); err != nil {
-        log.Errorf("配置文件解析错误：%+v", err)
-        return nil, ErrorFileParse
-    }
-    return &config, nil
+	var config KafkaConfig
+	config_file := file.GetCurrentPath() + "/config/kafka.toml"
+	wfile := file.WFile{config_file}
+	if !wfile.Exists() {
+		log.Errorf("配置文件%s不存在 %s", config_file)
+		return nil, ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(config_file, &config); err != nil {
+		log.Errorf("配置文件解析错误：%+v", err)
+		return nil, ErrorFileParse
+	}
+	return &config, nil
 }
 
 func getTcpConfig() (*TcpConfig, error) {
