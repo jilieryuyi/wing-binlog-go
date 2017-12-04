@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 	"io/ioutil"
-	log "github.com/sirupsen/logrus"
+	//log "github.com/sirupsen/logrus"
 	"errors"
 	"fmt"
 )
