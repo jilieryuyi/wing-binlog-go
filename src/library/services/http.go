@@ -120,6 +120,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		if node.is_down {
 			// 发送空包检测
 			// post默认3秒超时，所以这里不会死锁
+			log.Debugf("http服务-故障节点探测：%s", node.url)
 			_, err := http.Post(node.url,[]byte{byte(0)})
 			if err == nil {
 				//重新上线
@@ -127,6 +128,8 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 				log.Warn("http服务节点恢复", node.url)
 				//对失败的cache进行重发
 				client.sendCache(node)
+			} else {
+				log.Errorf("http服务-故障节点发生错误")
 			}
 		}
 		node.lock.Unlock()
