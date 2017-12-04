@@ -215,6 +215,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, table...)
 			buf = append(buf, "{\"database\":\""...)
 			buf = append(buf, e.Table.Schema...)
+			buf = append(buf, "\",\"event\":{\"data\":{"...)
 			rows_len := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				buf = append(buf, "\""...)
