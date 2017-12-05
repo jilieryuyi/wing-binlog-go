@@ -13,6 +13,7 @@ import (
 // 创建一个新的http服务
 func NewHttpService() *HttpService {
 	config, _ := getHttpConfig()
+	log.Debugf("http服务配置：%+v", config)
 	if !config.Enable {
 		return &HttpService{enable:config.Enable}
 	}
@@ -25,6 +26,7 @@ func NewHttpService() *HttpService {
 		groups_filter      : make([][]string, glen),
 		send_failure_times : int64(0),
 		enable             : config.Enable,
+		time_tick          : config.TimeTick,
 	}
 	index := 0
 	for _, v := range config.Groups {
@@ -133,7 +135,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 			}
 		}
 		node.lock.Unlock()
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * time.Duration(client.time_tick))
 	}
 }
 

@@ -18,7 +18,10 @@ import (
 
 func NewBinlog() *Binlog {
 	config, _ := GetMysqlConfig()
-	log.Debug("binlog配置：", config)
+
+	debug_config := config
+	debug_config.Password = "******"
+	log.Debug("binlog配置：", debug_config)
 
 	binlog := &Binlog{
 		Config:config,
