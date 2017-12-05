@@ -117,7 +117,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 		//}
 		if column.IsUnsigned {
 			var ur uint64 = 0
-			ur = uint64(edata.(uint64))
+			ur = uint64(edata.(int64))
 			if ur < 0 {
 				ur = 1 << 63 + (1 << 63 + ur)
 			}
