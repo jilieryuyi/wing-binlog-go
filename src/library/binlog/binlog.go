@@ -33,7 +33,7 @@ func NewBinlog() *Binlog {
 		os.Exit(1)
 	}
 
-	debug_cfg := cfg
+	debug_cfg := *cfg
 	debug_cfg.Password = "******"
 	log.Debugf("binlog配置(cfg)：%+v", debug_cfg)
 	binlog.handler, err = canal.NewCanal(cfg)
