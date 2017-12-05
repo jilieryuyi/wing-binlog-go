@@ -87,7 +87,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 		var r int64 = 0
 		r = int64(edata.(int8))
 		if column.IsUnsigned && r < 0 {
-			r = int64(256 + edata.(int8))
+			r = int64(256 + int(edata.(int8)))
 		}
 		*buf = strconv.AppendInt(*buf, r, 10)
 	case int16:
@@ -112,7 +112,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 		*buf = strconv.AppendFloat(*buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 	default:
 		if edata != nil {
-			log.Warnf("binlog不支持的类型：%s %+v", column_name/*col.Name*/, reflect.TypeOf(edata))
+			log.Warnf("binlog不支持的类型：%s %+v", column.Name/*col.Name*/, reflect.TypeOf(edata))
 			*buf = append(*buf, "\"--unkonw type--\""...)
 		} else {
 			*buf = append(*buf, "NULL"...)
