@@ -38,7 +38,7 @@ func NewBinlog() *Binlog {
 	log.Debugf("binlog配置(cfg)：%+v", debug_cfg)
 	binlog.handler, err = canal.NewCanal(cfg)
 	if err != nil {
-		log.Panic("binlog创建canal错误：", err)
+		log.Panicf("binlog创建canal错误：%+v", err)
 		os.Exit(1)
 	}
 	f, p, index := binlog.GetBinlogPositionCache()
