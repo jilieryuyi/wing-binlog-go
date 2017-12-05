@@ -58,7 +58,7 @@ func NewBinlog() *Binlog {
 }
 
 func (h *binlogHandler) notify(msg []byte) {
-	log.Println("binlog发送广播：", string(msg))
+	log.Debugf("binlog发送广播：%s", string(msg))
 	h.TcpService.SendAll(msg)
 	h.WebsocketService.SendAll(msg)
 	h.HttpService.SendAll(msg)
