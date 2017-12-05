@@ -323,7 +323,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				var edata interface{}
 				if k < rows_len {
 					edata = e.Rows[i][k]
-					fmt.Println(col.Name, reflect.TypeOf(edata))
+					fmt.Println(col.Name, col.RawType, col.Type, reflect.TypeOf(edata))
 				} else {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
