@@ -4,11 +4,12 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
+	"os"
+	"time"
+	"strings"
+	"github.com/siddontang/go-mysql/schema"
 	"sync/atomic"
 	"fmt"
-	"time"
-	"os"
-	"strings"
 	log "github.com/sirupsen/logrus"
 	"strconv"
 	"library/file"
@@ -65,7 +66,7 @@ func (h *binlogHandler) notify(msg []byte) {
 	h.Kafka.SendAll(msg)
 }
 
-func (h *binlogHandler) append(buf *[]byte, edata interface{}, column_name string) {
+func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.TableColumn) {
 	switch edata.(type) {
 	case string:
 		*buf = append(*buf, "\""...)
@@ -83,7 +84,12 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column_name strin
 	case int:
 		*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
 	case int8:
-		*buf = strconv.AppendInt(*buf, int64(edata.(int8)), 10)
+		var r int64 = 0
+		r = int64(edata.(int8))
+		if column.IsUnsigned && r < 0 {
+			r = int64(256 + edata.(int8))
+		}
+		*buf = strconv.AppendInt(*buf, r, 10)
 	case int16:
 		*buf = strconv.AppendInt(*buf, int64(edata.(int16)), 10)
 	case int32:
@@ -156,7 +162,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col.Name)
+				h.append(&buf, edata, col)
 				//switch edata.(type) {
 				//case string:
 				//	buf = append(buf, "\""...)
@@ -220,7 +226,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col.Name)
+				h.append(&buf, edata, col)
 				/*switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
@@ -307,7 +313,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col.Name)
+				h.append(&buf, edata, col)
 				/*switch edata.(type) {
 				case string:
 					buf = append(buf, "\""...)
