@@ -21,7 +21,7 @@ func NewBinlog() *Binlog {
 
 	debug_config := config
 	debug_config.Password = "******"
-	log.Debug("binlog配置：", debug_config)
+	log.Debugf("binlog配置：%+v", debug_config)
 
 	binlog := &Binlog{
 		Config:config,
@@ -35,7 +35,7 @@ func NewBinlog() *Binlog {
 
 	debug_cfg := cfg
 	debug_cfg.Password = "******"
-	log.Debug("binlog配置(cfg)：", debug_cfg)
+	log.Debugf("binlog配置(cfg)：%+v", debug_cfg)
 	binlog.handler, err = canal.NewCanal(cfg)
 	if err != nil {
 		log.Panic("binlog创建canal错误：", err)
