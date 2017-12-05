@@ -125,6 +125,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	// delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
+	fmt.Println(e.Rows)
 	columns_len := len(e.Table.Columns)
 	log.Debugf("binlog缓冲区详细信息: %d %d", len(h.buf), cap(h.buf))
 	db    := []byte(e.Table.Schema)
@@ -301,6 +302,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				var edata interface{}
 				if k < rows_len {
 					edata = e.Rows[i][k]
+					fmt.Println(col.Name, reflect.TypeOf(edata))
 				} else {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
