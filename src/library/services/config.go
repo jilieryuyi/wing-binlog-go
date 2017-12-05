@@ -36,6 +36,7 @@ type TcpConfig struct {
 
 type HttpConfig struct {
 	Enable bool
+	TimeTick int //故障检测的时间间隔，单位为秒
 	Groups map[string]httpNodeConfig
 }
 
@@ -111,6 +112,7 @@ type HttpService struct {
 	lock *sync.Mutex           // 互斥锁，修改资源时锁定
 	send_failure_times int64   // 发送失败次数
 	enable bool
+	time_tick int              // 故障检测的时间间隔
 }
 
 type httpNode struct {
@@ -210,6 +212,9 @@ func getHttpConfig() (*HttpConfig, error) {
 	if _, err := toml.DecodeFile(http_config_file, &config); err != nil {
 		log.Println(err)
 		return nil, ErrorFileParse
+	}
+	if config.TimeTick <= 0 {
+		config.TimeTick = 1
 	}
 	return &config, nil
 }
