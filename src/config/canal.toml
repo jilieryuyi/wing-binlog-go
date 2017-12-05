@@ -3,7 +3,7 @@ user      = "root"
 password  = "123456"
 charset   = "utf8"
 server_id = 9999
-flavor    = "mysql" ## mysql或者maridb
+flavor    = "mysql" ## mysql或者mariadb
 
 heartbeat_period = 30000000000 ##单位为纳秒，这里的时间是30秒
 read_timeout     = 0 ##单位为纳秒
