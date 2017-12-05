@@ -32,7 +32,10 @@ func NewBinlog() *Binlog {
 		log.Panic("binlog错误：", err)
 		os.Exit(1)
 	}
-	log.Debug("binlog配置：", cfg)
+
+	debug_cfg := cfg
+	debug_cfg.Password = "******"
+	log.Debug("binlog配置(cfg)：", debug_cfg)
 	binlog.handler, err = canal.NewCanal(cfg)
 	if err != nil {
 		log.Panic("binlog创建canal错误：", err)
