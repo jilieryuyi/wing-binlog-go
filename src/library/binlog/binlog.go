@@ -115,7 +115,16 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 		//if column.IsUnsigned && r < 0 {
 		//	r = 1 << 64 + int64(edata.(int64))
 		//}
-		*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+		if column.IsUnsigned {
+			var ur uint64 = 0
+			ur = uint64(edata.(uint64))
+			if ur < 0 {
+				ur = 1 << 64 + ur
+			}
+			strconv.AppendUint(*buf, ur, 10)
+		} else {
+			*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+		}
 	case uint:
 		*buf = strconv.AppendUint(*buf, uint64(edata.(uint)), 10)
 	case uint8:
