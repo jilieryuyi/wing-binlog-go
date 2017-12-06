@@ -59,7 +59,7 @@ func NewBinlog() *Binlog {
 }
 
 func (h *binlogHandler) notify(msg []byte) {
-	log.Debugf("binlog发送广播：%s", string(msg))
+	log.Debug("binlog发送广播：", msg, string(msg))
 	h.TcpService.SendAll(msg)
 	h.WebsocketService.SendAll(msg)
 	h.HttpService.SendAll(msg)
@@ -72,6 +72,7 @@ func (h *binlogHandler) getPoint(str string) (int, error) {
 	return strconv.Atoi(string([]byte(str)[index+1:index2]))
 }
 func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
+	log.Debugf("%+v,===,%+v", column, reflect.TypeOf(edata))
 	switch edata.(type) {
 	case string:
 		*buf = append(*buf, "\""...)
@@ -84,7 +85,13 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		*buf = append(*buf, "\""...)
 	case []uint8:
 		*buf = append(*buf, "\""...)
-		*buf = append(*buf, edata.([]byte)...)
+		//*buf = append(*buf, edata.([]byte)...)
+		for _, v := range []byte(edata.([]byte)) {
+			if v == 34 {
+				*buf = append(*buf, "\\"...)
+			}
+			*buf = append(*buf, v)
+		}
 		*buf = append(*buf, "\""...)
 	case int:
 		*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
