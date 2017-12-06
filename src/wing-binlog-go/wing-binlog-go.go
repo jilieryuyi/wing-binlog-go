@@ -19,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	_ "library/cluster"
 	"flag"
+	"time"
 )
 
 var (
@@ -61,6 +62,7 @@ func pprofService() {
 }
 
 func init() {
+	time.LoadLocation("Local")
 	pprofService()
 	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
 		ForceColors:true,
