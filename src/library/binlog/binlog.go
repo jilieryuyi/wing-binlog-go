@@ -66,7 +66,12 @@ func (h *binlogHandler) notify(msg []byte) {
 	h.Kafka.SendAll(msg)
 }
 
-func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.TableColumn) {
+func (h *binlogHandler) getPoint(str string) (int, error) {
+	index := strings.IndexByte(str, 44)
+	index2 := strings.IndexByte(str, 41)
+	return strconv.Atoi(string([]byte(str)[index+1:index2]))
+}
+func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
 	switch edata.(type) {
 	case string:
 		*buf = append(*buf, "\""...)
@@ -110,20 +115,36 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 		}
 		*buf = strconv.AppendInt(*buf, r, 10)
 	case int64:
-		//var r int64 = 0
-		//r = int64(edata.(int64))
-		//if column.IsUnsigned && r < 0 {
-		//	r = 1 << 64 + int64(edata.(int64))
-		//}
-		if column.IsUnsigned {
-			var ur uint64 = 0
-			ur = uint64(edata.(int64))
-			if ur < 0 {
-				ur = 1 << 63 + (1 << 63 + ur)
-			}
-			*buf = strconv.AppendUint(*buf, ur, 10)
+		// 枚举类型支持
+		t := []byte(column.RawType)
+		if len(t) > 4 && (string(t[0:4]) == "enum" || string(t[0:3]) == "set") {
+				index := strings.IndexByte(column.RawType, 40)
+				index2 := strings.IndexByte(column.RawType, 41)
+				temp := t[index+1:index2]
+				arr := strings.Split(string(temp), ",")
+				for k, v := range arr {
+					arr[k] = string([]byte(v)[1:len(v)-1])
+				}
+				log.Debugf("%+v,  %d", arr, int(edata.(int64)))
+				i := int(edata.(int64))
+				if string(t[0:3]) == "set" {
+					i--
+				}
+				str := arr[i]
+				*buf = append(*buf, "\""...)
+				*buf = append(*buf, str...)
+				*buf = append(*buf, "\""...)
 		} else {
-			*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+			if column.IsUnsigned {
+				var ur uint64 = 0
+				ur = uint64(edata.(int64))
+				if ur < 0 {
+					ur = 1<<63 + (1<<63 + ur)
+				}
+				*buf = strconv.AppendUint(*buf, ur, 10)
+			} else {
+				*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+			}
 		}
 	case uint:
 		*buf = strconv.AppendUint(*buf, uint64(edata.(uint)), 10)
@@ -136,7 +157,8 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column schema.Tab
 	case uint64:
 		*buf = strconv.AppendUint(*buf, uint64(edata.(uint64)), 10)
 	case float64:
-		*buf = strconv.AppendFloat(*buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
+		p, _:= h.getPoint(column.RawType)
+		*buf = strconv.AppendFloat(*buf, edata.(float64), 'f', p, 64)
 	case float32:
 		*buf = strconv.AppendFloat(*buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
 	default:
@@ -191,53 +213,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col)
-				//switch edata.(type) {
-				//case string:
-				//	buf = append(buf, "\""...)
-				//	for _, v := range []byte(edata.(string)) {
-				//		if v == 34 {
-				//			buf = append(buf, "\\"...)
-				//		}
-				//		buf = append(buf, v)
-				//	}
-				//	buf = append(buf, "\""...)
-				//case []uint8:
-				//	buf = append(buf, "\""...)
-				//	buf = append(buf, edata.([]byte)...)
-				//	buf = append(buf, "\""...)
-				//case int:
-				//	buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
-				//case int8:
-				//	buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
-				//case int16:
-				//	buf = strconv.AppendInt(buf, int64(edata.(int16)), 10)
-				//case int32:
-				//	buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
-				//case int64:
-				//	buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
-				//case uint:
-				//	buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
-				//case uint8:
-				//	buf = strconv.AppendUint(buf, uint64(edata.(uint8)), 10)
-				//case uint16:
-				//	buf = strconv.AppendUint(buf, uint64(edata.(uint16)), 10)
-				//case uint32:
-				//	buf = strconv.AppendUint(buf, uint64(edata.(uint32)), 10)
-				//case uint64:
-				//	buf = strconv.AppendUint(buf, uint64(edata.(uint64)), 10)
-				//case float64:
-				//	buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
-				//case float32:
-				//	buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
-				//default:
-				//	if edata != nil {
-				//		log.Warnf("binlog不支持的类型：%s %+v", col.Name, reflect.TypeOf(edata))
-				//		buf = append(buf, "\"--unkonw type--\""...)
-				//	} else {
-				//		buf = append(buf, "NULL"...)
-				//	}
-				//}
+				h.append(&buf, edata, &col)
 				if k < columns_len - 1 {
 					buf = append(buf, ","...)
 				}
@@ -255,53 +231,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col)
-				/*switch edata.(type) {
-				case string:
-					buf = append(buf, "\""...)
-					for _, v := range []byte(edata.(string)) {
-						if v == 34 {
-							buf = append(buf, "\\"...)
-						}
-						buf = append(buf, v)
-					}
-					buf = append(buf, "\""...)
-				case []uint8:
-					buf = append(buf, "\""...)
-					buf = append(buf, edata.([]byte)...)
-					buf = append(buf, "\""...)
-				case int:
-					buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
-				case int8:
-					buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
-				case int16:
-					buf = strconv.AppendInt(buf, int64(edata.(int16)), 10)
-				case int32:
-					buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
-				case int64:
-					buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
-				case uint:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
-				case uint8:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint8)), 10)
-				case uint16:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint16)), 10)
-				case uint32:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint32)), 10)
-				case uint64:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint64)), 10)
-				case float64:
-					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 32)
-				case float32:
-					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
-				default:
-					if edata != nil {
-						log.Warnf("binlog不支持的类型：%s %+v", col.Name, reflect.TypeOf(edata))
-						buf = append(buf, "\"--unkonw type--\""...)
-					} else {
-						buf = append(buf, "NULL"...)
-					}
-				}*/
+				h.append(&buf, edata, &col)
 				if k < columns_len - 1 {
 					buf = append(buf, ","...)
 				}
@@ -337,58 +267,11 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 				var edata interface{}
 				if k < rows_len {
 					edata = e.Rows[i][k]
-					fmt.Println(col.Name, col.RawType, col.Type, reflect.TypeOf(edata))
 				} else {
 					log.Warn("binlog未知的行", col.Name)
 					edata = nil
 				}
-				h.append(&buf, edata, col)
-				/*switch edata.(type) {
-				case string:
-					buf = append(buf, "\""...)
-					for _, v := range []byte(edata.(string)){
-						if v == 34 {
-							buf = append(buf, "\\"...)
-						}
-						buf = append(buf, v)
-					}
-					buf = append(buf, "\""...)
-				case []uint8:
-					buf = append(buf, "\""...)
-					buf = append(buf, string(edata.([]byte))...)
-					buf = append(buf, "\""...)
-				case int:
-					buf = strconv.AppendInt(buf, int64(edata.(int)), 10)
-				case int8:
-					buf = strconv.AppendInt(buf, int64(edata.(int8)), 10)
-				case int16:
-					buf = strconv.AppendInt(buf, int64(edata.(int16)), 10)
-				case int32:
-					buf = strconv.AppendInt(buf, int64(edata.(int32)), 10)
-				case int64:
-					buf = strconv.AppendInt(buf, int64(edata.(int64)), 10)
-				case uint:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint)), 10)
-				case uint8:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint8)), 10)
-				case uint16:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint16)), 10)
-				case uint32:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint32)), 10)
-				case uint64:
-					buf = strconv.AppendUint(buf, uint64(edata.(uint64)), 10)
-				case float64:
-					buf = strconv.AppendFloat(buf, edata.(float64), 'f', DEFAULT_FLOAT_PREC, 64)
-				case float32:
-					buf = strconv.AppendFloat(buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 64)
-				default:
-					if edata != nil {
-						log.Warnf("binlog不支持的类型：%s %+v", col.Name, reflect.TypeOf(edata))
-						buf = append(buf, "\"--unkonw type--\""...)
-					} else {
-						buf = append(buf, "NULL"...)
-					}
-				}*/
+				h.append(&buf, edata, &col)
 				if k < columns_len - 1 {
 					buf = append(buf, ","...)
 				}
