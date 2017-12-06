@@ -59,7 +59,6 @@ func (wk *WKafka) Start() {
 				event := msg[table_len + 2:]
 				table := msg[2:table_len + 2]
 				log.Debugf("kafka服务-发送消息：%s %s", table, event)
-				log.Println(table_len, "--", table, "--", event)
 				err := wk.writer.WriteMessages(context.Background(),
 					kafka.Message{
 						Key: table,
