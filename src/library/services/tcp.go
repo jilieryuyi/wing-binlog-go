@@ -94,6 +94,10 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 					continue
 				}
 				log.Info("tcp服务-发送广播消息")
+				if len(conn.send_queue) >= cap(conn.send_queue) {
+					log.Warnf("tcp服务-发送缓冲区满：%s", (*conn.conn).RemoteAddr().String())
+					continue
+				}
 				conn.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
 			}
 		} else {
@@ -118,11 +122,14 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 				}
 			}
 			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
-			target.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))
+			if len(target.send_queue) >= cap(target.send_queue) {
+				log.Warnf("tcp服务-发送缓冲区满：%s", (*target.conn).RemoteAddr().String())
+			} else {
+				target.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))
+			}
 		}
 	}
 	tcp.lock.Unlock()
-
 	return true
 }
 
