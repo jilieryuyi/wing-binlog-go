@@ -16,7 +16,8 @@ import (
 	"library/services"
 	wstring "library/string"
 	"reflect"
-	"net/url"
+	//"net/url"
+	"unicode/utf8"
 )
 
 func NewBinlog() *Binlog {
@@ -83,21 +84,97 @@ func (h *binlogHandler) getPoint(str string) (int, error) {
 	index2 := strings.IndexByte(str, 41)
 	return strconv.Atoi(string([]byte(str)[index+1:index2]))
 }
+
+func (h *binlogHandler) encode(buf *[]byte, s string) {
+	*buf = append(*buf, '"')
+	start := 0
+	for i := 0; i < len(s); {
+		if b := s[i]; b < utf8.RuneSelf {
+			if htmlSafeSet[b] {
+				i++
+				continue
+			}
+			if start < i {
+				*buf = append(*buf, s[start:i]...)
+			}
+			switch b {
+				case '\\', '"':
+					*buf = append(*buf, '\\')
+					*buf = append(*buf, b)
+				case '\n':
+					*buf = append(*buf, '\\')
+					*buf = append(*buf, 'n')
+				case '\r':
+					*buf = append(*buf, '\\')
+					*buf = append(*buf, 'r')
+				case '\t':
+					*buf = append(*buf, '\\')
+					*buf = append(*buf, 't')
+				default:
+				// This encodes bytes < 0x20 except for \t, \n and \r.
+				// If escapeHTML is set, it also escapes <, >, and &
+				// because they can lead to security holes when
+				// user-controlled strings are rendered into JSON
+				// and served to some browsers.
+				*buf = append(*buf, `\u00`...)
+				*buf = append(*buf, hex[b>>4])
+				*buf = append(*buf, hex[b&0xF])
+			}
+			i++
+			start = i
+			continue
+		}
+		c, size := utf8.DecodeRuneInString(s[i:])
+		if c == utf8.RuneError && size == 1 {
+			if start < i {
+				*buf = append(*buf, s[start:i]...)
+			}
+			*buf = append(*buf, `\ufffd`...)
+			i += size
+			start = i
+			continue
+		}
+		// U+2028 is LINE SEPARATOR.
+		// U+2029 is PARAGRAPH SEPARATOR.
+		// They are both technically valid characters in JSON strings,
+		// but don't work in JSONP, which has to be evaluated as JavaScript,
+		// and can lead to security holes there. It is valid JSON to
+		// escape them, so we do so unconditionally.
+		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
+		if c == '\u2028' || c == '\u2029' {
+			if start < i {
+				*buf = append(*buf, s[start:i]...)
+			}
+			*buf = append(*buf, `\u202`...)
+			*buf = append(*buf, hex[c&0xF])
+			i += size
+			start = i
+			continue
+		}
+		i += size
+	}
+	if start < len(s) {
+		*buf = append(*buf, s[start:]...)
+	}
+	*buf = append(*buf, '"')
+}
+
 func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
-	log.Debugf("%+v,===,%+v", column, reflect.TypeOf(edata))
+	log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
 	switch edata.(type) {
 	case string:
-		*buf = append(*buf, "\""...)
+		//*buf = append(*buf, "\""...)
 		//for _, v := range []byte(edata.(string)) {
 		//	if v == 34 {
 		//		*buf = append(*buf, "\\"...)
 		//	}
 		//	*buf = append(*buf, v)
 		//}
-		*buf = append(*buf, url.QueryEscape(edata.(string))...)
-		*buf = append(*buf, "\""...)
+		//*buf = append(*buf, url.QueryEscape(edata.(string))...)
+		//*buf = append(*buf, "\""...)
+		h.encode(buf, edata.(string))
 	case []uint8:
-		*buf = append(*buf, "\""...)
+		//*buf = append(*buf, "\""...)
 		//*buf = append(*buf, edata.([]byte)...)
 		//for _, v := range []byte(edata.([]byte)) {
 		//	if v == 34 {
@@ -105,8 +182,9 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		//	}
 		//	*buf = append(*buf, v)
 		//}
-		*buf = append(*buf, url.QueryEscape(string(edata.([]byte)))...)
-		*buf = append(*buf, "\""...)
+		//*buf = append(*buf, url.QueryEscape(string(edata.([]byte)))...)
+		//*buf = append(*buf, "\""...)
+		h.encode(buf, string(edata.([]byte)))
 	case int:
 		*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
 	case int8:
@@ -137,31 +215,29 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		*buf = strconv.AppendInt(*buf, r, 10)
 	case int64:
 		// 枚举类型支持
-		t := []byte(column.RawType)
-		if len(t) > 4 && (string(t[0:4]) == "enum" || string(t[0:3]) == "set") {
-			index := strings.IndexByte(column.RawType, 40)
-			index2 := strings.IndexByte(column.RawType, 41)
-			temp := t[index+1:index2]
-			arr := strings.Split(string(temp), ",")
-			for k, v := range arr {
-				arr[k] = string([]byte(v)[1:len(v)-1])
+		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
+			i   := int(edata.(int64))-1
+			str := column.EnumValues[i]
+			h.encode(buf, str)
+		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
+			v   := uint(edata.(int64))
+			l   := uint(len(column.SetValues))
+			res := ""
+			for i := uint(0); i < l; i++  {
+				if (v & (1 << i)) > 0 {
+					if res != "" {
+						res += ","
+					}
+					res += column.SetValues[i]
+				}
 			}
-			log.Debugf("%+v,  %d", arr, int(edata.(int64)))
-			i := int(edata.(int64))-1
-			//if string(t[0:3]) == "set" {
-			//	i--
-			//}
-			str := arr[i]
-			*buf = append(*buf, "\""...)
-			//*buf = append(*buf, str...)
-			*buf = append(*buf, url.QueryEscape(str)...)
-			*buf = append(*buf, "\""...)
+			h.encode(buf, res)
 		} else {
 			if column.IsUnsigned {
 				var ur uint64 = 0
 				ur = uint64(edata.(int64))
 				if ur < 0 {
-					ur = 1<<63 + (1<<63 + ur)
+					ur = 1 << 63 + (1 << 63 + ur)
 				}
 				*buf = strconv.AppendUint(*buf, ur, 10)
 			} else {
