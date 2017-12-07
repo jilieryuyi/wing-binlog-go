@@ -19,7 +19,6 @@ func NewWebSocketService() *WebSocketService {
 		Port               : config.Tcp.Port,
 		clients_count      : int32(0),
 		lock               : new(sync.Mutex),
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*websocketClientNode),
 		groups_mode        : make(map[string] int),
 		groups_filter      : make(map[string] []string),
@@ -50,88 +49,83 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 		log.Debugf("websocket服务-没有连接的客户端")
 		return false
 	}
-	if len(tcp.send_queue) >= cap(tcp.send_queue) {
-		log.Debugf("websocket服务-发送缓冲区满...")
-		return false
+	//if len(tcp.send_queue) >= cap(tcp.send_queue) {
+	//	log.Debugf("websocket服务-发送缓冲区满...")
+	//	return false
+	//}
+	table_len := int(msg[0]) + int(msg[1] << 8)
+	table     := string(msg[2:table_len+2])
+
+	//tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
+
+	tcp.lock.Lock()
+	for group_name, clients := range tcp.groups {
+		// 如果分组里面没有客户端连接，跳过
+		if len(clients) <= 0 {
+			continue
+		}
+		// 分组的模式
+		mode   := tcp.groups_mode[group_name]
+		filter := tcp.groups_filter[group_name]
+		flen   := len(filter)
+		//2字节长度
+		log.Debugf("websocket服务-数据表：%s", table)
+		log.Debugf("websocket服务：%v", filter)
+		if flen > 0 {
+			is_match := false
+			for _, f := range filter {
+				match, err := regexp.MatchString(f, table)
+				if err != nil {
+					continue
+				}
+				if match {
+					is_match = true
+					break
+				}
+			}
+			if !is_match {
+				continue
+			}
+		}
+		// 如果不等于权重，即广播模式
+		if mode != MODEL_WEIGHT {
+			for _, conn := range clients {
+				if !conn.is_connected {
+					continue
+				}
+				log.Debugf("websocket服务-发送广播消息")
+				conn.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+			}
+		} else {
+			// 负载均衡模式
+			// todo 根据已经send_times的次数负载均衡
+			clen := len(clients)
+			target := clients[0]
+			//将发送次数/权重 作为负载基数，每次选择最小的发送
+			js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
+
+			for i := 1; i < clen; i++ {
+				stimes := atomic.LoadInt64(&clients[i].send_times)
+				if stimes == 0 {
+					//优先发送没有发过的
+					target = clients[i]
+					break
+				}
+				njs := float64(stimes)/float64(clients[i].weight)
+				if njs < js {
+					js = njs
+					target = clients[i]
+				}
+			}
+			log.Debugf("websocket服务-发送权重消息，%s", (*target.conn).RemoteAddr().String())
+			target.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+		}
 	}
-	table_len := int(msg[0]) + int(msg[1] << 8);
-	tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
+	tcp.lock.Unlock()
+
 	return true
 }
 
-func (tcp *WebSocketService) broadcast() {
-	for {
-		select {
-		case  msg := <-tcp.send_queue:
-			tcp.lock.Lock()
-			for group_name, clients := range tcp.groups {
-				// 如果分组里面没有客户端连接，跳过
-				if len(clients) <= 0 {
-					continue
-				}
-				// 分组的模式
-				mode   := tcp.groups_mode[group_name]
-				filter := tcp.groups_filter[group_name]
-				flen   := len(filter)
-				//2字节长度
-				table_len := int(msg[0]) + int(msg[1] << 8);
-				table     := string(msg[2:table_len+2])
-				log.Debugf("websocket服务-数据表：%s", table)
-				log.Debugf("websocket服务：%v", filter)
-				if flen > 0 {
-					is_match := false
-					for _, f := range filter {
-						match, err := regexp.MatchString(f, table)
-						if err != nil {
-							continue
-						}
-						if match {
-							is_match = true
-						}
-					}
-					if !is_match {
-						continue
-					}
-				}
-				// 如果不等于权重，即广播模式
-				if mode != MODEL_WEIGHT {
-					for _, conn := range clients {
-						if !conn.is_connected {
-							continue
-						}
-						log.Debugf("websocket服务-发送广播消息")
-						conn.send_queue <- msg[table_len+2:]
-					}
-				} else {
-					// 负载均衡模式
-					// todo 根据已经send_times的次数负载均衡
-					clen := len(clients)
-					target := clients[0]
-					//将发送次数/权重 作为负载基数，每次选择最小的发送
-					js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-
-					for i := 1; i < clen; i++ {
-						stimes := atomic.LoadInt64(&clients[i].send_times)
-						//conn.send_queue <- msg
-						if stimes == 0 {
-							//优先发送没有发过的
-							target = clients[i]
-							break
-						}
-						njs := float64(stimes)/float64(clients[i].weight)
-						if njs < js {
-							js = njs
-							target = clients[i]
-						}
-					}
-					log.Debugf("websocket服务-发送权重消息，%s", (*target.conn).RemoteAddr().String())
-					target.send_queue <- msg[table_len+2:]
-				}
-			}
-			tcp.lock.Unlock()
-		}
-	}
-}
 
 // 打包tcp响应包 格式为 [包长度-2字节，小端序][指令-2字节][内容]
 func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
@@ -141,17 +135,6 @@ func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	r[0] = byte(cmd)
 	r[1] = byte(cmd >> 8)
 	copy(r[2:], m)
-	return r
-}
-
-func (tcp *WebSocketService) pack2(cmd int, msg []byte, table []byte) []byte {
-	l  := len(msg)
-	tl := len(table)
-	r  := make([]byte, l + 2 + tl)
-	copy(r[0:], table)
-	r[tl+0] = byte(cmd)
-	r[tl+1] = byte(cmd >> 8)
-	copy(r[tl+2:], msg)
 	return r
 }
 
@@ -315,7 +298,6 @@ func (tcp *WebSocketService) Start() {
 		return
 	}
 	log.Infof("websocket服务-等待新的连接...")
-	go tcp.broadcast()
 	go func() {
 		m := martini.Classic()
 		m.Get("/", func(res http.ResponseWriter, req *http.Request) {

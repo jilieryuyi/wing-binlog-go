@@ -66,7 +66,6 @@ type WebSocketService struct {
 	recv_times int64                      // 收到消息的次数
 	send_times int64                      // 发送消息的次数
 	send_failure_times int64              // 发送失败的次数
-	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*websocketClientNode // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
@@ -96,7 +95,6 @@ type TcpService struct {
 	recv_times int64                      // 收到消息的次数
 	send_times int64                      // 发送消息的次数
 	send_failure_times int64              // 发送失败的次数
-	send_queue chan []byte                // 发送队列-广播
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
