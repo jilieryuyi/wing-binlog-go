@@ -236,6 +236,10 @@ func (client *HttpService) SendAll(msg []byte) bool {
 		if mode != MODEL_WEIGHT {
 			for _, conn := range clients {
 				log.Debug("http服务发送广播消息：", conn.url, string(msg[table_len+2:]))
+				if len(conn.send_queue) >= cap(conn.send_queue) {
+					log.Warnf("http服务发送缓冲区满：%s, %s", conn.url, string(msg[table_len+2:]))
+					continue
+				}
 				conn.send_queue <- string(msg[table_len+2:])
 			}
 		} else {
@@ -252,15 +256,19 @@ func (client *HttpService) SendAll(msg []byte) bool {
 					target = clients[i]
 					break
 				}
-				_js := float64(stimes)/float64(clients[i].weight)
-				log.Println("http服务权重基数", float64(stimes), float64(clients[i].weight), _js, js)
-				if _js < js {
-					js = _js
+				njs := float64(stimes)/float64(clients[i].weight)
+				log.Println("http服务权重基数", float64(stimes), float64(clients[i].weight), njs, js)
+				if njs < js {
+					js = njs
 					target = clients[i]
 				}
 			}
 			log.Debug("http服务发送权重消息，", (*target).url, string(msg[table_len+2:]))
-			target.send_queue <- string(msg[table_len+2:])
+			if len(target.send_queue) < cap(target.send_queue) {
+				target.send_queue <- string(msg[table_len+2:])
+			} else {
+				log.Warnf("http服务发送缓冲区满：%s, %s", target.url, string(msg[table_len+2:]))
+			}
 		}
 	}
 	client.lock.Unlock()
