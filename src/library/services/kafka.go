@@ -30,7 +30,10 @@ func NewKafkaService() *WKafka {
 }
 
 func (wk *WKafka) SendAll(msg []byte) bool {
-	log.Info("kafka服务-发送消息")
+	if !wk.enable {
+		return false
+	}
+	log.Info("kafka服务-发送消息：", string(msg))
 	if len(wk.send_queue) >= cap(wk.send_queue) {
 		log.Warn("kafka服务-发送缓冲区满")
 		return false

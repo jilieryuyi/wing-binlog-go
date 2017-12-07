@@ -72,6 +72,7 @@ type WebSocketService struct {
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
+	enable bool
 }
 
 type tcpClientNode struct {
@@ -101,11 +102,12 @@ type TcpService struct {
 	groups_mode map[string] int           // 分组的模式 1，2 广播还是复载均衡
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
+	enable bool
 }
 
 type HttpService struct {
 	Service
-	send_queue chan []byte     // 发送channel
+	//send_queue chan []byte     // 发送channel
 	groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
 	groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
 	groups_filter [][]string   // 分组过滤器
@@ -117,7 +119,7 @@ type HttpService struct {
 
 type httpNode struct {
 	url string                  // url
-	send_queue chan []byte      // 发送channel
+	send_queue chan string      // 发送channel
 	weight int                  // 权重 0 - 100
 	send_times int64            // 发送次数
 	send_failure_times int64    // 发送失败次数

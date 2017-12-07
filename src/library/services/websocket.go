@@ -26,6 +26,7 @@ func NewWebSocketService() *WebSocketService {
 		recv_times         : 0,
 		send_times         : 0,
 		send_failure_times : 0,
+		enable             : config.Enable,
 	}
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocketClientNode
@@ -40,7 +41,10 @@ func NewWebSocketService() *WebSocketService {
 
 // 对外的广播发送接口
 func (tcp *WebSocketService) SendAll(msg []byte) bool {
-	log.Debugf("websocket服务-发送广播")
+	if !tcp.enable {
+		return false
+	}
+	log.Debugf("websocket服务-发送广播：", string(msg))
 	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
 		log.Debugf("websocket服务-没有连接的客户端")
@@ -307,6 +311,9 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 }
 
 func (tcp *WebSocketService) Start() {
+	if !tcp.enable {
+		return
+	}
 	log.Infof("websocket服务-等待新的连接...")
 	go tcp.broadcast()
 	go func() {

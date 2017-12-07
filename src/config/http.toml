@@ -9,7 +9,7 @@ time_tick = 1              ## 故障检测的时间间隔，单位为秒
 [groups]                   ## 配置文件里面的groups不可以改变
     [groups.g1]            ## 这里的g1可以使任意的 "字符串"
      mode   = 1            ## 1 (广播)broadcast or  2 (权重)weight
-     filter = []    ## 只订阅这里添加的表，空[]表示全部，如 ["wordpress.wp_comments","seals.*"]
+     filter = []           ## 只订阅这里添加的表，空[]表示全部，如 ["wordpress.wp_comments","seals.*"]
                            ## 为数组，结构为 ["库.表"]，支持正则
      nodes  = [            ## 所有的广播节点
         [
@@ -28,10 +28,10 @@ time_tick = 1              ## 故障检测的时间间隔，单位为秒
       nodes = [            ## 负载均衡url节点
          [
             "http://test.com/test3.php",
-            "80"           ## 所占权重，必须协程字符串哦
+            "80"           ## 所占权重，必须写成字符串哦
          ],
          [
             "http://test.com/test4.php",
-            "20"           ## 所占权重，必须协程字符串哦
+            "20"           ## 所占权重，必须写成字符串哦
          ]
       ]
