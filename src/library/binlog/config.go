@@ -70,10 +70,13 @@ type binlogHandler struct {
 	canal.DummyEventHandler
 	chan_save_position chan positionCache
 	buf               []byte
-	TcpService *services.TcpService
-	WebsocketService *services.WebSocketService
-	HttpService *services.HttpService
-	Kafka *services.WKafka
+	//TcpService *services.TcpService
+	//WebsocketService *services.WebSocketService
+	//HttpService *services.HttpService
+	//Kafka *services.WKafka
+
+	services []services.Service
+	services_count int
 }
 
 // 获取mysql配置
