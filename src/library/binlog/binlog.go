@@ -22,12 +22,10 @@ import (
 
 func NewBinlog() *Binlog {
 	config, _ := GetMysqlConfig()
-
 	debug_config := config
 	debug_config.Password = "******"
 	log.Debugf("binlog配置：%+v", debug_config)
-
-	binlog := &Binlog{
+	binlog := &Binlog {
 		Config:config,
 	}
 	config_file := file.GetCurrentPath() + "/config/canal.toml"
@@ -36,7 +34,6 @@ func NewBinlog() *Binlog {
 		log.Panic("binlog错误：", err)
 		os.Exit(1)
 	}
-
 	debug_cfg := *cfg
 	debug_cfg.Password = "******"
 	log.Debugf("binlog配置(cfg)：%+v", debug_cfg)
@@ -64,16 +61,14 @@ func NewBinlog() *Binlog {
 	}
 	return binlog
 }
+
 func (h *binlogHandler) RegisterService(s services.Service) {
 	h.services = append(h.services[:h.services_count], s)
 	h.services_count++
 }
+
 func (h *binlogHandler) notify(msg []byte) {
 	log.Debug("binlog发送广播：", msg, string(msg))
-	//h.TcpService.SendAll(msg)
-	//h.WebsocketService.SendAll(msg)
-	//h.HttpService.SendAll(msg)
-	//h.Kafka.SendAll(msg)
 	for _, service := range h.services {
 		service.SendAll(msg)
 	}
