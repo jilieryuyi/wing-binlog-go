@@ -15,6 +15,7 @@ import (
 	"library/file"
 	wstring "library/string"
 	"reflect"
+	"net/url"
 )
 
 func NewBinlog() *Binlog {
@@ -76,22 +77,24 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 	switch edata.(type) {
 	case string:
 		*buf = append(*buf, "\""...)
-		for _, v := range []byte(edata.(string)) {
-			if v == 34 {
-				*buf = append(*buf, "\\"...)
-			}
-			*buf = append(*buf, v)
-		}
+		//for _, v := range []byte(edata.(string)) {
+		//	if v == 34 {
+		//		*buf = append(*buf, "\\"...)
+		//	}
+		//	*buf = append(*buf, v)
+		//}
+		*buf = append(*buf, url.QueryEscape(edata.(string))...)
 		*buf = append(*buf, "\""...)
 	case []uint8:
 		*buf = append(*buf, "\""...)
 		//*buf = append(*buf, edata.([]byte)...)
-		for _, v := range []byte(edata.([]byte)) {
-			if v == 34 {
-				*buf = append(*buf, "\\"...)
-			}
-			*buf = append(*buf, v)
-		}
+		//for _, v := range []byte(edata.([]byte)) {
+		//	if v == 34 {
+		//		*buf = append(*buf, "\\"...)
+		//	}
+		//	*buf = append(*buf, v)
+		//}
+		*buf = append(*buf, url.QueryEscape(string(edata.([]byte)))...)
 		*buf = append(*buf, "\""...)
 	case int:
 		*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
@@ -125,22 +128,23 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		// 枚举类型支持
 		t := []byte(column.RawType)
 		if len(t) > 4 && (string(t[0:4]) == "enum" || string(t[0:3]) == "set") {
-				index := strings.IndexByte(column.RawType, 40)
-				index2 := strings.IndexByte(column.RawType, 41)
-				temp := t[index+1:index2]
-				arr := strings.Split(string(temp), ",")
-				for k, v := range arr {
-					arr[k] = string([]byte(v)[1:len(v)-1])
-				}
-				log.Debugf("%+v,  %d", arr, int(edata.(int64)))
-				i := int(edata.(int64))
-				if string(t[0:3]) == "set" {
-					i--
-				}
-				str := arr[i]
-				*buf = append(*buf, "\""...)
-				*buf = append(*buf, str...)
-				*buf = append(*buf, "\""...)
+			index := strings.IndexByte(column.RawType, 40)
+			index2 := strings.IndexByte(column.RawType, 41)
+			temp := t[index+1:index2]
+			arr := strings.Split(string(temp), ",")
+			for k, v := range arr {
+				arr[k] = string([]byte(v)[1:len(v)-1])
+			}
+			log.Debugf("%+v,  %d", arr, int(edata.(int64)))
+			i := int(edata.(int64))
+			if string(t[0:3]) == "set" {
+				i--
+			}
+			str := arr[i]
+			*buf = append(*buf, "\""...)
+			//*buf = append(*buf, str...)
+			*buf = append(*buf, url.QueryEscape(str)...)
+			*buf = append(*buf, "\""...)
 		} else {
 			if column.IsUnsigned {
 				var ur uint64 = 0
