@@ -103,10 +103,10 @@ func main() {
 	blog := binlog.NewBinlog()
 	defer blog.Close()
 	// 注册服务
-	blog.BinlogHandler.TcpService = tcp_service
-	blog.BinlogHandler.WebsocketService = websocket_service
-	blog.BinlogHandler.HttpService = http_service
-	blog.BinlogHandler.Kafka = kafaka_service
+	blog.BinlogHandler.RegisterService(tcp_service)
+	blog.BinlogHandler.RegisterService(websocket_service)
+	blog.BinlogHandler.RegisterService(http_service)
+	blog.BinlogHandler.RegisterService(kafaka_service)
 	blog.Start()
 
 	sc := make(chan os.Signal, 1)

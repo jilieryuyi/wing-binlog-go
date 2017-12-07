@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"strconv"
 	"library/file"
+	"library/services"
 	wstring "library/string"
 	"reflect"
 	"net/url"
@@ -45,7 +46,11 @@ func NewBinlog() *Binlog {
 	}
 	f, p, index := binlog.GetBinlogPositionCache()
 	var b [defaultBufSize]byte
-	binlog.BinlogHandler = binlogHandler{Event_index: index}
+	binlog.BinlogHandler = binlogHandler{
+		Event_index: index,
+		services:make([]services.Service, 4),
+		services_count:0,
+	}
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
@@ -58,13 +63,19 @@ func NewBinlog() *Binlog {
 	}
 	return binlog
 }
-
+func (h *binlogHandler) RegisterService(s services.Service) {
+	h.services = append(h.services[:h.services_count], s)
+	h.services_count++
+}
 func (h *binlogHandler) notify(msg []byte) {
 	log.Debug("binlog发送广播：", msg, string(msg))
-	h.TcpService.SendAll(msg)
-	h.WebsocketService.SendAll(msg)
-	h.HttpService.SendAll(msg)
-	h.Kafka.SendAll(msg)
+	//h.TcpService.SendAll(msg)
+	//h.WebsocketService.SendAll(msg)
+	//h.HttpService.SendAll(msg)
+	//h.Kafka.SendAll(msg)
+	for _, service := range h.services {
+		service.SendAll(msg)
+	}
 }
 
 func (h *binlogHandler) getPoint(str string) (int, error) {
@@ -136,10 +147,10 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 				arr[k] = string([]byte(v)[1:len(v)-1])
 			}
 			log.Debugf("%+v,  %d", arr, int(edata.(int64)))
-			i := int(edata.(int64))
-			if string(t[0:3]) == "set" {
-				i--
-			}
+			i := int(edata.(int64))-1
+			//if string(t[0:3]) == "set" {
+			//	i--
+			//}
 			str := arr[i]
 			*buf = append(*buf, "\""...)
 			//*buf = append(*buf, str...)
@@ -384,10 +395,15 @@ func (h *Binlog) writeCache() {
 
 
 func (h *Binlog) Start() {
-	h.BinlogHandler.TcpService.Start()
-	h.BinlogHandler.WebsocketService.Start()
-	h.BinlogHandler.HttpService.Start()
-	h.BinlogHandler.Kafka.Start()
+	//h.BinlogHandler.TcpService.Start()
+	//h.BinlogHandler.WebsocketService.Start()
+	//h.BinlogHandler.HttpService.Start()
+	//h.BinlogHandler.Kafka.Start()
+
+	for _, service := range h.BinlogHandler.services {
+		service.Start()
+	}
+
 	log.Println("binlog调试：", h.Config.BinFile, uint32(h.Config.BinPos))
 	go h.writeCache()
 	go func() {
