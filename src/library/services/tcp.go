@@ -17,7 +17,6 @@ func NewTcpService() *TcpService {
 		Port               : config.Tcp.Port,
 		clients_count      : int32(0),
 		lock               : new(sync.Mutex),
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		groups             : make(map[string][]*tcpClientNode),
 		groups_mode        : make(map[string] int),
 		groups_filter      : make(map[string] []string),
@@ -53,7 +52,7 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 	//	return false
 	//}
 	table_len := int(msg[0]) + int(msg[1] << 8)
-	table     := string(msg[:table_len+2])
+	table     := string(msg[2:table_len+2])
 	//tcp.send_queue <-
 	//pack_msg := tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 
@@ -347,10 +346,7 @@ func (tcp *TcpService) Start() {
 			log.Error("tcp服务发生错误：", err)
 			return
 		}
-		defer func() {
-			listen.Close();
-			close(tcp.send_queue)
-		}()
+		defer listen.Close();
 		log.Infof("tcp服务-等待新的连接...")
 		for {
 			conn, err := listen.Accept()
