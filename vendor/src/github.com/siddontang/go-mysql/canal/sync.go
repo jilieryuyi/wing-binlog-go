@@ -16,6 +16,7 @@ import (
 var (
 	expAlterTable  = regexp.MustCompile("(?i)^ALTER\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
 	expRenameTable = regexp.MustCompile("(?i)^RENAME\\sTABLE.*TO\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}$")
+	expDropTable   = regexp.MustCompile("(?i)^DROP\\sTABLE\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
 )
 
 func (c *Canal) startSyncer() (*replication.BinlogStreamer, error) {
@@ -77,10 +78,15 @@ func (c *Canal) runSyncBinlog() error {
 		case *replication.RowsEvent:
 			// we only focus row based event
 			err = c.handleRowsEvent(ev)
-			if err != nil && (errors.Cause(err) != schema.ErrTableNotExist && errors.Cause(err) != schema.ErrMissingTableMeta) {
-				// if error is not ErrTableNotExist or ErrMissingTableMeta, stop canal
-				log.Errorf("handle rows event at (%s, %d) error %v", pos.Name, curPos, err)
-				return errors.Trace(err)
+			if err != nil {
+				e := errors.Cause(err)
+				// if error is not ErrExcludedTable or ErrTableNotExist or ErrMissingTableMeta, stop canal
+				if e != ErrExcludedTable &&
+					e != schema.ErrTableNotExist &&
+					e != schema.ErrMissingTableMeta {
+					log.Errorf("handle rows event at (%s, %d) error %v", pos.Name, curPos, err)
+					return errors.Trace(err)
+				}
 			}
 			continue
 		case *replication.XIDEvent:
@@ -208,6 +214,9 @@ func checkRenameTable(e *replication.QueryEvent) [][]byte {
 	if mb = expAlterTable.FindSubmatch(e.Query); mb != nil {
 		return mb
 	}
-	mb = expRenameTable.FindSubmatch(e.Query)
+	if mb = expRenameTable.FindSubmatch(e.Query); mb != nil {
+		return mb
+	}
+	mb = expDropTable.FindSubmatch(e.Query)
 	return mb
 }
