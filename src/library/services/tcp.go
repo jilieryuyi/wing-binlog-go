@@ -24,6 +24,7 @@ func NewTcpService() *TcpService {
 		recv_times         : 0,
 		send_times         : 0,
 		send_failure_times : 0,
+		enable             : config.Enable,
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
@@ -38,7 +39,10 @@ func NewTcpService() *TcpService {
 
 // 对外的广播发送接口
 func (tcp *TcpService) SendAll(msg []byte) bool {
-	log.Info("tcp服务-广播")
+	if !tcp.enable {
+		return false
+	}
+	log.Info("tcp服务-广播：", string(msg))
 	cc := atomic.LoadInt32(&tcp.clients_count)
 	if cc <= 0 {
 		log.Info("tcp服务-没有连接的客户端")
@@ -337,6 +341,9 @@ func (tcp *TcpService) onMessage(conn *tcpClientNode, msg []byte, size int) {
 }
 
 func (tcp *TcpService) Start() {
+	if !tcp.enable {
+		return
+	}
 	go tcp.broadcast()
 	go func() {
 		//建立socket，监听端口

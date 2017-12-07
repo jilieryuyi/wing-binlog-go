@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"sync"
 	"strconv"
-	"regexp"
 	"library/http"
+	"regexp"
 )
 
 // 创建一个新的http服务
@@ -19,7 +19,7 @@ func NewHttpService() *HttpService {
 	}
 	glen   := len(config.Groups)
 	client := &HttpService {
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+		//send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		lock               : new(sync.Mutex),
 		groups             : make([][]*httpNode, glen),
 		groups_mode        : make([]int, glen),
@@ -41,7 +41,7 @@ func NewHttpService() *HttpService {
 			client.groups[index][i] = &httpNode{
 				url                : v.Nodes[i][0],
 				weight             : w,
-				send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+				send_queue         : make(chan string, TCP_MAX_SEND_QUEUE),
 				send_times         : int64(0),
 				send_failure_times : int64(0),
 				is_down            : false,
@@ -60,7 +60,6 @@ func (client *HttpService) Start() {
 	if !client.enable {
 		return
 	}
-	go client.broadcast()
 	for _, clients :=range client.groups {
 		for _, h := range clients {
 			go client.clientSendService(h)
@@ -102,14 +101,14 @@ func (client *HttpService) sendCache(node *httpNode) {
 			for j := node.cache_index; j < HTTP_CACHE_LEN; j++ {
 				//重发
 				log.Warn( "http服务数据重发(缓冲区满)", node.cache_index)
-				node.send_queue <- node.cache[j]
+				node.send_queue <- string(node.cache[j])
 			}
 			node.cache_full = false
 		}
 		for j := 0; j < node.cache_index; j++ {
 			//重发
 			log.Warnf("http服务数据重发")
-			node.send_queue <- node.cache[j]
+			node.send_queue <- string(node.cache[j])
 			node.cache_index--
 		}
 	}
@@ -145,11 +144,11 @@ func (client *HttpService) clientSendService(node *httpNode) {
 	for {
 		select {
 		case  msg := <-node.send_queue:
-			node.lock.Lock()
 			if !node.is_down {
 				atomic.AddInt64(&node.send_times, int64(1))
-				log.Debug("http服务 post数据到url：", node.url)
-				data, err := http.Post(node.url, msg)
+				log.Debug("http服务 post数据到url：",
+					node.url, string(msg))
+				data, err := http.Post(node.url, []byte(msg))
 				if (err != nil) {
 					atomic.AddInt64(&client.send_failure_times, int64(1))
 					atomic.AddInt64(&node.send_failure_times, int64(1))
@@ -159,15 +158,19 @@ func (client *HttpService) clientSendService(node *httpNode) {
 					if failure_times >= 3 {
 						//发生故障
 						log.Warn(node.url, "http服务发生错误，下线节点", node.url)
+						node.lock.Lock()
 						node.is_down = true
+						node.lock.Unlock()
 					}
 					log.Warn("http服务失败url和次数：", node.url, node.send_failure_times)
 					client.cacheInit(node)
-					client.addCache(node, msg)
+					client.addCache(node, []byte(msg))
 				} else {
+					node.lock.Lock()
 					if node.is_down {
 						node.is_down = false
 					}
+					node.lock.Unlock()
 					failure_times := atomic.LoadInt32(&node.failure_times_flag)
 					//恢复即时清零故障计数
 					if failure_times > 0 {
@@ -181,97 +184,86 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				// 故障节点，缓存需要发送的数据
 				// 这里就需要一个map[string][10000][]byte，最多缓存10000条
 				// 保持最新的10000条
-				client.addCache(node, msg)
+				client.addCache(node, []byte(msg))
 			}
-			node.lock.Unlock()
 		}
 	}
 }
 
-// 广播服务
-func (client *HttpService) broadcast() {
-    for {
-        select {
-        case  msg := <-client.send_queue:
-            client.lock.Lock()
-            for index, clients := range client.groups {
-                // 如果分组里面没有客户端连接，跳过
-                if len(clients) <= 0 {
-                    continue
-                }
-                // 分组的模式
-                mode   := client.groups_mode[index]
-                filter := client.groups_filter[index]
-                flen   := len(filter)
-                //2字节长度
-                table_len := int(msg[0]) + int(msg[1] << 8);
-                table := string(msg[2:table_len+2])
-                log.Debugf("http服务事件发生的数据表：%d, %s", table_len, table)
-                //分组过滤
-                //log.Println(filter)
-                if flen > 0 {
-                    is_match := false
-                    for _, f := range filter {
-                        match, err := regexp.MatchString(f, table)
-                        if err != nil {
-                            continue
-                        }
-                        if match {
-                            is_match = true
-                        }
-                    }
-                    if !is_match {
-                        continue
-                    }
-                }
-                // 如果不等于权重，即广播模式
-                if mode != MODEL_WEIGHT {
-                    for _, conn := range clients {
-                        log.Debug("http服务发送广播消息")
-                        conn.send_queue <- msg[table_len+2:]
-                    }
-                } else {
-                    // 负载均衡模式
-                    // todo 根据已经send_times的次数负载均衡
-                    clen := len(clients)
-                    target := clients[0]
-                    //将发送次数/权重 作为负载基数，每次选择最小的发送
-                    js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-                    for i := 1; i < clen; i++ {
-                        stimes := atomic.LoadInt64(&clients[i].send_times)
-                        //conn.send_queue <- msg
-                        if stimes == 0 {
-                            //优先发送没有发过的
-                            target = clients[i]
-                            break
-                        }
-                        _js := float64(stimes)/float64(clients[i].weight)
-                        log.Println("http服务权重基数", float64(stimes), float64(clients[i].weight), _js, js)
-                        if _js < js {
-                            js = _js
-                            target = clients[i]
-                        }
-                    }
-                    log.Debug("http服务发送权重消息，", (*target).url)
-                    target.send_queue <- msg[table_len+2:]
-                }
-            }
-            client.lock.Unlock()
-        }
-    }
-}
-
 // 对外的广播发送接口
 func (client *HttpService) SendAll(msg []byte) bool {
-    log.Info("http服务-发送广播")
     if !client.enable {
         return false
     }
-    if len(client.send_queue) >= cap(client.send_queue) {
-        log.Warn("http服务发送缓冲区满...")
-        return false
-    }
-    client.send_queue <- msg
+	//if len(client.send_queue) >= cap(client.send_queue) {
+    //    log.Warn("http服务发送缓冲区满...")
+    //    return false
+    //}
+	log.Info("http服务-发送广播：", string(msg))
+	client.lock.Lock()
+	for index, clients := range client.groups {
+		// 如果分组里面没有客户端连接，跳过
+		if len(clients) <= 0 {
+			continue
+		}
+		// 分组的模式
+		mode   := client.groups_mode[index]
+		filter := client.groups_filter[index]
+		flen   := len(filter)
+		//2字节长度
+		table_len := int(msg[0]) + int(msg[1] << 8);
+		table := string(msg[2:table_len+2])
+		log.Debugf("http服务事件发生的数据表：%d, %s", table_len, table)
+		//分组过滤
+		//log.Println(filter)
+		if flen > 0 {
+			is_match := false
+			for _, f := range filter {
+				match, err := regexp.MatchString(f, table)
+				if err != nil {
+					continue
+				}
+				if match {
+					is_match = true
+					break
+				}
+			}
+			if !is_match {
+				continue
+			}
+		}
+		// 如果不等于权重，即广播模式
+		if mode != MODEL_WEIGHT {
+			for _, conn := range clients {
+				log.Debug("http服务发送广播消息：", conn.url, string(msg[table_len+2:]))
+				conn.send_queue <- string(msg[table_len+2:])
+			}
+		} else {
+			// 负载均衡模式
+			// todo 根据已经send_times的次数负载均衡
+			clen := len(clients)
+			target := clients[0]
+			//将发送次数/权重 作为负载基数，每次选择最小的发送
+			js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
+			for i := 1; i < clen; i++ {
+				stimes := atomic.LoadInt64(&clients[i].send_times)
+				if stimes == 0 {
+					//优先发送没有发过的
+					target = clients[i]
+					break
+				}
+				_js := float64(stimes)/float64(clients[i].weight)
+				log.Println("http服务权重基数", float64(stimes), float64(clients[i].weight), _js, js)
+				if _js < js {
+					js = _js
+					target = clients[i]
+				}
+			}
+			log.Debug("http服务发送权重消息，", (*target).url, string(msg[table_len+2:]))
+			target.send_queue <- string(msg[table_len+2:])
+		}
+	}
+	client.lock.Unlock()
     return true
 }
 
