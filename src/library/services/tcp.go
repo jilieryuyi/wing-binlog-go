@@ -48,88 +48,83 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		log.Info("tcp服务-没有连接的客户端")
 		return false
 	}
-	if len(tcp.send_queue) >= cap(tcp.send_queue) {
-		log.Warn("tcp服务-发送缓冲区满")
-		return false
-	}
-	table_len := int(msg[0]) + int(msg[1] << 8);
-	tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
-	return true
-}
+	//if len(tcp.send_queue) >= cap(tcp.send_queue) {
+	//	log.Warn("tcp服务-发送缓冲区满")
+	//	return false
+	//}
+	table_len := int(msg[0]) + int(msg[1] << 8)
+	table     := string(msg[:table_len+2])
+	//tcp.send_queue <-
+	//pack_msg := tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 
-// 广播服务
-func (tcp *TcpService) broadcast() {
-	for {
-		select {
-		case  msg := <-tcp.send_queue:
-			log.Info("tcp服务-广播消息")
-			tcp.lock.Lock()
-			for group_name, clients := range tcp.groups {
-				// 如果分组里面没有客户端连接，跳过
-				if len(clients) <= 0 {
+	tcp.lock.Lock()
+	for group_name, clients := range tcp.groups {
+		// 如果分组里面没有客户端连接，跳过
+		if len(clients) <= 0 {
+			continue
+		}
+		// 分组的模式
+		mode   := tcp.groups_mode[group_name]
+		filter := tcp.groups_filter[group_name]
+		flen   := len(filter)
+		//2字节长度
+		//table_len := int(msg[0]) + int(msg[1] << 8);
+		//msg[2:table_len+2])
+		log.Info("tcp服务-数据表：", table_len, table)
+		log.Info("tcp服务-发送广播消息：", msg[table_len+2:])
+		if flen > 0 {
+			is_match := false
+			for _, f := range filter {
+				match, err := regexp.MatchString(f, table)
+				if err != nil {
 					continue
 				}
-				// 分组的模式
-				mode   := tcp.groups_mode[group_name]
-				filter := tcp.groups_filter[group_name]
-				flen   := len(filter)
-				//2字节长度
-				table_len := int(msg[0]) + int(msg[1] << 8);
-				table     := string(msg[2:table_len+2])
-				log.Info("tcp服务-数据表：", table_len, table)
-				log.Info("tcp服务-发送广播消息：", msg)
-				if flen > 0 {
-					is_match := false
-					for _, f := range filter {
-						match, err := regexp.MatchString(f, table)
-						if err != nil {
-							continue
-						}
-						if match {
-							is_match = true
-						}
-					}
-					if !is_match {
-						continue
-					}
-				}
-				// 如果不等于权重，即广播模式
-				if mode != MODEL_WEIGHT {
-					for _, conn := range clients {
-						if !conn.is_connected {
-							continue
-						}
-						log.Info("tcp服务-发送广播消息")
-						conn.send_queue <- msg[table_len+2:]
-					}
-				} else {
-					// 负载均衡模式
-					// todo 根据已经send_times的次数负载均衡
-					clen := len(clients)
-					target := clients[0]
-					//将发送次数/权重 作为负载基数，每次选择最小的发送
-					js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
-					for i := 1; i < clen; i++ {
-						stimes := atomic.LoadInt64(&clients[i].send_times)
-						//conn.send_queue <- msg
-						if stimes == 0 {
-							//优先发送没有发过的
-							target = clients[i]
-							break
-						}
-						njs := float64(stimes)/float64(clients[i].weight)
-						if njs < js {
-							js = njs
-							target = clients[i]
-						}
-					}
-					log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
-					target.send_queue <- msg[table_len+2:]
+				if match {
+					is_match = true
+					break
 				}
 			}
-			tcp.lock.Unlock()
+			if !is_match {
+				continue
+			}
+		}
+		// 如果不等于权重，即广播模式
+		if mode != MODEL_WEIGHT {
+			for _, conn := range clients {
+				if !conn.is_connected {
+					continue
+				}
+				log.Info("tcp服务-发送广播消息")
+				conn.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+			}
+		} else {
+			// 负载均衡模式
+			// todo 根据已经send_times的次数负载均衡
+			clen := len(clients)
+			target := clients[0]
+			//将发送次数/权重 作为负载基数，每次选择最小的发送
+			js := float64(atomic.LoadInt64(&target.send_times))/float64(target.weight)
+			for i := 1; i < clen; i++ {
+				stimes := atomic.LoadInt64(&clients[i].send_times)
+				//conn.send_queue <- msg
+				if stimes == 0 {
+					//优先发送没有发过的
+					target = clients[i]
+					break
+				}
+				njs := float64(stimes)/float64(clients[i].weight)
+				if njs < js {
+					js = njs
+					target = clients[i]
+				}
+			}
+			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
+			target.send_queue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))
 		}
 	}
+	tcp.lock.Unlock()
+
+	return true
 }
 
 // 数据封包
@@ -148,21 +143,21 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	return r
 }
 
-func (tcp *TcpService) pack2(cmd int, msg []byte, table []byte) []byte {
-	l  := len(msg)
-	tl := len(table)
-	r  := make([]byte, l + 6 + tl)
-	cl := l + 2
-	copy(r[0:], table)
-	r[tl+0] = byte(cl)
-	r[tl+1] = byte(cl >> 8)
-	r[tl+2] = byte(cl >> 16)
-	r[tl+3] = byte(cl >> 24)
-	r[tl+4] = byte(cmd)
-	r[tl+5] = byte(cmd >> 8)
-	copy(r[tl+6:], msg)
-	return r
-}
+//func (tcp *TcpService) pack2(cmd int, msg []byte, table []byte) []byte {
+//	l  := len(msg)
+//	tl := len(table)
+//	r  := make([]byte, l + 6 + tl)
+//	cl := l + 2
+//	copy(r[0:], table)
+//	r[tl+0] = byte(cl)
+//	r[tl+1] = byte(cl >> 8)
+//	r[tl+2] = byte(cl >> 16)
+//	r[tl+3] = byte(cl >> 24)
+//	r[tl+4] = byte(cmd)
+//	r[tl+5] = byte(cmd >> 8)
+//	copy(r[tl+6:], msg)
+//	return r
+//}
 
 
 // 掉线回调
@@ -344,7 +339,6 @@ func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
-	go tcp.broadcast()
 	go func() {
 		//建立socket，监听端口
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
