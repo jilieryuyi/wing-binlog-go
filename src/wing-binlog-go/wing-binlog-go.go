@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	_"net/http/pprof"
+	_ "net/http/pprof"
 	"net/http"
 	"fmt"
 	"io/ioutil"
@@ -18,6 +18,8 @@ import (
 	_ "flag"
 	log "github.com/sirupsen/logrus"
 	_ "library/cluster"
+	"library/unix"
+	"library/command"
 	"flag"
 	"time"
 )
@@ -25,6 +27,7 @@ import (
 var (
 	debug = flag.Bool("debug", false, "启用调试模式，默认为false")
 	version = flag.Bool("version", false, "版本信息")
+	stop = flag.Bool("stop", false, "停止服务")
 )
 
 const (
@@ -92,6 +95,11 @@ func main() {
 		return
 	}
 
+	if (*stop) {
+		command.Stop()
+		return
+	}
+
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 
@@ -108,6 +116,9 @@ func main() {
 	blog.BinlogHandler.RegisterService(http_service)
 	blog.BinlogHandler.RegisterService(kafaka_service)
 	blog.Start()
+
+	server := unix.NewUnixServer()
+	server.Start()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
