@@ -36,6 +36,10 @@ func (server *UnixServer) onConnect(c net.Conn) {
 }
 
 func (server *UnixServer) Start() {
+	file := file.WFile{server.addr}
+	if file.Exists() {
+		file.Delete()
+	}
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")
 		listen, err := net.Listen("unix", server.addr)
