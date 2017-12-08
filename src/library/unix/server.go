@@ -14,6 +14,11 @@ func NewUnixServer() *UnixServer {
 	return server
 }
 
+//func init() {
+//	server := NewUnixServer()
+//	server.Start()
+//}
+
 func (server *UnixServer) onConnect(c net.Conn) {
 	for {
 		buf := make([]byte, 512)
@@ -31,15 +36,18 @@ func (server *UnixServer) onConnect(c net.Conn) {
 }
 
 func (server *UnixServer) Start() {
-	listen, err := net.Listen("unix", server.addr)
-	if err != nil {
-		log.Panicf("unix服务异常：%+v", err)
-	}
-	for {
-		fd, err := listen.Accept()
+	go func() {
+		log.Debug("unix服务启动，等待新的连接...")
+		listen, err := net.Listen("unix", server.addr)
 		if err != nil {
 			log.Panicf("unix服务异常：%+v", err)
 		}
-		go server.onConnect(fd)
-	}
+		for {
+			fd, err := listen.Accept()
+			if err != nil {
+				log.Panicf("unix服务异常：%+v", err)
+			}
+			go server.onConnect(fd)
+		}
+	}()
 }

@@ -6,8 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-
-
 func NewUnixClient() *UnixClient {
 	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
 	client := &UnixClient{
@@ -34,6 +32,21 @@ func (client *UnixClient) Start() {
 	}
 	client.conn = &c
 	go client.onMessage()
+}
+
+func (tcp *UnixClient) Pack(cmd int, msg string) []byte {
+	m := []byte(msg)
+	l := len(m)
+	r := make([]byte, l + 6)
+	cl := l + 2
+	r[0] = byte(cl)
+	r[1] = byte(cl >> 8)
+	r[2] = byte(cl >> 16)
+	r[3] = byte(cl >> 32)
+	r[4] = byte(cmd)
+	r[5] = byte(cmd >> 8)
+	copy(r[6:], m)
+	return r
 }
 
 func (client *UnixClient) Send(msg []byte) int {
