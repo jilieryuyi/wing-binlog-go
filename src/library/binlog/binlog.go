@@ -258,7 +258,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 			log.Warnf("binlog不支持的类型：%s %+v", column.Name/*col.Name*/, reflect.TypeOf(edata))
 			*buf = append(*buf, "\"--unkonw type--\""...)
 		} else {
-			*buf = append(*buf, "NULL"...)
+			*buf = append(*buf, "null"...)
 		}
 	}
 }
