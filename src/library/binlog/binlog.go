@@ -432,6 +432,10 @@ func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
 	//		<-h.chan_save_position //丢弃掉未写入的部分数据，优化性能，这里丢弃的pos并不影响最终的结果
 	//	}
 	//}
+	if len(h.chan_save_position) >= cap(h.chan_save_position) {
+		log.Warn("binlgo服务-SaveBinlogPostionCache缓冲区满...")
+		return
+	}
 	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
 }
 
