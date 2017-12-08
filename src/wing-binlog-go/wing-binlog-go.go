@@ -60,6 +60,9 @@ func pprofService() {
 		//然后执行 text
 		//go tool pprof -alloc_space http://127.0.0.1:6060/debug/pprof/heap
 		//top20 -cum
+
+		//下载文件 http://localhost:6060/debug/pprof/profile
+		//分析 go tool pprof -web /Users/yuyi/Downloads/profile
 		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
 }

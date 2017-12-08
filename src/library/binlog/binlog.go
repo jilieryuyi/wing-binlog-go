@@ -427,11 +427,11 @@ func (h *Binlog) Close() {
 }
 
 func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
-	if len(h.chan_save_position) >= MAX_CHAN_FOR_SAVE_POSITION - 10 {
-		for k := 0; k <= MAX_CHAN_FOR_SAVE_POSITION - 10; k++ {
-			<-h.chan_save_position //丢弃掉未写入的部分数据，优化性能，这里丢弃的pos并不影响最终的结果
-		}
-	}
+	//if len(h.chan_save_position) >= MAX_CHAN_FOR_SAVE_POSITION - 10 {
+	//	for k := 0; k <= MAX_CHAN_FOR_SAVE_POSITION - 10; k++ {
+	//		<-h.chan_save_position //丢弃掉未写入的部分数据，优化性能，这里丢弃的pos并不影响最终的结果
+	//	}
+	//}
 	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
 }
 
