@@ -390,7 +390,6 @@ func (tcp *TcpService) Close() {
 	for _, v := range tcp.groups {
 		for _, client := range v {
 			(*client.conn).Close()
-			close(client.send_queue)
 			client.is_connected = false
 		}
 	}
