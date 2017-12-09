@@ -41,6 +41,7 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		switch cmd {
 		case CMD_STOP:
 			log.Debug("收到退出指令，程序即将退出")
+			server.clear()
 			os.Exit(0)
 		}
 
@@ -50,12 +51,15 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		//}
 	}
 }
+func (server *UnixServer) clear() {
+	f := file.WFile{server.addr}
+	if f.Exists() {
+		f.Delete()
+	}
+}
 
 func (server *UnixServer) Start() {
-	file := file.WFile{server.addr}
-	if file.Exists() {
-		file.Delete()
-	}
+	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")
 		listen, err := net.Listen("unix", server.addr)
