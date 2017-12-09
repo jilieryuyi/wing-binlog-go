@@ -69,13 +69,12 @@ func pprofService() {
 
 func init() {
 	time.LoadLocation("Local")
-	pprofService()
 	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
 		ForceColors:true,
 		QuoteEmptyFields:true, FullTimestamp:true})
 	app_config, _ := app.GetAppConfig()
 	log.SetLevel(log.Level(app_config.LogLevel))//log.DebugLevel)
-	log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
+	//log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
 	//log.ResetOutHandler()
 	//u := data.User{"admin", "admin"}
 	//log.Println("用户查询：",u.Get())
@@ -94,7 +93,7 @@ func main() {
 	//	return
 	//}
 	if (*version) {
-		fmt.Println("wing-binlog-go版本：", VERSION)
+		fmt.Println(VERSION)
 		return
 	}
 
@@ -102,7 +101,7 @@ func main() {
 		command.Stop()
 		return
 	}
-
+	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 
