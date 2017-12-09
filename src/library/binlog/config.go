@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 	"os"
+	"context"
 )
 
 var (
@@ -54,6 +55,7 @@ type Binlog struct {
 	handler *canal.Canal
 	is_connected bool
 	BinlogHandler binlogHandler
+	ctx *context.Context
 }
 
 type positionCache struct {

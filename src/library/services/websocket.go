@@ -10,6 +10,7 @@ import (
 	"time"
 	"sync/atomic"
 	"regexp"
+	"context"
 )
 
 func NewWebSocketService() *WebSocketService {
@@ -336,4 +337,8 @@ func (tcp *WebSocketService) Start() {
 
 func (tcp *WebSocketService) Close() {
 
+}
+
+func (tcp *WebSocketService) SetContext(ctx *context.Context) {
+	tcp.ctx = ctx
 }

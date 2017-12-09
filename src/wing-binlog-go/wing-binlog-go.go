@@ -22,6 +22,7 @@ import (
 	"library/command"
 	"flag"
 	"time"
+	"context"
 )
 
 var (
@@ -104,6 +105,7 @@ func main() {
 	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
+	ctx, cancel := context.WithCancel(context.Background())
 
 	tcp_service       := services.NewTcpService()
 	websocket_service := services.NewWebSocketService()
@@ -111,16 +113,15 @@ func main() {
 	kafaka_service    := services.NewKafkaService()
 
 	blog := binlog.NewBinlog()
-	defer blog.Close()
 	// 注册服务
 	blog.BinlogHandler.RegisterService(tcp_service)
 	blog.BinlogHandler.RegisterService(websocket_service)
 	blog.BinlogHandler.RegisterService(http_service)
 	blog.BinlogHandler.RegisterService(kafaka_service)
-	blog.Start()
+	blog.Start(&ctx)
 
 	server := unix.NewUnixServer()
-	server.Start()
+	server.Start(&ctx)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
@@ -131,4 +132,9 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT)
 	<-sc
+	// 优雅的退出程序
+	cancel()
+	blog.Close()
+	fmt.Println("程序退出...")
+	time.Sleep(time.Second)
 }

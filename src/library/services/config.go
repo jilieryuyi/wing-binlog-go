@@ -9,6 +9,7 @@ import (
 	"errors"
 	"sync"
 	"net"
+	"context"
 )
 // 标准服务接口
 type Service interface {
@@ -17,6 +18,7 @@ type Service interface {
 	// 开始服务
 	Start()
 	Close()
+	SetContext(ctx *context.Context)
 }
 
 type tcpGroupConfig struct {
@@ -72,6 +74,7 @@ type WebSocketService struct {
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 	enable bool
+	ctx *context.Context
 }
 
 type tcpClientNode struct {
@@ -101,6 +104,8 @@ type TcpService struct {
 	groups_filter map[string] []string    // 分组的过滤器
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 	enable bool
+	ctx *context.Context
+	listener *net.Listener
 }
 
 type HttpService struct {
@@ -113,6 +118,7 @@ type HttpService struct {
 	send_failure_times int64   // 发送失败次数
 	enable bool
 	time_tick int              // 故障检测的时间间隔
+	ctx *context.Context
 }
 
 type httpNode struct {
@@ -137,6 +143,7 @@ type WKafka struct {
 	lock *sync.Mutex
 	send_queue chan []byte
 	enable bool
+	ctx *context.Context
 }
 
 type KafkaConfig struct {

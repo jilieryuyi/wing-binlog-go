@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"library/http"
 	"regexp"
+	"context"
 )
 
 // 创建一个新的http服务
@@ -277,4 +278,8 @@ func (client *HttpService) SendAll(msg []byte) bool {
 
 func (client *HttpService) Close() {
 
+}
+
+func (tcp *HttpService) SetContext(ctx *context.Context) {
+	tcp.ctx = ctx
 }
