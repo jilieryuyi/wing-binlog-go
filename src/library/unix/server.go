@@ -4,6 +4,7 @@ import (
 	"net"
 	log "github.com/sirupsen/logrus"
 	"library/file"
+	"os"
 )
 
 func NewUnixServer() *UnixServer {
@@ -27,11 +28,26 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			return
 		}
 		data := buf[0:nr]
-		log.Debugf("unix服务收到消息：%s", string(data))
-		_, err = c.Write(data)
-		if err != nil {
-			log.Errorf("unix服务Write异常：%+v ", err)
+
+		length := int(data[0]) +
+			int(data[1] << 8) +
+			int(data[2] << 16) +
+			int(data[3] << 32)
+		cmd := 	int(data[4]) +
+			int(data[5] << 8)
+
+		log.Debugf("unix服务收到消息：%s, %+v, %d", string(data), data, length)
+
+		switch cmd {
+		case CMD_STOP:
+			log.Debug("收到退出指令，程序即将退出")
+			os.Exit(0)
 		}
+
+		//_, err = c.Write(data)
+		//if err != nil {
+		//	log.Errorf("unix服务Write异常：%+v ", err)
+		//}
 	}
 }
 

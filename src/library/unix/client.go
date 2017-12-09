@@ -11,6 +11,7 @@ func NewUnixClient() *UnixClient {
 	client := &UnixClient{
 		addr : addr,
 	}
+	client.Start()
 	return client
 }
 
