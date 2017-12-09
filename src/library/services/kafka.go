@@ -82,3 +82,7 @@ func (wk *WKafka) Close()  {
 	wk.writer.Close()
 	wk.lock.Unlock()
 }
+
+func (tcp *WKafka) SetContext(ctx *context.Context) {
+	tcp.ctx = ctx
+}

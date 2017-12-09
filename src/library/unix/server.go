@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"os"
+	"context"
 )
 
 func NewUnixServer() *UnixServer {
@@ -58,7 +59,8 @@ func (server *UnixServer) clear() {
 	}
 }
 
-func (server *UnixServer) Start() {
+func (server *UnixServer) Start(ctx *context.Context) {
+	server.ctx = ctx
 	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")

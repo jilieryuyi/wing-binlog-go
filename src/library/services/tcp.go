@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"sync"
 	"regexp"
+	"context"
 )
 
 func NewTcpService() *TcpService {
@@ -353,19 +354,49 @@ func (tcp *TcpService) Start() {
 			log.Error("tcp服务发生错误：", err)
 			return
 		}
-		defer listen.Close();
+		//defer listen.Close();
+		tcp.listener = &listen
 		log.Infof("tcp服务-等待新的连接...")
+		error_times := 0
 		for {
 			conn, err := listen.Accept()
+			if error_times > 2 {
+				break
+			}
 			if err != nil {
 				log.Warn("tcp服务发生错误：", err)
+				error_times++
 				continue
 			}
+			error_times = 0
 			go tcp.onConnect(conn)
 		}
 	} ()
+	go func() {
+		for {
+			select {
+			case <-(*tcp.ctx).Done():
+				tcp.Close()
+				return
+			}
+		}
+	}()
 }
 
 func (tcp *TcpService) Close() {
+	log.Debug("tcp服务退出...")
+	tcp.lock.Lock()
+	(*tcp.listener).Close()
+	for _, v := range tcp.groups {
+		for _, client := range v {
+			(*client.conn).Close()
+			close(client.send_queue)
+			client.is_connected = false
+		}
+	}
+	tcp.lock.Unlock()
+}
 
+func (tcp *TcpService) SetContext(ctx *context.Context) {
+	tcp.ctx = ctx
 }

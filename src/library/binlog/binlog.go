@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/services"
+	"context"
 )
 
 func NewBinlog() *Binlog {
@@ -64,6 +65,7 @@ func NewBinlog() *Binlog {
 }
 
 func (h *Binlog) Close() {
+	log.Debug("binlog服务退出...")
 	if !h.is_connected  {
 		return
 	}
@@ -76,9 +78,11 @@ func (h *Binlog) Close() {
 }
 
 
-func (h *Binlog) Start() {
+func (h *Binlog) Start(ctx *context.Context) {
+	h.ctx = ctx
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
+		service.SetContext(ctx)
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
 	go func() {
