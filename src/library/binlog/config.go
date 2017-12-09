@@ -10,6 +10,7 @@ import (
 	"github.com/siddontang/go-mysql/mysql"
 	"time"
 	"unicode/utf8"
+	"os"
 )
 
 var (
@@ -69,7 +70,7 @@ const (
 type binlogHandler struct {
 	Event_index int64
 	canal.DummyEventHandler
-	chan_save_position chan positionCache
+	//chan_save_position chan positionCache
 	buf               []byte
 	//TcpService *services.TcpService
 	//WebsocketService *services.WebSocketService
@@ -78,6 +79,7 @@ type binlogHandler struct {
 
 	services []services.Service
 	services_count int
+	cacheHandler *os.File
 }
 
 // 获取mysql配置

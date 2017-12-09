@@ -4,13 +4,9 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"os"
-	"strings"
-	"sync/atomic"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/services"
-	wstring "library/string"
 )
 
 func NewBinlog() *Binlog {
@@ -35,7 +31,7 @@ func NewBinlog() *Binlog {
 		log.Panicf("binlog创建canal错误：%+v", err)
 		os.Exit(1)
 	}
-	f, p, index := binlog.getBinlogPositionCache()
+	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 	var b [defaultBufSize]byte
 	binlog.BinlogHandler = binlogHandler{
 		Event_index: index,
@@ -43,7 +39,6 @@ func NewBinlog() *Binlog {
 		services_count:0,
 	}
 	binlog.BinlogHandler.buf = b[:0]
-	binlog.BinlogHandler.chan_save_position = make(chan positionCache, MAX_CHAN_FOR_SAVE_POSITION)
 	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
 	binlog.is_connected = false
 	if f != "" {
@@ -53,6 +48,18 @@ func NewBinlog() *Binlog {
 		binlog.Config.BinPos = p
 	}
 	log.Debugf("%+v", binlog.Config)
+
+	// 初始化缓存文件句柄
+	mysql_binlog_position_cache := file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"
+	dir := file.WPath{mysql_binlog_position_cache}
+	dir = file.WPath{dir.GetParent()}
+	dir.Mkdir()
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC | os.O_TRUNC
+	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(
+		mysql_binlog_position_cache, flag , 0755)
+	if err != nil {
+		log.Panicf("binlog服务，打开缓存文件错误：%s, %+v", mysql_binlog_position_cache, err)
+	}
 	return binlog
 }
 
@@ -62,55 +69,18 @@ func (h *Binlog) Close() {
 	}
 	h.handler.Close()
 	h.is_connected = false
-	close(h.BinlogHandler.chan_save_position)
 	for _, service := range h.BinlogHandler.services {
 		service.Close()
 	}
+	h.BinlogHandler.cacheHandler.Close()
 }
 
-func (h *binlogHandler) SaveBinlogPostionCache(p mysql.Position) {
-	if len(h.chan_save_position) >= cap(h.chan_save_position) {
-		log.Warn("binlgo服务-SaveBinlogPostionCache缓冲区满...")
-		return
-	}
-	h.chan_save_position <- positionCache{p, atomic.LoadInt64(&h.Event_index)}
-}
-
-func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
-	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
-	str := wfile.ReadAll()
-	if str == "" {
-		return "", int64(0), int64(0)
-	}
-	res := strings.Split(str, ":")
-	if len(res) < 3 {
-		return "", int64(0), int64(0)
-	}
-	wstr  := wstring.WString{res[1]}
-	pos   := wstr.ToInt64()
-	wstr2 := wstring.WString{res[2]}
-	index := wstr2.ToInt64()
-	return res[0], pos, index
-}
-
-func (h *Binlog) writeCache() {
-	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
-	for {
-		select {
-		case pos := <-h.BinlogHandler.chan_save_position:
-			if pos.pos.Name != "" && pos.pos.Pos > 0 {
-				wfile.Write(fmt.Sprintf("%s:%d:%d", pos.pos.Name, pos.pos.Pos, pos.index), false)
-			}
-		}
-	}
-}
 
 func (h *Binlog) Start() {
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
-	go h.writeCache()
 	go func() {
 		startPos := mysql.Position{
 			Name: h.Config.BinFile,
