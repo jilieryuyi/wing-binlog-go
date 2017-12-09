@@ -12,6 +12,9 @@ import (
 	"library/services"
 	"github.com/siddontang/go-mysql/mysql"
 	log "github.com/sirupsen/logrus"
+	"fmt"
+	"library/file"
+	wstring "library/string"
 )
 
 func (h *binlogHandler) RegisterService(s services.Service) {
@@ -271,5 +274,32 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
 	h.SaveBinlogPostionCache(p)
 	return nil
+}
+
+func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
+	data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
+	wdata := []byte(data)
+	_, err := h.cacheHandler.WriteAt(wdata, 0)
+	if err != nil {
+		log.Errorf("binlog写入缓存文件错误：%+v", err)
+		return
+	}
+}
+
+func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
+	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+	str := wfile.ReadAll()
+	if str == "" {
+		return "", int64(0), int64(0)
+	}
+	res := strings.Split(str, ":")
+	if len(res) < 3 {
+		return "", int64(0), int64(0)
+	}
+	wstr  := wstring.WString{res[1]}
+	pos   := wstr.ToInt64()
+	wstr2 := wstring.WString{res[2]}
+	index := wstr2.ToInt64()
+	return res[0], pos, index
 }
 
