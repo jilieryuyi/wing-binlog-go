@@ -17,6 +17,11 @@ import (
 	wstring "library/string"
 	"reflect"
 	"unicode/utf8"
+	//"golang.org/x/text/encoding/simplifiedchinese"
+	//"golang.org/x/text/transform"
+	//"io/ioutil"
+	//"bytes"
+	"github.com/axgle/mahonia"
 )
 
 func NewBinlog() *Binlog {
@@ -42,6 +47,7 @@ func NewBinlog() *Binlog {
 		os.Exit(1)
 	}
 	f, p, index := binlog.GetBinlogPositionCache()
+	log.Debug(f,"===", p, "===",index)
 	var b [defaultBufSize]byte
 	binlog.BinlogHandler = binlogHandler{
 		Event_index: index,
@@ -58,6 +64,8 @@ func NewBinlog() *Binlog {
 	if p > 0 {
 		binlog.Config.BinPos = p
 	}
+	log.Debugf("%+v", binlog.Config)
+	//os.Exit(0)
 	return binlog
 }
 
@@ -151,6 +159,19 @@ func (h *binlogHandler) encode(buf *[]byte, s string) {
 		*buf = append(*buf, s[start:]...)
 	}
 	*buf = append(*buf, '"')
+}
+
+//func (h *binlogHandler) toUtf8(str string) []byte {
+//	data, _ := ioutil.ReadAll(
+//		transform.NewReader(bytes.NewReader([]byte(str)),
+//			simplifiedchinese.GBK.NewEncoder()))
+//	return data
+//}
+
+func (h *binlogHandler) toUtf8(str string) string {
+	enc:=mahonia.NewEncoder("utf8")
+	//converts a  string from UTF-8 to gbk encoding.
+	return enc.ConvertString(str)
 }
 
 func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
@@ -274,7 +295,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	// delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
-	fmt.Println(e.Rows)
+	log.Debugf("binlog基础数据：%+v", e.Rows)
 	columns_len := len(e.Table.Columns)
 	log.Debugf("binlog缓冲区详细信息: %d %d", len(h.buf), cap(h.buf))
 	db    := []byte(e.Table.Schema)
