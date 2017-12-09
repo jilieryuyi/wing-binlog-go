@@ -32,6 +32,11 @@ echo "installing... mattn/go-sqlite3"
 go get github.com/mattn/go-sqlite3
 echo "installing... segmentio/kafka-go"
 go get github.com/segmentio/kafka-go
+echo "installing... golang.org/x/text/encoding/simplifiedchinese"
+go get golang.org/x/text/encoding/simplifiedchinese
+echo "installing... golang.org/x/text/transform"
+go get golang.org/x/text/transform
+go get github.com/axgle/mahonia
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 cp -rf $vendor_path/src/* $vendor_path
