@@ -342,3 +342,7 @@ func (tcp *WebSocketService) Close() {
 func (tcp *WebSocketService) SetContext(ctx *context.Context) {
 	tcp.ctx = ctx
 }
+
+func (tcp *WebSocketService) Reload() {
+
+}

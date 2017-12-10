@@ -36,19 +36,32 @@ func NewBinlog() *Binlog {
 	var b [defaultBufSize]byte
 	binlog.BinlogHandler = binlogHandler{
 		Event_index: index,
-		services:make([]services.Service, 4),
+		services:make(map[string]services.Service),
 		services_count:0,
 	}
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
 	binlog.is_connected = false
+	current_pos, err:= binlog.handler.GetMasterPos()
 	if f != "" {
 		binlog.Config.BinFile = f
+	} else {
+		if err != nil {
+			log.Panicf("binlog获取GetMasterPos错误：%+v", err)
+		} else {
+			binlog.Config.BinFile = current_pos.Name
+		}
 	}
 	if p > 0 {
 		binlog.Config.BinPos = p
+	} else {
+		if err != nil {
+			log.Panicf("binlog获取GetMasterPos错误：%+v", err)
+		} else {
+			binlog.Config.BinPos = int64(current_pos.Pos)
+		}
 	}
-	log.Debugf("%+v", binlog.Config)
+	log.Debugf("binlog配置：%+v", binlog.Config)
 
 	// 初始化缓存文件句柄
 	mysql_binlog_position_cache := file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"
@@ -113,6 +126,7 @@ func (h *Binlog) Reload(service string) {
 	switch service {
 	case tcp:
 		log.Debugf("重新加载tcp服务")
+		h.BinlogHandler.services["tcp"].Reload()
 	case websocket:
 		log.Debugf("重新加载websocket服务")
 	case http:

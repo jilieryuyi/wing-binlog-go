@@ -87,3 +87,7 @@ func (wk *WKafka) Close()  {
 func (tcp *WKafka) SetContext(ctx *context.Context) {
 	tcp.ctx = ctx
 }
+
+func (tcp *WKafka) Reload() {
+
+}

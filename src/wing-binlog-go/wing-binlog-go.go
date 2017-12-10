@@ -123,10 +123,10 @@ func main() {
 
 	blog := binlog.NewBinlog()
 	// 注册服务
-	blog.BinlogHandler.RegisterService(tcp_service)
-	blog.BinlogHandler.RegisterService(websocket_service)
-	blog.BinlogHandler.RegisterService(http_service)
-	blog.BinlogHandler.RegisterService(kafaka_service)
+	blog.BinlogHandler.RegisterService("tcp", tcp_service)
+	blog.BinlogHandler.RegisterService("websocket", websocket_service)
+	blog.BinlogHandler.RegisterService("http", http_service)
+	blog.BinlogHandler.RegisterService("kafka", kafaka_service)
 	blog.Start(&ctx)
 
 	server := unix.NewUnixServer()

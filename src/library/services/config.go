@@ -19,6 +19,7 @@ type Service interface {
 	Start()
 	Close()
 	SetContext(ctx *context.Context)
+	Reload()
 }
 
 type tcpGroupConfig struct {

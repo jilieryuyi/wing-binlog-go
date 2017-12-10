@@ -254,6 +254,12 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
 		tcp.onMessage(cnode, buf, size)
+
+		select {
+			case <-(*tcp.ctx).Done():
+				log.Debugf("tcp服务-onConnect退出")
+				return
+		}
 	}
 }
 
@@ -354,7 +360,6 @@ func (tcp *TcpService) Start() {
 			log.Error("tcp服务发生错误：", err)
 			return
 		}
-		//defer listen.Close();
 		tcp.listener = &listen
 		log.Infof("tcp服务-等待新的连接...")
 		error_times := 0
@@ -372,15 +377,6 @@ func (tcp *TcpService) Start() {
 			go tcp.onConnect(conn)
 		}
 	} ()
-	//go func() {
-	//	for {
-	//		select {
-	//		case <-(*tcp.ctx).Done():
-	//			tcp.Close()
-	//			return
-	//		}
-	//	}
-	//}()
 }
 
 func (tcp *TcpService) Close() {
@@ -398,4 +394,92 @@ func (tcp *TcpService) Close() {
 
 func (tcp *TcpService) SetContext(ctx *context.Context) {
 	tcp.ctx = ctx
+}
+
+// 重新加载服务
+func (tcp *TcpService) Reload() {
+	log.Debug("tcp服务reload...")
+	config, _ := getTcpConfig()
+	log.Debugf("新配置：%+v", config)
+	tcp.enable = config.Enable
+	restart := false
+	if tcp.Ip != config.Tcp.Listen || tcp.Port != config.Tcp.Port {
+		log.Debugf("tcp服务，更新ip或服务端口，需要重启tcp服务，旧：%s, 新：%s",
+			fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port),
+			fmt.Sprintf("%s:%d", config.Tcp.Listen, config.Tcp.Port))
+		tcp.Ip = config.Tcp.Listen
+		tcp.Port = config.Tcp.Port
+		restart                = true
+		tcp.clients_count      = 0
+		tcp.recv_times         = 0
+		tcp.send_times         = 0
+		tcp.send_failure_times = 0
+
+		//如果端口和监听ip发生变化，则需要清理所有的客户端连接
+		for k, v := range tcp.groups {
+			for _, conn := range v {
+				log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
+				(*conn.conn).Close()
+			}
+			log.Debugf("tcp服务删除分组：%s", k)
+			delete(tcp.groups, k)
+		}
+		for k, _ := range tcp.groups_mode {
+			log.Debugf("tcp服务删除分组模式：%s", k)
+			delete(tcp.groups_mode, k)
+		}
+		for k, _ := range tcp.groups_filter {
+			log.Debugf("tcp服务删除分组过滤器：%s", k)
+			delete(tcp.groups_filter, k)
+		}
+	} else {
+		//如果监听ip和端口没发生变化，则需要diff分组
+		//检测是否发生删除和新增分组
+		for _, v := range config.Groups {
+
+			in_array := false
+			for k, _ := range tcp.groups {
+				if k == v.Name {
+					in_array = true
+					break
+				}
+			}
+
+			// 新增的分组
+			if !in_array {
+				log.Debugf("tcp服务新增分组：%s", v.Name)
+				flen := len(v.Filter)
+				var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+				tcp.groups[v.Name] = con[:0]
+				tcp.groups_mode[v.Name] = v.Mode
+				tcp.groups_filter[v.Name] = make([]string, flen)
+				tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
+			}
+		}
+
+		for k, conns := range tcp.groups {
+			in_array := false
+			for _, v := range config.Groups {
+				if k == v.Name {
+					in_array = true
+					break
+				}
+			}
+			//被删除的分组
+			if !in_array {
+				log.Debugf("tcp服务移除的分组：%s", k)
+				for _, conn := range conns {
+					log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
+					(*conn.conn).Close()
+				}
+				delete(tcp.groups, k)
+			}
+		}
+	}
+
+	if restart {
+		log.Debugf("tcp服务重启...")
+		tcp.Close()
+		tcp.Start()
+	}
 }
