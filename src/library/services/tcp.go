@@ -250,7 +250,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			conn.Close();
 			return
 		}
-		log.Info("tcp服务-收到消息",size,"字节：", buf[:size], string(buf))
+		log.Debug("tcp服务-收到消息",size,"字节：", buf[:size], string(buf))
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
 		tcp.onMessage(cnode, buf, size)
@@ -283,6 +283,7 @@ func (tcp *TcpService) onMessage(conn *tcpClientNode, msg []byte, size int) {
 			int(conn.recv_buf[3] << 32)
 		//2字节 command
 		cmd := int(conn.recv_buf[4]) + int(conn.recv_buf[5] << 8)
+		log.Debugf("收到消息：cmd=%d, content_len=%d", cmd, content_len)
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Info("tcp服务-收到注册分组消息")
@@ -431,6 +432,15 @@ func (tcp *TcpService) Reload() {
 		for k, _ := range tcp.groups_filter {
 			log.Debugf("tcp服务删除分组过滤器：%s", k)
 			delete(tcp.groups_filter, k)
+		}
+
+		for _, v := range config.Groups {
+			flen := len(v.Filter)
+			var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+			tcp.groups[v.Name]      = con[:0]
+			tcp.groups_mode[v.Name] = v.Mode
+			tcp.groups_filter[v.Name] = make([]string, flen)
+			tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
 		}
 	} else {
 		//如果监听ip和端口没发生变化，则需要diff分组
