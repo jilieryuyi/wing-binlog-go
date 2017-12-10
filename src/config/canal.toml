@@ -6,7 +6,7 @@ server_id = 9999
 flavor    = "mysql" ## mysql或者mariadb
 
 heartbeat_period = 30000000000 ##单位为纳秒，这里的时间是30秒
-read_timeout     = 0 ##单位为纳秒
-bin_file         = "mysql-bin.000001"
-bin_pos          = 4
+read_timeout     = 0  ##单位为纳秒
+bin_file         = "" ##默认为空，意思是从当前的binlog开始
+bin_pos          = 0  ##从头开始
     

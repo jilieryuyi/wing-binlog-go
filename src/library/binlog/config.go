@@ -79,7 +79,7 @@ type binlogHandler struct {
 	//HttpService *services.HttpService
 	//Kafka *services.WKafka
 
-	services []services.Service
+	services map[string] services.Service
 	services_count int
 	cacheHandler *os.File
 }

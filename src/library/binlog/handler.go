@@ -17,8 +17,8 @@ import (
 	wstring "library/string"
 )
 
-func (h *binlogHandler) RegisterService(s services.Service) {
-	h.services = append(h.services[:h.services_count], s)
+func (h *binlogHandler) RegisterService(name string, s services.Service) {
+	h.services[name] = s
 	h.services_count++
 }
 
@@ -278,6 +278,7 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 
 func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
 	data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
+	log.Debugf("binlog写入缓存：%s", data)
 	wdata := []byte(data)
 	_, err := h.cacheHandler.WriteAt(wdata, 0)
 	if err != nil {

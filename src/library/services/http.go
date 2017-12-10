@@ -283,3 +283,7 @@ func (client *HttpService) Close() {
 func (tcp *HttpService) SetContext(ctx *context.Context) {
 	tcp.ctx = ctx
 }
+
+func (tcp *HttpService) Reload() {
+
+}
