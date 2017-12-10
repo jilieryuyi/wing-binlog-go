@@ -7,6 +7,7 @@ import (
 )
 const (
 	CMD_STOP = 1
+	CMD_RELOAD = 2
 )
 type UnixClient struct {
 	addr string

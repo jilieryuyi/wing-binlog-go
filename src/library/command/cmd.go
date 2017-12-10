@@ -10,3 +10,10 @@ func Stop() {
 	client.Send(msg)
 	client.Close()
 }
+
+func Reload(cmd string) {
+	client := unix.NewUnixClient()
+	msg := client.Pack(unix.CMD_RELOAD, cmd)
+	client.Send(msg)
+	client.Close()
+}

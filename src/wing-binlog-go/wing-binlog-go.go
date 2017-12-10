@@ -29,6 +29,12 @@ var (
 	debug = flag.Bool("debug", false, "启用调试模式，默认为false")
 	version = flag.Bool("version", false, "版本信息")
 	stop = flag.Bool("stop", false, "停止服务")
+	//-service-reload http
+	//-service-reload tcp
+	//-service-reload websocket
+	//-service-reload kafka
+	//-service-reload all ##重新加载全部服务
+	service_reload = flag.String("service-reload", "", "重新加载配置，比如重新加载http服务配置：-service-reload http")
 )
 
 const (
@@ -97,12 +103,15 @@ func main() {
 		fmt.Println(VERSION)
 		return
 	}
-
 	if (*stop) {
 		command.Stop()
 		return
 	}
-	pprofService()
+	if *service_reload != "" {
+		command.Reload(*service_reload)
+		return
+	}
+ 	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())

@@ -7,6 +7,7 @@ import (
 	"library/binlog"
 	"os"
 	"context"
+	"bytes"
 )
 
 func NewUnixServer() *UnixServer {
@@ -38,6 +39,8 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		cmd := 	int(data[4]) +
 			int(data[5] << 8)
 
+		content := bytes.ToLower(data[6:])
+
 		log.Debugf("unix服务收到消息：%s, %+v, %d", string(data), data, length)
 
 		switch cmd {
@@ -47,6 +50,10 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			(*server.cancel)()
 			server.binlog.Close()
 			os.Exit(0)
+		case CMD_RELOAD: {
+			log.Debugf("收到重新加载指令：%s", string(content))
+			server.binlog.Reload(string(content))
+		}
 		}
 
 		//_, err = c.Write(data)
