@@ -77,6 +77,7 @@ func (wk *WKafka) Start() {
 }
 
 func (wk *WKafka) Close()  {
+	log.Debug("kafka服务退出...")
 	wk.lock.Lock()
 	wk.is_closed = true
 	wk.writer.Close()
