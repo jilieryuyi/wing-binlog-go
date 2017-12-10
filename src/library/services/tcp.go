@@ -259,6 +259,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			case <-(*tcp.ctx).Done():
 				log.Debugf("tcp服务-onConnect退出")
 				return
+			default:
 		}
 	}
 }
