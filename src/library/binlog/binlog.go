@@ -101,3 +101,26 @@ func (h *Binlog) Start(ctx *context.Context) {
 		}
 	}()
 }
+
+func (h *Binlog) Reload(service string) {
+	var (
+		tcp = "tcp"
+		websocket = "websocket"
+		http = "http"
+		kafka = "kafka"
+		all = "all"
+	)
+	switch service {
+	case tcp:
+		log.Debugf("重新加载tcp服务")
+	case websocket:
+		log.Debugf("重新加载websocket服务")
+	case http:
+		log.Debugf("重新加载http服务")
+	case kafka:
+		log.Debugf("重新加载kafka服务")
+	case all:
+		log.Debugf("重新加载全部服务")
+
+	}
+}
