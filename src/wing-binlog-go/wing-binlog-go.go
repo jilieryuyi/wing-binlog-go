@@ -121,7 +121,7 @@ func main() {
 	blog.Start(&ctx)
 
 	server := unix.NewUnixServer()
-	server.Start(&ctx)
+	server.Start(blog, &cancel)
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
@@ -136,5 +136,5 @@ func main() {
 	cancel()
 	blog.Close()
 	fmt.Println("程序退出...")
-	time.Sleep(time.Second)
+	//time.Sleep(time.Second)
 }

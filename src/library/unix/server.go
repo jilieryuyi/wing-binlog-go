@@ -4,6 +4,7 @@ import (
 	"net"
 	log "github.com/sirupsen/logrus"
 	"library/file"
+	"library/binlog"
 	"os"
 	"context"
 )
@@ -43,6 +44,8 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		case CMD_STOP:
 			log.Debug("收到退出指令，程序即将退出")
 			server.clear()
+			(*server.cancel)()
+			server.binlog.Close()
 			os.Exit(0)
 		}
 
@@ -59,8 +62,9 @@ func (server *UnixServer) clear() {
 	}
 }
 
-func (server *UnixServer) Start(ctx *context.Context) {
-	server.ctx = ctx
+func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFunc) {
+	server.cancel = cancel
+	server.binlog = binlog
 	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")

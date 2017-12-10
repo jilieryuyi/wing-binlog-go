@@ -336,7 +336,7 @@ func (tcp *WebSocketService) Start() {
 }
 
 func (tcp *WebSocketService) Close() {
-
+	log.Debug("websocket服务退出...")
 }
 
 func (tcp *WebSocketService) SetContext(ctx *context.Context) {

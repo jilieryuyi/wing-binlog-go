@@ -372,15 +372,15 @@ func (tcp *TcpService) Start() {
 			go tcp.onConnect(conn)
 		}
 	} ()
-	go func() {
-		for {
-			select {
-			case <-(*tcp.ctx).Done():
-				tcp.Close()
-				return
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		select {
+	//		case <-(*tcp.ctx).Done():
+	//			tcp.Close()
+	//			return
+	//		}
+	//	}
+	//}()
 }
 
 func (tcp *TcpService) Close() {

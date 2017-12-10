@@ -69,12 +69,15 @@ func (h *Binlog) Close() {
 	if !h.is_connected  {
 		return
 	}
-	h.handler.Close()
 	h.is_connected = false
-	for _, service := range h.BinlogHandler.services {
-		service.Close()
-	}
-	h.BinlogHandler.cacheHandler.Close()
+	go func() {
+		for _, service := range h.BinlogHandler.services {
+			log.Debug("服务退出...")
+			service.Close()
+		}
+		h.BinlogHandler.cacheHandler.Close()
+	}()
+	h.handler.Close()
 }
 
 
@@ -90,11 +93,11 @@ func (h *Binlog) Start(ctx *context.Context) {
 			Name: h.Config.BinFile,
 			Pos:  uint32(h.Config.BinPos),
 		}
+		h.is_connected = true
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
 			log.Fatalf("binlog服务：start canal err %v", err)
 			return
 		}
-		h.is_connected = true
 	}()
 }

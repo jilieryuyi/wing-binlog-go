@@ -277,7 +277,7 @@ func (client *HttpService) SendAll(msg []byte) bool {
 }
 
 func (client *HttpService) Close() {
-
+	log.Debug("http服务退出...")
 }
 
 func (tcp *HttpService) SetContext(ctx *context.Context) {

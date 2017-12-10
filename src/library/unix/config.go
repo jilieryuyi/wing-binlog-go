@@ -3,6 +3,7 @@ package unix
 import (
 	"net"
 	"context"
+	"library/binlog"
 )
 const (
 	CMD_STOP = 1
@@ -14,5 +15,6 @@ type UnixClient struct {
 
 type UnixServer struct {
 	addr string
-	ctx *context.Context
+	cancel *context.CancelFunc
+	binlog *binlog.Binlog
 }
