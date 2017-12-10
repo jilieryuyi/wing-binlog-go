@@ -228,6 +228,12 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 		atomic.AddInt64(&tcp.recv_times, int64(1))
 		cnode.recv_bytes += size
 		tcp.onMessage(cnode, message, size)
+		select {
+		case <-(*tcp.ctx).Done():
+			log.Debugf("websocket服务-onConnect退出")
+			return
+		default:
+		}
 	}
 }
 
