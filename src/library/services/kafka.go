@@ -77,11 +77,18 @@ func (wk *WKafka) Start() {
 }
 
 func (wk *WKafka) Close()  {
-	log.Debug("kafka服务退出...")
-	wk.lock.Lock()
-	wk.is_closed = true
-	wk.writer.Close()
-	wk.lock.Unlock()
+	go func() {
+		log.Debug("kafka服务退出...")
+		if wk.is_closed {
+			log.Debug("kafka服务退出...end")
+			return
+		}
+		wk.lock.Lock()
+		wk.is_closed = true
+		wk.writer.Close()
+		wk.lock.Unlock()
+		log.Debug("kafka服务退出...end")
+	}()
 }
 
 func (tcp *WKafka) SetContext(ctx *context.Context) {

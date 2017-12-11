@@ -150,7 +150,7 @@ type WKafka struct {
 type KafkaConfig struct {
 	Borkers []string `toml:"brokers"`
 	Topic string `toml:"topic"`
-	Enable bool `toml: "enable"`
+	Enable bool `toml:"enable"`
 }
 
 var (

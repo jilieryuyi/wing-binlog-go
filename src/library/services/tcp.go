@@ -392,6 +392,7 @@ func (tcp *TcpService) Close() {
 		}
 	}
 	tcp.lock.Unlock()
+	log.Debug("tcp服务退出...end")
 }
 
 func (tcp *TcpService) SetContext(ctx *context.Context) {
