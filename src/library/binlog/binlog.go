@@ -83,14 +83,15 @@ func (h *Binlog) Close() {
 		return
 	}
 	h.is_connected = false
-	go func() {
-		for _, service := range h.BinlogHandler.services {
-			log.Debug("服务退出...")
-			service.Close()
-		}
-		h.BinlogHandler.cacheHandler.Close()
-	}()
+	for _, service := range h.BinlogHandler.services {
+		log.Debug("服务退出...")
+		service.Close()
+	}
+	log.Debug("binlog-服务Close-all退出...")
+	h.BinlogHandler.cacheHandler.Close()
+	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
 	h.handler.Close()
+	log.Debug("binlog-h.handler.Close退出...")
 }
 
 
