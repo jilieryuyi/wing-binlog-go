@@ -119,14 +119,14 @@ func main() {
 	tcp_service       := services.NewTcpService()
 	websocket_service := services.NewWebSocketService()
 	http_service      := services.NewHttpService()
-	kafaka_service    := services.NewKafkaService()
+	//kafaka_service    := services.NewKafkaService()
 
 	blog := binlog.NewBinlog()
 	// 注册服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
-	blog.BinlogHandler.RegisterService("kafka", kafaka_service)
+	//blog.BinlogHandler.RegisterService("kafka", kafaka_service)
 	blog.Start(&ctx)
 
 	server := unix.NewUnixServer()
