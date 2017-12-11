@@ -343,6 +343,16 @@ func (tcp *WebSocketService) Start() {
 
 func (tcp *WebSocketService) Close() {
 	log.Debug("websocket服务退出...")
+	tcp.lock.Lock()
+	for _, v := range tcp.groups {
+		for _, client := range v {
+			log.Debugf("websocket关闭连接：%s", (*client.conn).RemoteAddr().String())
+			(*client.conn).Close()
+			client.is_connected = false
+		}
+	}
+	tcp.lock.Unlock()
+	log.Debug("websocket服务退出...end")
 }
 
 func (tcp *WebSocketService) SetContext(ctx *context.Context) {
