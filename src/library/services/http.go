@@ -136,6 +136,12 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		}
 		node.lock.Unlock()
 		time.Sleep(time.Second * time.Duration(client.time_tick))
+		select{
+		case <-(*client.ctx).Done():
+			log.Debugf("http服务errorCheckService退出：%s", node.url)
+			return
+		default:
+		}
 	}
 }
 
@@ -144,7 +150,11 @@ func (client *HttpService) clientSendService(node *httpNode) {
 	go client.errorCheckService(node)
 	for {
 		select {
-		case  msg := <-node.send_queue:
+		case  msg, ok := <-node.send_queue:
+			if !ok {
+				log.Warnf("http服务-发送消息channel通道关闭")
+				return
+			}
 			if !node.is_down {
 				atomic.AddInt64(&node.send_times, int64(1))
 				log.Debug("http服务 post数据到url：",
@@ -187,6 +197,9 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				// 保持最新的10000条
 				client.addCache(node, []byte(msg))
 			}
+			case <-(*client.ctx).Done():
+				log.Debugf("http服务clientSendService退出：%s", node.url)
+				return
 		}
 	}
 }
