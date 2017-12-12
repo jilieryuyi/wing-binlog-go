@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"library/file"
 	wstring "library/string"
+	"math/big"
 )
 
 func (h *binlogHandler) RegisterService(name string, s services.Service) {
@@ -27,12 +28,6 @@ func (h *binlogHandler) notify(msg []byte) {
 	for _, service := range h.services {
 		service.SendAll(msg)
 	}
-}
-
-func (h *binlogHandler) getPoint(str string) (int, error) {
-	index := strings.IndexByte(str, 44)
-	index2 := strings.IndexByte(str, 41)
-	return strconv.Atoi(string([]byte(str)[index+1:index2]))
 }
 
 func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
@@ -112,10 +107,11 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 	case uint64:
 		*buf = strconv.AppendUint(*buf, uint64(edata.(uint64)), 10)
 	case float64:
-		p, _:= h.getPoint(column.RawType)
-		*buf = strconv.AppendFloat(*buf, edata.(float64), 'f', p, 64)
+		f := big.NewFloat(edata.(float64))
+		*buf = append(*buf, f.String()...)
 	case float32:
-		*buf = strconv.AppendFloat(*buf, float64(edata.(float32)), 'f', DEFAULT_FLOAT_PREC, 32)
+		f := big.NewFloat(float64(edata.(float32)))
+		*buf = append(*buf, f.String()...)
 	default:
 		if edata != nil {
 			log.Warnf("binlog不支持的类型：%s %+v", column.Name/*col.Name*/, reflect.TypeOf(edata))
