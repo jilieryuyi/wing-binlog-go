@@ -15,12 +15,14 @@ windows下运行 build.bat 即可
 1、支持tcp服务协议 - 支持分组、广播、负载均衡、过滤器      
 2、支持websocket服务协议 - 支持分组、广播、负载均衡、过滤器      
 3、支持http服务协议- 支持分组、广播、负载均衡、过滤器      
-4、支持http节点故障熔断移除、自动检测恢复与数据重发      
+4、支持http节点故障熔断移除、自动检测恢复与数据重发     
+5、支持优雅的服务退出         
 
 使用-Usage
 ----
-1、./bin/wing-binlog-go启动服务       
-2、./bin/wing-binlog-go -version查看版本    
+1、./bin/wing-binlog-go 启动服务       
+2、./bin/wing-binlog-go -version 查看版本  
+3、./bin/wing-binlog-go -stop 停止服务  
 
 已知问题-Known issues
 ----
