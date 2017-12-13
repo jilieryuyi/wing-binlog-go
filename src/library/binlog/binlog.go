@@ -130,12 +130,16 @@ func (h *Binlog) Reload(service string) {
 		h.BinlogHandler.services["tcp"].Reload()
 	case websocket:
 		log.Debugf("重新加载websocket服务")
+		h.BinlogHandler.services["websocket"].Reload()
 	case http:
 		log.Debugf("重新加载http服务")
+		h.BinlogHandler.services["http"].Reload()
 	case kafka:
 		log.Debugf("重新加载kafka服务")
 	case all:
 		log.Debugf("重新加载全部服务")
-
+		h.BinlogHandler.services["tcp"].Reload()
+		h.BinlogHandler.services["websocket"].Reload()
+		h.BinlogHandler.services["http"].Reload()
 	}
 }

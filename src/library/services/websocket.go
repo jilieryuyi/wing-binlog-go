@@ -360,5 +360,86 @@ func (tcp *WebSocketService) SetContext(ctx *context.Context) {
 }
 
 func (tcp *WebSocketService) Reload() {
+	config, _ := getWebsocketConfig()
+	log.Debug("websocket服务reload...")
+    tcp.enable = config.Enable
+    restart := false
+	if config.Tcp.Listen != tcp.Ip || config.Tcp.Port != tcp.Port {
+		// 需要重启
+		restart = true
+		tcp.clients_count = 0
+	    tcp.recv_times = 0
+		tcp.send_times = 0
+		tcp.send_failure_times = 0
+		//如果端口和监听ip发生变化，则需要清理所有的客户端连接
+		for k, v := range tcp.groups {
+			for _, conn := range v {
+				log.Debugf("websocket服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
+				(*conn.conn).Close()
+			}
+			log.Debugf("websocket服务删除分组：%s", k)
+			delete(tcp.groups, k)
+		}
+		for k, _ := range tcp.groups_mode {
+			log.Debugf("websocket服务删除分组模式：%s", k)
+			delete(tcp.groups_mode, k)
+		}
+		for k, _ := range tcp.groups_filter {
+			log.Debugf("websocket服务删除分组过滤器：%s", k)
+			delete(tcp.groups_filter, k)
+		}
+		for _, v := range config.Groups {
+			var con [TCP_DEFAULT_CLIENT_SIZE]*websocketClientNode
+			tcp.groups[v.Name]      = con[:0]
+			tcp.groups_mode[v.Name] = v.Mode
+			flen := len(v.Filter)
+			tcp.groups_filter[v.Name] = make([]string, flen)
+			tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
+		}
+	} else {
+		//如果监听ip和端口没发生变化，则需要diff分组
+		//检测是否发生删除和新增分组
+		for _, v := range config.Groups {
+			in_array := false
+			for k, _ := range tcp.groups {
+				if k == v.Name {
+					in_array = true
+					break
+				}
+			}
+			// 新增的分组
+			if !in_array {
+				log.Debugf("websocket服务新增分组：%s", v.Name)
+				flen := len(v.Filter)
+				var con [TCP_DEFAULT_CLIENT_SIZE]*websocketClientNode
+				tcp.groups[v.Name] = con[:0]
+				tcp.groups_mode[v.Name] = v.Mode
+				tcp.groups_filter[v.Name] = make([]string, flen)
+				tcp.groups_filter[v.Name] = append(tcp.groups_filter[v.Name][:0], v.Filter...)
+			}
+		}
+		for k, conns := range tcp.groups {
+			in_array := false
+			for _, v := range config.Groups {
+				if k == v.Name {
+					in_array = true
+					break
+				}
+			}
+			//被删除的分组
+			if !in_array {
+				log.Debugf("websocket服务移除的分组：%s", k)
+				for _, conn := range conns {
+					log.Debugf("websocket服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
+					(*conn.conn).Close()
+				}
+				delete(tcp.groups, k)
+			}
+		}
+	}
 
+	if restart {
+		tcp.Close()
+		tcp.Start()
+	}
 }

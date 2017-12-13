@@ -9,6 +9,7 @@ import (
 	"library/http"
 	"regexp"
 	"context"
+	"github.com/siddontang/go-mysql/client"
 )
 
 // 创建一个新的http服务
@@ -298,5 +299,38 @@ func (tcp *HttpService) SetContext(ctx *context.Context) {
 }
 
 func (tcp *HttpService) Reload() {
+	config, _ := getHttpConfig()
+	log.Debug("http服务reload...")
+	tcp.enable = config.Enable
+	for i, _ := range tcp.groups {
+		tcp.groups[i] = make([]*httpNode, 0)
+		tcp.groups_mode[i]   = 0
+		tcp.groups_filter[i] = make([]string, 0)
+	}
 
+	index := 0
+	for _, v := range config.Groups {
+		nodes_len := len(v.Nodes)
+		tcp.groups[index]        = make([]*httpNode, nodes_len)
+		tcp.groups_mode[index]   = v.Mode
+		tcp.groups_filter[index] = make([]string, len(v.Filter))
+		tcp.groups_filter[index] = append(tcp.groups_filter[index][:0], v.Filter...)
+		log.Debug("http服务过滤器", tcp.groups_filter[index])
+		for i := 0; i < nodes_len; i++ {
+			w, _ := strconv.Atoi(v.Nodes[i][1])
+			tcp.groups[index][i] = &httpNode{
+				url                : v.Nodes[i][0],
+				weight             : w,
+				send_queue         : make(chan string, TCP_MAX_SEND_QUEUE),
+				send_times         : int64(0),
+				send_failure_times : int64(0),
+				is_down            : false,
+				lock               : new(sync.Mutex),
+				failure_times_flag : int32(0),
+				cache_is_init      : false,
+			}
+		}
+		index++
+	}
+	log.Debug("http服务reload...end")
 }
