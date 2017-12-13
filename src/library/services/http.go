@@ -9,7 +9,6 @@ import (
 	"library/http"
 	"regexp"
 	"context"
-	"github.com/siddontang/go-mysql/client"
 )
 
 // 创建一个新的http服务
