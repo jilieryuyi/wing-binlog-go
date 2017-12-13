@@ -32,7 +32,7 @@ var (
 	//-service-reload http
 	//-service-reload tcp
 	//-service-reload websocket
-	//-service-reload kafka
+	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
 	service_reload = flag.String("service-reload", "", "重新加载配置，比如重新加载http服务配置：-service-reload http")
 )
