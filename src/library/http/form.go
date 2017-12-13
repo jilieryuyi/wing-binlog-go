@@ -11,6 +11,21 @@ import (
 	"fmt"
 )
 
+// 超时设置
+var defaultHttpClient = http.Client {
+	Transport: &http.Transport {
+		Dial: func(netw, addr string) (net.Conn, error) {
+			deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
+			c, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
+			if err != nil {
+				return nil, err
+			}
+			c.SetDeadline(deadline)
+			return c, nil
+		},
+	},
+}
+
 func Post(addr string, post_data []byte) ([]byte, error) {
 	req, err := http.NewRequest("POST", addr, bytes.NewReader(post_data))
 	if err != nil {
@@ -18,22 +33,8 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "close")
-	// 超时设置
-	DefaultClient := http.Client{
-		Transport: &http.Transport {
-			Dial: func(netw, addr string) (net.Conn, error) {
-				deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
-				c, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
-				if err != nil {
-					return nil, err
-				}
-				c.SetDeadline(deadline)
-				return c, nil
-			},
-		},
-	}
 	// 执行post
-	resp, err := DefaultClient.Do(req)
+	resp, err := defaultHttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -60,24 +61,8 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
 	}
 	// 完成后断开连接
 	req.Header.Set("Connection", "close")
-	// -------------------------------------------
-	// 设置 TimeOut
-	DefaultClient := http.Client{
-		Transport: &http.Transport{
-			Dial: func(netw, addr string) (net.Conn, error) {
-				deadline := time.Now().Add(30 * time.Second)
-				c, err := net.DialTimeout(netw, addr, time.Second*30)
-				if err != nil {
-					return nil, err
-				}
-				c.SetDeadline(deadline)
-				return c, nil
-			},
-		},
-	}
-	// -------------------------------------------
 	// 执行
-	resp, ee := DefaultClient.Do(req)
+	resp, ee := defaultHttpClient.Do(req)
 	if ee != nil {
 		// 返回异常
 		return nil, nil, nil, ee
