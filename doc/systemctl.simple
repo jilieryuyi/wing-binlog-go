@@ -1,0 +1,13 @@
+[Unit]
+Description=Wing
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=simple
+PIDFile=/home/code/wing-binlog-go/wing-binlog-go.pid
+ExecStart=/home/code/wing-binlog-go/bin/wing-binlog-go
+ExecReload=/home/code/wing-binlog-go/bin/wing-binlog-go -service-reload all
+ExecStop=/home/code/wing-binlog-go/bin/wing-binlog-go -stop
+
+[Install]
+WantedBy=multi-user.target
