@@ -110,7 +110,7 @@ func (h *Binlog) Start(ctx *context.Context) {
 		h.is_connected = true
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			log.Fatalf("binlog服务：start canal err %v", err)
+			log.Warn("binlog服务：start canal err %v", err)
 			return
 		}
 	}()
