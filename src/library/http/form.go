@@ -32,7 +32,7 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Connection", "close")
+	req.Header.Set("Connection", "Keep-Alive")
 	// 执行post
 	resp, err := defaultHttpClient.Do(req)
 	if err != nil {
