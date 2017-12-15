@@ -16,6 +16,7 @@ const CMD_EVENT   = 6;
 const MODE_BROADCAST = 1; //广播
 const MODE_WEIGHT    = 2; //权重
 
+date_default_timezone_set('Asia/Shanghai');
 
 // 打印debug信息，直接输出的标准错误，这样可以禁止输出缓存
 function clog($content)
