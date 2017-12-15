@@ -110,7 +110,12 @@ func (h *Binlog) Start(ctx *context.Context) {
 		h.is_connected = true
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			log.Warn("binlog服务：start canal err %v", err)
+			if h.is_connected {
+				// 非关闭情况下退出
+				log.Errorf("wing-binlog-go service exit: %+v", err)
+			} else {
+				log.Infof("wing-binlog-go service exit: %+v", err)
+			}
 			return
 		}
 	}()
