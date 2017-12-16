@@ -31,7 +31,7 @@ func (h *binlogHandler) notify(msg []byte) {
 }
 
 func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
-	log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
+	//log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
 	switch edata.(type) {
 	case string:
 		encode(buf, edata.(string))
@@ -273,18 +273,17 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 }
 
 func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
-	if h.isClosed {
-		log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%+v", pos)
-		h.wg.Add(1)
-	}
 	data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
 	log.Debugf("binlog写入缓存：%s", data)
 	wdata := []byte(data)
 	_, err := h.cacheHandler.WriteAt(wdata, 0)
-	if h.isClosed {
-		log.Debug("服务退出，SaveBinlogPostionCache已完成")
+	select {
+	case <-(*h.ctx).Done():
+		log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%+v", pos)
 		h.wg.Done()
+	default:
 	}
+
 	if err != nil {
 		log.Errorf("binlog写入缓存文件错误：%+v", err)
 		return

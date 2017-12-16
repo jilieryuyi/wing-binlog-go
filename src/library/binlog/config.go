@@ -82,6 +82,7 @@ type binlogHandler struct {
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 	wg *sync.WaitGroup
 	isClosed bool
+	ctx *context.Context
 }
 
 // 获取mysql配置

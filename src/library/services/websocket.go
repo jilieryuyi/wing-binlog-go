@@ -27,6 +27,7 @@ func NewWebSocketService() *WebSocketService {
 		send_times         : 0,
 		send_failure_times : 0,
 		enable             : config.Enable,
+		wg                 : new(sync.WaitGroup),
 	}
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocketClientNode
@@ -172,11 +173,14 @@ func (tcp *WebSocketService) onClose(conn *websocketClientNode) {
 }
 
 func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
+	tcp.wg.Add(1)
+	defer tcp.wg.Done()
 	for {
 		if !node.is_connected {
 			log.Warnf("websocket服务-clientSendService退出")
 			return
 		}
+
 		select {
 		case  msg, ok:= <-node.send_queue:
 			if !ok {
@@ -191,7 +195,14 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 				log.Println("websocket服务-发送失败次数：", tcp.send_failure_times, node.conn.RemoteAddr().String(), node.send_failure_times)
 			}
+		case <- (*tcp.ctx).Done():
+			if len(node.send_queue) <= 0 {
+				log.Warnf("websocket服务-clientSendService退出")
+				return
+			}
+
 		}
+
 	}
 }
 
@@ -316,6 +327,11 @@ func (tcp *WebSocketService) Start() {
 	go func() {
 		m := martini.Classic()
 		m.Get("/", func(res http.ResponseWriter, req *http.Request) {
+			select {
+				case <- (*tcp.ctx).Done():
+					return
+				default:
+			}
 			// res and req are injected by Martini
 			u := websocket.Upgrader{ReadBufferSize: TCP_DEFAULT_READ_BUFFER_SIZE,
 				WriteBufferSize: TCP_DEFAULT_WRITE_BUFFER_SIZE}
@@ -343,6 +359,11 @@ func (tcp *WebSocketService) Start() {
 
 func (tcp *WebSocketService) Close() {
 	log.Debug("websocket服务退出...")
+	log.Debug("websocket服务退出，等待缓冲区发送完毕")
+	cc := atomic.LoadInt32(&tcp.clients_count)
+	if cc > 0 {
+		tcp.wg.Wait()
+	}
 	tcp.lock.Lock()
 	for _, v := range tcp.groups {
 		for _, client := range v {
