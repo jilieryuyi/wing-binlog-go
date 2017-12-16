@@ -25,6 +25,7 @@ func NewTcpService() *TcpService {
 		send_times         : 0,
 		send_failure_times : 0,
 		enable             : config.Enable,
+		isClosed           : false,
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
@@ -364,18 +365,17 @@ func (tcp *TcpService) Start() {
 		}
 		tcp.listener = &listen
 		log.Infof("tcp服务-等待新的连接...")
-		error_times := 0
 		for {
 			conn, err := listen.Accept()
-			if error_times > 2 {
-				break
+			select {
+				case <-(*tcp.ctx).Done():
+					return
+				default:
 			}
 			if err != nil {
 				log.Warn("tcp服务发生错误：", err)
-				error_times++
 				continue
 			}
-			error_times = 0
 			go tcp.onConnect(conn)
 		}
 	} ()
@@ -383,7 +383,11 @@ func (tcp *TcpService) Start() {
 
 func (tcp *TcpService) Close() {
 	log.Debug("tcp服务退出...")
+
 	tcp.lock.Lock()
+	tcp.isClosed = true
+	tcp.lock.Unlock()
+
 	(*tcp.listener).Close()
 	for _, v := range tcp.groups {
 		for _, client := range v {
@@ -391,7 +395,7 @@ func (tcp *TcpService) Close() {
 			client.is_connected = false
 		}
 	}
-	tcp.lock.Unlock()
+
 	log.Debug("tcp服务退出...end")
 }
 
