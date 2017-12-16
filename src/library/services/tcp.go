@@ -27,6 +27,7 @@ func NewTcpService() *TcpService {
 		enable             : config.Enable,
 		//isClosed           : false,
 		wg                 : new(sync.WaitGroup),
+		listener           : nil,
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
@@ -380,7 +381,9 @@ func (tcp *TcpService) Close() {
 		tcp.wg.Wait()
 	}
 	tcp.lock.Lock()
-	(*tcp.listener).Close()
+	if tcp.listener != nil {
+		(*tcp.listener).Close()
+	}
 	for _, v := range tcp.groups {
 		for _, client := range v {
 			(*client.conn).Close()
