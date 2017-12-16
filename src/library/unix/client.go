@@ -16,6 +16,9 @@ func NewUnixClient() *UnixClient {
 }
 
 func (client *UnixClient) onMessage() {
+	if client.conn == nil {
+		return
+	}
 	buf := make([]byte, 1024)
 	for {
 		n, err := (*client.conn).Read(buf[:])
@@ -27,6 +30,11 @@ func (client *UnixClient) onMessage() {
 }
 
 func (client *UnixClient) Start() {
+	client.conn = nil
+	socketFile := &file.WFile{client.addr}
+	if !socketFile.Exists() {
+		return
+	}
 	c, err := net.Dial("unix", client.addr)
 	if err != nil {
 		log.Panicf("unix服务客户端异常：%+v", err)
@@ -51,6 +59,9 @@ func (tcp *UnixClient) Pack(cmd int, msg string) []byte {
 }
 
 func (client *UnixClient) Send(msg []byte) int {
+	if client.conn == nil {
+		return 0
+	}
 	n, err := (*client.conn).Write(msg)
 	if err != nil {
 		log.Error("unix服务客户端Write异常：%+v", err)
@@ -59,6 +70,9 @@ func (client *UnixClient) Send(msg []byte) int {
 }
 
 func (client *UnixClient) Close() {
+	if client.conn == nil {
+		return
+	}
 	(*client.conn).Close()
 }
 
