@@ -18,4 +18,5 @@ type UnixServer struct {
 	addr string
 	cancel *context.CancelFunc
 	binlog *binlog.Binlog
+	pidFile string
 }

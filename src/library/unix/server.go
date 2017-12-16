@@ -67,11 +67,20 @@ func (server *UnixServer) clear() {
 	if f.Exists() {
 		f.Delete()
 	}
+	f = file.WFile{server.pidFile}
+	if f.Exists() {
+		f.Delete()
+	}
 }
 
-func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFunc) {
+func (server *UnixServer) Close() {
+	server.clear()
+}
+
+func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFunc, pid string) {
 	server.cancel = cancel
 	server.binlog = binlog
+	server.pidFile = pid
 	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")
