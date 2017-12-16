@@ -41,14 +41,19 @@ const (
 	VERSION = "1.0.0"
 )
 
-
+var pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
 func writePid() {
 	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
-	ioutil.WriteFile(file.GetCurrentPath() + "/wing-binlog-go.pid", data_str, 0777)  //写入文件(字节数组)
+	ioutil.WriteFile(pid, data_str, 0777)  //写入文件(字节数组)
+}
+
+func clearPid() {
+	f := file.WFile{pid}
+	f.Delete()
 }
 
 func killPid() {
-	dat, _ := ioutil.ReadFile(file.GetCurrentPath() + "/wing-binlog-go.pid")
+	dat, _ := ioutil.ReadFile(pid)
 	fmt.Print(string(dat))
 	pid, _ := strconv.Atoi(string(dat))
 	log.Println("给进程发送终止信号：", pid)
@@ -111,6 +116,7 @@ func main() {
 		command.Reload(*service_reload)
 		return
 	}
+	defer clearPid()
  	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
@@ -130,7 +136,8 @@ func main() {
 	blog.Start(&ctx)
 
 	server := unix.NewUnixServer()
-	server.Start(blog, &cancel)
+	server.Start(blog, &cancel, pid)
+	defer server.Close()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
