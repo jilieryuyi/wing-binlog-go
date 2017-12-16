@@ -26,15 +26,16 @@ import (
 )
 
 var (
-	debug = flag.Bool("debug", false, "启用调试模式，默认为false")
-	version = flag.Bool("version", false, "版本信息")
-	stop = flag.Bool("stop", false, "停止服务")
+	debug = flag.Bool("debug", false, "enable debug, default disable")
+	version = flag.Bool("version", false, "wing binlog go version")
+	stop = flag.Bool("stop", false, "stop service")
 	//-service-reload http
 	//-service-reload tcp
 	//-service-reload websocket
 	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
-	service_reload = flag.String("service-reload", "", "重新加载配置，比如重新加载http服务配置：-service-reload http")
+	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
+	help = flag.Bool("help", false, "help")
 )
 
 const (
@@ -79,6 +80,18 @@ func pprofService() {
 	}()
 }
 
+func usage() {
+	fmt.Println("*********************************************************************")
+	fmt.Println("wing-binlog-go                             --start service")
+	fmt.Println("wing-binlog-go -version                    --show version info")
+	fmt.Println("wing-binlog-go -stop                       --stop service")
+	fmt.Println("wing-binlog-go -service-reload  http       --reload http service")
+	fmt.Println("wing-binlog-go -service-reload  tcp        --reload tcp service")
+	fmt.Println("wing-binlog-go -service-reload  websocket  --reload websocket service")
+	fmt.Println("wing-binlog-go -service-reload  all        --reload all service")
+	fmt.Println("*********************************************************************")
+}
+
 func init() {
 	time.LoadLocation("Local")
 	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
@@ -114,6 +127,10 @@ func main() {
 	}
 	if *service_reload != "" {
 		command.Reload(*service_reload)
+		return
+	}
+	if *help {
+		usage()
 		return
 	}
 	defer clearPid()
