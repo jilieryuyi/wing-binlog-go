@@ -25,7 +25,8 @@ func NewTcpService() *TcpService {
 		send_times         : 0,
 		send_failure_times : 0,
 		enable             : config.Enable,
-		isClosed           : false,
+		//isClosed           : false,
+		wg                 : new(sync.WaitGroup),
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
@@ -151,23 +152,6 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 	return r
 }
 
-//func (tcp *TcpService) pack2(cmd int, msg []byte, table []byte) []byte {
-//	l  := len(msg)
-//	tl := len(table)
-//	r  := make([]byte, l + 6 + tl)
-//	cl := l + 2
-//	copy(r[0:], table)
-//	r[tl+0] = byte(cl)
-//	r[tl+1] = byte(cl >> 8)
-//	r[tl+2] = byte(cl >> 16)
-//	r[tl+3] = byte(cl >> 24)
-//	r[tl+4] = byte(cmd)
-//	r[tl+5] = byte(cmd >> 8)
-//	copy(r[tl+6:], msg)
-//	return r
-//}
-
-
 // 掉线回调
 func (tcp *TcpService) onClose(conn *tcpClientNode) {
 	if conn.group == "" {
@@ -195,24 +179,31 @@ func (tcp *TcpService) onClose(conn *tcpClientNode) {
 
 // 客户端服务协程，一个客户端一个
 func (tcp *TcpService) clientSendService(node *tcpClientNode) {
+	tcp.wg.Add(1)
+	defer tcp.wg.Done()
 	for {
 		if !node.is_connected {
 			log.Info("tcp服务-clientSendService退出")
 			return
 		}
 		select {
-		case  msg, ok := <-node.send_queue:
+		case msg, ok := <-node.send_queue:
 			if !ok {
 				log.Info("tcp服务-发送消息channel通道关闭")
 				return
 			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			size, err := (*node.conn).Write(msg)
 			atomic.AddInt64(&node.send_times, int64(1))
 			if (size <= 0 || err != nil) {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 				log.Warn("tcp服务-失败次数：", (*node.conn).RemoteAddr().String(), node.send_failure_times)
+			}
+		case <-(*tcp.ctx).Done():
+			if len(node.send_queue) <= 0 {
+				log.Info("tcp服务-clientSendService退出")
+				return
 			}
 		}
 	}
@@ -383,11 +374,12 @@ func (tcp *TcpService) Start() {
 
 func (tcp *TcpService) Close() {
 	log.Debug("tcp服务退出...")
-
+	log.Debug("tcp服务等待缓冲区数据发送完毕")
+	cc := atomic.LoadInt32(&tcp.clients_count)
+	if cc > 0 {
+		tcp.wg.Wait()
+	}
 	tcp.lock.Lock()
-	tcp.isClosed = true
-	tcp.lock.Unlock()
-
 	(*tcp.listener).Close()
 	for _, v := range tcp.groups {
 		for _, client := range v {
@@ -395,7 +387,7 @@ func (tcp *TcpService) Close() {
 			client.is_connected = false
 		}
 	}
-
+	tcp.lock.Unlock()
 	log.Debug("tcp服务退出...end")
 }
 

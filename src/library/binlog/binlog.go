@@ -42,6 +42,7 @@ func NewBinlog() *Binlog {
 		lock : new(sync.Mutex),
 		wg : new(sync.WaitGroup),
 	}
+	binlog.BinlogHandler.wg.Add(1)
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
@@ -103,6 +104,7 @@ func (h *Binlog) Close() {
 	h.BinlogHandler.cacheHandler.Close()
 	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
 
+	//以下操作服务内部完成
 	//等待服务数据发送完成
 	//关闭服务
 	for _, service := range h.BinlogHandler.services {
@@ -114,6 +116,7 @@ func (h *Binlog) Close() {
 
 func (h *Binlog) Start(ctx *context.Context) {
 	h.ctx = ctx
+	h.BinlogHandler.ctx = ctx
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 		service.SetContext(ctx)

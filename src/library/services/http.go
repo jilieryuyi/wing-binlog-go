@@ -28,6 +28,8 @@ func NewHttpService() *HttpService {
 		send_failure_times : int64(0),
 		enable             : config.Enable,
 		time_tick          : config.TimeTick,
+		wg                 : new(sync.WaitGroup),
+		clients_count      : 0,
 	}
 	index := 0
 	for _, v := range config.Groups {
@@ -50,6 +52,7 @@ func NewHttpService() *HttpService {
 				failure_times_flag : int32(0),
 				cache_is_init      : false,
 			}
+			client.clients_count++
 		}
 		index++
 	}
@@ -148,6 +151,8 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 // 节点服务协程
 func (client *HttpService) clientSendService(node *httpNode) {
 	go client.errorCheckService(node)
+	client.wg.Add(1)
+	defer client.wg.Done()
 	for {
 		select {
 		case  msg, ok := <-node.send_queue:
@@ -198,8 +203,10 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				client.addCache(node, []byte(msg))
 			}
 			case <-(*client.ctx).Done():
-				log.Debugf("http服务clientSendService退出：%s", node.url)
-				return
+				if len(node.send_queue) <= 0 {
+					log.Debugf("http服务clientSendService退出：%s", node.url)
+					return
+				}
 		}
 	}
 }
@@ -291,6 +298,11 @@ func (client *HttpService) SendAll(msg []byte) bool {
 
 func (client *HttpService) Close() {
 	log.Debug("http服务退出...")
+	log.Debug("http服务退出，等待缓冲区发送完毕")
+	if client.clients_count > 0 {
+		client.wg.Wait()
+	}
+	log.Debug("http服务退出...end")
 }
 
 func (tcp *HttpService) SetContext(ctx *context.Context) {
@@ -301,6 +313,7 @@ func (tcp *HttpService) Reload() {
 	config, _ := getHttpConfig()
 	log.Debug("http服务reload...")
 	tcp.enable = config.Enable
+	tcp.clients_count = 0
 	for i, _ := range tcp.groups {
 		tcp.groups[i] = make([]*httpNode, 0)
 		tcp.groups_mode[i]   = 0
@@ -328,6 +341,7 @@ func (tcp *HttpService) Reload() {
 				failure_times_flag : int32(0),
 				cache_is_init      : false,
 			}
+			tcp.clients_count++
 		}
 		index++
 	}

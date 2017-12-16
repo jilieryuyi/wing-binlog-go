@@ -76,6 +76,7 @@ type WebSocketService struct {
 	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
 	enable bool
 	ctx *context.Context
+	wg *sync.WaitGroup
 }
 
 type tcpClientNode struct {
@@ -107,7 +108,8 @@ type TcpService struct {
 	enable bool
 	ctx *context.Context
 	listener *net.Listener
-	isClosed bool
+	//isClosed bool
+	wg *sync.WaitGroup
 }
 
 type HttpService struct {
@@ -121,6 +123,8 @@ type HttpService struct {
 	enable bool
 	time_tick int              // 故障检测的时间间隔
 	ctx *context.Context
+	wg *sync.WaitGroup
+	clients_count int
 }
 
 type httpNode struct {
