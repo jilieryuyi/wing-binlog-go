@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 	"os"
 	"context"
+	"sync"
 )
 
 var (
@@ -53,9 +54,11 @@ type AppConfig struct {
 type Binlog struct {
 	Config *AppConfig
 	handler *canal.Canal
-	is_connected bool
+	isClosed bool
 	BinlogHandler binlogHandler
 	ctx *context.Context
+	wg *sync.WaitGroup
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
 }
 
 type positionCache struct {
@@ -72,16 +75,13 @@ const (
 type binlogHandler struct {
 	Event_index int64
 	canal.DummyEventHandler
-	//chan_save_position chan positionCache
 	buf               []byte
-	//TcpService *services.TcpService
-	//WebsocketService *services.WebSocketService
-	//HttpService *services.HttpService
-	//Kafka *services.WKafka
-
 	services map[string] services.Service
-	services_count int
+	servicesCount int
 	cacheHandler *os.File
+	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	wg *sync.WaitGroup
+	isClosed bool
 }
 
 // 获取mysql配置

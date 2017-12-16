@@ -107,6 +107,7 @@ type TcpService struct {
 	enable bool
 	ctx *context.Context
 	listener *net.Listener
+	isClosed bool
 }
 
 type HttpService struct {

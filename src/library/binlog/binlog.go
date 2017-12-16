@@ -8,6 +8,7 @@ import (
 	"library/file"
 	"library/services"
 	"context"
+	"sync"
 )
 
 func NewBinlog() *Binlog {
@@ -16,7 +17,9 @@ func NewBinlog() *Binlog {
 	debug_config.Password = "******"
 	log.Debugf("binlog配置：%+v", debug_config)
 	binlog := &Binlog {
-		Config:config,
+		Config : config,
+		wg : new(sync.WaitGroup),
+		lock : new(sync.Mutex),
 	}
 	config_file := file.GetCurrentPath() + "/config/canal.toml"
 	cfg, err := canal.NewConfigWithFile(config_file)
@@ -32,16 +35,19 @@ func NewBinlog() *Binlog {
 		log.Panicf("binlog创建canal错误：%+v", err)
 		os.Exit(1)
 	}
-	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 	var b [defaultBufSize]byte
 	binlog.BinlogHandler = binlogHandler{
-		Event_index: index,
-		services:make(map[string]services.Service),
-		services_count:0,
+		services : make(map[string]services.Service),
+		servicesCount : 0,
+		lock : new(sync.Mutex),
+		wg : new(sync.WaitGroup),
 	}
+	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
+	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
+	binlog.BinlogHandler.isClosed = false
 	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
-	binlog.is_connected = false
+	binlog.isClosed = true
 	current_pos, err:= binlog.handler.GetMasterPos()
 	if f != "" {
 		binlog.Config.BinFile = f
@@ -79,21 +85,32 @@ func NewBinlog() *Binlog {
 
 func (h *Binlog) Close() {
 	log.Debug("binlog服务退出...")
-	if !h.is_connected  {
+	if h.isClosed  {
 		return
 	}
-	h.is_connected = false
+	h.BinlogHandler.lock.Lock()
+	h.isClosed = true
+	h.BinlogHandler.isClosed = true
+	// 退出顺序，先停止canal对mysql数据的接收
+	h.handler.Close()
+	log.Debug("binlog-h.handler.Close退出...")
+	h.BinlogHandler.lock.Unlock()
+
+	//等待cache写完
+	log.Debug("binlog-h.BinlogHandler.cacheHandler 等待退出...")
+	h.BinlogHandler.wg.Wait()
+	//关闭cache
+	h.BinlogHandler.cacheHandler.Close()
+	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
+
+	//等待服务数据发送完成
+	//关闭服务
 	for _, service := range h.BinlogHandler.services {
 		log.Debug("服务退出...")
 		service.Close()
 	}
 	log.Debug("binlog-服务Close-all退出...")
-	h.BinlogHandler.cacheHandler.Close()
-	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
-	h.handler.Close()
-	log.Debug("binlog-h.handler.Close退出...")
 }
-
 
 func (h *Binlog) Start(ctx *context.Context) {
 	h.ctx = ctx
@@ -107,10 +124,10 @@ func (h *Binlog) Start(ctx *context.Context) {
 			Name: h.Config.BinFile,
 			Pos:  uint32(h.Config.BinPos),
 		}
-		h.is_connected = true
+		h.isClosed = false
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			if h.is_connected {
+			if !h.isClosed {
 				// 非关闭情况下退出
 				log.Errorf("wing-binlog-go service exit: %+v", err)
 			} else {
