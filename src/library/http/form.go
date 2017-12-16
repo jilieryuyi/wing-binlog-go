@@ -25,7 +25,7 @@ var defaultHttpClient = http.Client {
 
 			dial := net.Dialer{
 				Timeout:   HTTP_POST_TIMEOUT * time.Second,
-				KeepAlive: 3600 * time.Second,
+				KeepAlive: 86400 * time.Second, //一天之内有效
 			}
 
 			conn, err := dial.Dial(netw, addr)
