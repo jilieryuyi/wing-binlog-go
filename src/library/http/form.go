@@ -14,14 +14,31 @@ import (
 // 超时设置
 var defaultHttpClient = http.Client {
 	Transport: &http.Transport {
+		MaxIdleConnsPerHost:16,
 		Dial: func(netw, addr string) (net.Conn, error) {
 			deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
-			c, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
-			if err != nil {
-				return nil, err
+
+			//conn, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
+			//if err != nil {
+			//	return nil, err
+			//}
+
+			dial := net.Dialer{
+				Timeout:   HTTP_POST_TIMEOUT * time.Second,
+				KeepAlive: 3600 * time.Second,
 			}
-			c.SetDeadline(deadline)
-			return c, nil
+
+			conn, err := dial.Dial(netw, addr)
+			if err != nil {
+				return conn, err
+			}
+			//
+			//fmt.Println("connect done, use", conn.LocalAddr().String())
+
+
+
+			conn.SetDeadline(deadline)
+			return conn, nil
 		},
 	},
 }
