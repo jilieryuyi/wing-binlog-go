@@ -151,6 +151,6 @@ func main() {
 	// 优雅的退出程序
 	cancel()
 	blog.Close()
-	fmt.Println("程序退出...")
+	fmt.Println("服务退出...")
 	//time.Sleep(time.Second)
 }

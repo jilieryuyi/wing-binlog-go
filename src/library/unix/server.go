@@ -8,6 +8,7 @@ import (
 	"os"
 	"context"
 	"bytes"
+	"fmt"
 )
 
 func NewUnixServer() *UnixServer {
@@ -49,6 +50,7 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			server.clear()
 			(*server.cancel)()
 			server.binlog.Close()
+			fmt.Println("服务退出...")
 			os.Exit(0)
 		case CMD_RELOAD: {
 			log.Debugf("收到重新加载指令：%s", string(content))
