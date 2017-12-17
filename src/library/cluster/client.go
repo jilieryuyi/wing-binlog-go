@@ -4,10 +4,11 @@ import (
 	"net"
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
-	conn, err := net.Dial("tcp", dns)
+	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 	if err != nil {
 		log.Errorf("cluster服务client连接错误: %s", err)
 		return false
@@ -20,6 +21,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	client.dns = dns
 	client.isClosed = false
 	client.lock.Unlock()
+	//conn.SetDeadline(time.Now().Add(time.Second*3))
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
