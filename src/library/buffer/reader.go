@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"errors"
+	"fmt"
 )
 var out_of_range = errors.New("out of range")
 
@@ -37,6 +38,7 @@ func (wb *WBuffer) Read(n int) ([]byte, error) {
 	if wb.size - wb.pos <= 0 {
 		return nil, out_of_range
 	}
+	fmt.Println("buffer read: ", wb.pos, wb.pos + n)
 	b := wb.buf[wb.pos:wb.pos + n]
 	wb.pos += n
 	return b, nil
