@@ -174,8 +174,8 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 
 func (server *TcpServer) Close() {
 	server.wg.Wait()
-	for _, client := range server.clients {
-		(*client.conn).Close()
+	for i := 0; i < server.clientsCount; i++ {
+		(*server.clients[i].conn).Close()
 	}
 	if server.listener != nil {
 		(*server.listener).Close()

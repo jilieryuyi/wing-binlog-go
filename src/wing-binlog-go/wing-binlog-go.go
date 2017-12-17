@@ -135,6 +135,7 @@ func main() {
 	// 加入集群
 	if *joinTo != "" {
 		command.JoinTo(*joinTo)
+		return
 	}
 
 	// 退出程序时删除pid文件
