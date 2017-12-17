@@ -3,27 +3,27 @@ package cluster
 import (
 	"fmt"
 	"net"
-	"time"
+	//"time"
 	log "github.com/sirupsen/logrus"
-	"library/buffer"
-	"strconv"
+	//"library/buffer"
+	//"strconv"
 )
 
-func (server *tcp_server) start() {
+func (server *TcpServer) Start() {
 	go func() {
 		//建立socket，监听端口
 		dns := fmt.Sprintf("%s:%d", server.listen, server.port)
 		listen, err := net.Listen("tcp", dns)
 		if err != nil {
-			log.Println(err)
+			log.Panicf("cluster服务错误：%+v", err)
 			return
 		}
-		defer listen.Close()
-		log.Debugf("cluster server等待新的连接...")
+		server.listener = &listen
+		log.Debugf("cluster服务%s等待新的连接...", dns)
 		for {
 			conn, err := listen.Accept()
 			if err != nil {
-				log.Println(err)
+				log.Errorf("cluster服务accept错误：%+v", err)
 				continue
 			}
 			go server.onConnect(conn)
@@ -31,22 +31,27 @@ func (server *tcp_server) start() {
 	} ()
 }
 
-// 广播
-func (server *tcp_server) send(cmd int, client_id []byte, msg []string){
-	// todo 这里需要加入channel和select，超时机制
-	server.lock.Lock()
-	log.Println("---clients", server.clients)
-	for _, client := range server.clients {
-		send_msg := pack(cmd, string(client_id), msg)
-		log.Debugf("cluster server发送消息：", len(send_msg), send_msg, string(send_msg))
-		(*client.conn).Write(send_msg)
-	}
-	server.lock.Unlock()
+// 同步读取binlog的游标信息（当前读取到哪里了）
+func (server *TcpServer) SendPos(name string, pos  uint32) {
+
 }
 
-func (server *tcp_server) onConnect(conn net.Conn) {
-	log.Infof("cluster server新的连接：%s", conn.RemoteAddr().String())
-	cnode := &tcp_client_node {
+// 广播
+func (server *TcpServer) send(cmd int, client_id []byte, msg []string){
+	// todo 这里需要加入channel和select，超时机制
+	//server.lock.Lock()
+	//log.Println("---clients", server.clients)
+	//for _, client := range server.clients {
+	//	send_msg := pack(cmd, string(client_id), msg)
+	//	log.Debugf("cluster server发送消息：", len(send_msg), send_msg, string(send_msg))
+	//	(*client.conn).Write(send_msg)
+	//}
+	//server.lock.Unlock()
+}
+
+func (server *TcpServer) onConnect(conn net.Conn) {
+	/*log.Infof("cluster server新的连接：%s", conn.RemoteAddr().String())
+	cnode := &tcpClientNode {
 		conn               : &conn,
 		is_connected       : true,
 		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
@@ -78,11 +83,11 @@ func (server *tcp_server) onConnect(conn net.Conn) {
 		}
 		log.Debugf("cluster server收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
 		server.onMessage(cnode, buf[:size])
-	}
+	}*/
 }
 
-func (server *tcp_server) onClose(conn *tcp_client_node) {
-	server.lock.Lock()
+func (server *TcpServer) onClose(conn *tcpClientNode) {
+	/*server.lock.Lock()
 	for index, client := range server.clients {
 		if client.conn == conn.conn {
 			client.is_connected = false
@@ -92,11 +97,11 @@ func (server *tcp_server) onClose(conn *tcp_client_node) {
 			break
 		}
 	}
-	server.lock.Unlock()
+	server.lock.Unlock()*/
 }
 
-func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
-	conn.recv_buf.Write(msg)
+func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
+	/*conn.recv_buf.Write(msg)
 	for {
 		clen := conn.recv_buf.Size()
 		if clen < 6 {
@@ -131,7 +136,7 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			//断开当前的c端连接
 			//current_node.client.close()
 			////c端连接的追加节点的s端
-			//current_node.client.reset("ip", /*"port"*/0)
+			//current_node.client.reset("ip", 0)
 			//current_node.client.connect()
 			////给连接到的s端发送一个指令，让s端的c端连接的第一个节点的s端
 			//current_node.client.send(0, "请链接到第一个节点的s端")
@@ -174,5 +179,11 @@ func (server *tcp_server) onMessage(conn *tcp_client_node, msg []byte) {
 			//server.send(cmd, client_id, content)
 		}
 		conn.recv_buf.ResetPos()
+	}*/
+}
+
+func (server *TcpServer) Close() {
+	if server.listener != nil {
+		(*server.listener).Close()
 	}
 }

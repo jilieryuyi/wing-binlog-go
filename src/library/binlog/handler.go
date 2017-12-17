@@ -269,6 +269,7 @@ func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
 func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
 	h.SaveBinlogPostionCache(p)
+	h.cluster.SendPos(p.Name, p.Pos)
 	return nil
 }
 

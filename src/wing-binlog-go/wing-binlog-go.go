@@ -15,12 +15,11 @@ import (
 	"io/ioutil"
 	"strconv"
 	"library/file"
-	_ "flag"
+	"flag"
 	log "github.com/sirupsen/logrus"
-	_ "library/cluster"
+	"library/cluster"
 	"library/unix"
 	"library/command"
-	"flag"
 	"time"
 	"context"
 )
@@ -36,6 +35,7 @@ var (
 	//-service-reload all ##重新加载全部服务
 	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
 	help = flag.Bool("help", false, "help")
+	joinTo = flag.String("join-to", "", "join to cluster")
 )
 
 const (
@@ -112,48 +112,60 @@ func init() {
 
 func main() {
 	flag.Parse()
-	//syslog.Println("debug",*debug)
-	//if len(os.Args) > 1 && os.Args[1] == "stop" {
-	//	killPid()
-	//	return
-	//}
+	// 显示版本信息
 	if (*version) {
 		fmt.Println(VERSION)
 		return
 	}
+	// 停止服务
 	if (*stop) {
 		command.Stop()
 		return
 	}
+	// 重新加载服务
 	if *service_reload != "" {
 		command.Reload(*service_reload)
 		return
 	}
+	// 帮助
 	if *help {
 		usage()
 		return
 	}
+	// 加入集群
+	if *joinTo != "" {
+		command.JoinTo(*joinTo)
+	}
+
+	// 退出程序时删除pid文件
 	defer clearPid()
+	// 性能测试
  	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// 各种通信服务
 	tcp_service       := services.NewTcpService()
 	websocket_service := services.NewWebSocketService()
 	http_service      := services.NewHttpService()
-	//kafaka_service    := services.NewKafkaService()
 
-	blog := binlog.NewBinlog()
-	// 注册服务
+	// 集群服务
+	clu := cluster.NewCluster()
+	clu.Start()
+	defer clu.Close()
+
+	// 核心binlog服务
+	blog := binlog.NewBinlog(clu, &ctx)
+	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
-	//blog.BinlogHandler.RegisterService("kafka", kafaka_service)
-	blog.Start(&ctx)
+	blog.Start()
 
+	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()
-	server.Start(blog, &cancel, pid)
+	server.Start(blog, clu, &cancel, pid)
 	defer server.Close()
 
 	sc := make(chan os.Signal, 1)
@@ -169,5 +181,4 @@ func main() {
 	cancel()
 	blog.Close()
 	fmt.Println("服务退出...")
-	//time.Sleep(time.Second)
 }

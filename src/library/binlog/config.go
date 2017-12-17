@@ -6,6 +6,7 @@ import (
 	"errors"
 	"library/file"
 	"library/services"
+	"library/cluster"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"time"
@@ -55,7 +56,7 @@ type Binlog struct {
 	Config *AppConfig
 	handler *canal.Canal
 	isClosed bool
-	BinlogHandler binlogHandler
+	BinlogHandler *binlogHandler
 	ctx *context.Context
 	wg *sync.WaitGroup
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
@@ -83,6 +84,7 @@ type binlogHandler struct {
 	wg *sync.WaitGroup
 	isClosed bool
 	ctx *context.Context
+	cluster *cluster.TcpServer
 }
 
 // 获取mysql配置
