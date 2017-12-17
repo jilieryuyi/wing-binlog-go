@@ -101,7 +101,7 @@ func (client *tcpClient) onMessage(msg []byte) {
 			case CMD_JOIN:
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 				//这里是follower节点，所以后续要停止数据采集操作
-				//global.GetBinlog().StopService()
+				client.binlog.StopService()
 			default:
 		}
 		client.recvBuf.ResetPos()
