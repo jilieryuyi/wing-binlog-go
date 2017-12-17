@@ -72,7 +72,7 @@ func (client *tcpClient) onMessage(msg []byte) {
 		// 2字节 command
 		cmd, _         := client.recvBuf.ReadInt16()
 		contentLen, _  := client.recvBuf.ReadInt32()
-		content        := client.recvBuf.Read(contentLen-2)
+		content, _     := client.recvBuf.Read(contentLen-2)
 		log.Debugf("cluster client收到消息content=%d, %d, %s", cmd, contentLen, content)
 
 		switch cmd {
