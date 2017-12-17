@@ -57,6 +57,7 @@ type tcpClient struct {
 	recvBuf *buffer.WBuffer   //[]byte
 	//clientId string           //用来标识一个客户端，随机字符串
 	lock *sync.Mutex          // 互斥锁，修改资源时锁定
+	cacheHandler *os.File
 }
 
 type tcpClientNode struct {

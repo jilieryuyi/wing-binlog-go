@@ -44,6 +44,7 @@ func NewCluster(ctx *context.Context) *TcpServer {
 		recvTimes : int64(0),
 		recvBuf : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 		lock : new(sync.Mutex),
+		cacheHandler:server.cacheHandler,
 	}
 
 	return server

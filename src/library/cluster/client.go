@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	"time"
+	"github.com/siddontang/go-mysql/server"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -73,9 +74,15 @@ func (client *tcpClient) onMessage(msg []byte) {
 		// 2字节 command
 		cmd, _         := client.recvBuf.ReadInt16()
 		content, _     := client.recvBuf.Read(contentLen-2)
-		log.Debugf("cluster client收到消息content=%d, %d, %s", cmd, contentLen, content)
+		log.Debugf("cluster服务client收到消息content=%d, %d, %s", cmd, contentLen, content)
 
 		switch cmd {
+			case CMD_POS:
+				log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
+				_, err := client.cacheHandler.WriteAt(content, 0)
+				if err != nil {
+					log.Errorf("cluster服务-client-binlog写入缓存文件错误：%+v", err)
+				}
 			case CMD_APPEND_NODE:
 				//client.send(CMD_APPEND_NODE, []string{""})
 				//log.Debugf("cluster client收到追加节点消息")
