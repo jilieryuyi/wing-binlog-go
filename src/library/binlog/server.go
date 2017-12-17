@@ -40,6 +40,9 @@ func (server *TcpServer) Start() {
 func (server *TcpServer) SendPos(data string) {
 	server.send(CMD_POS, data)
 }
+func (server *TcpServer) SendClientPos(conn *tcpClientNode, data string) {
+	conn.send_queue <- server.pack(CMD_POS, data)
+}
 
 // 广播
 func (server *TcpServer) send(cmd int, msg string){
@@ -174,7 +177,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- server.pack(CMD_JOIN, "ok")
 			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.Event_index))
-			conn.send_queue <- server.pack(CMD_POS, data)
+			server.SendClientPos(conn, data)
 		default:
 		}
 		conn.recvBuf.ResetPos()
