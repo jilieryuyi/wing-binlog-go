@@ -73,7 +73,6 @@ func (tcp *TcpServer) pack(cmd int, msg string) []byte {
 	return r
 }
 
-
 func (server *TcpServer) clientService(node *tcpClientNode) {
 	server.wg.Add(1)
 	defer server.wg.Done()
@@ -182,9 +181,40 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
 			conn.ServiceDns = string(content)
 			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
+			server.saveNodes()
 		default:
 		}
 		conn.recvBuf.ResetPos()
+	}
+}
+
+func (server *TcpServer) saveNodes() {
+	select {
+	case <-(*server.ctx).Done():
+		server.wg.Add(1)
+	default:
+	}
+	nodes := "[\""
+	for k, v := range server.clients {
+		nodes += v.ServiceDns
+		if k < server.clientsCount - 1 {
+			nodes += "\",\""
+		} else {
+			nodes += "\"]";
+		}
+	}
+	log.Debugf("cluster写入nodes：%s", nodes)
+	data := []byte(nodes)
+	_, err := server.cacheHandler.WriteAt(data, 0)
+	select {
+	case <-(*server.ctx).Done():
+		log.Debugf("cluster写入nodes-服务退出，等待saveNodes完成，%s", data)
+		server.wg.Done()
+	default:
+	}
+	if err != nil {
+		log.Errorf("cluster写入nodes缓存文件错误：%+v", err)
+		return
 	}
 }
 

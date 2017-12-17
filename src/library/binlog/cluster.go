@@ -8,6 +8,7 @@ import (
 	"context"
 	"github.com/BurntSushi/toml"
 	"net"
+	"os"
 )
 
 //
@@ -67,6 +68,7 @@ type TcpServer struct {
 	ctx *context.Context
 	binlog *Binlog
 	ServiceIp string
+	cacheHandler *os.File
 }
 
 type clusterConfig struct{
@@ -122,6 +124,20 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		binlog : binlog,
 		ServiceIp : config.Cluster.ServiceIp,
 		ServicePort : config.Cluster.Port,
+	}
+
+
+	// 初始化缓存文件句柄
+	cache := file.CurrentPath +"/cache/nodes.list"
+	dir   := file.WPath{cache}
+	dir    = file.WPath{dir.GetParent()}
+
+	dir.Mkdir()
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC | os.O_TRUNC
+	var err error
+	server.cacheHandler, err = os.OpenFile(cache, flag , 0755)
+	if err != nil {
+		log.Panicf("binlog服务，打开缓存文件错误：%s, %+v", cache, err)
 	}
 
 	return server
