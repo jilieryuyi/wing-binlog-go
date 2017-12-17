@@ -97,6 +97,8 @@ type binlogHandler struct {
 	isClosed bool
 	ctx *context.Context
 	Cluster *TcpServer
+	lastPos uint32
+	lastBinFile string
 }
 
 // 获取mysql配置
