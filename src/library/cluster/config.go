@@ -27,6 +27,7 @@ const (
 const (
 	CMD_APPEND_NODE   = 1
 	CMD_POS    = 2
+	CMD_JOIN   = 3
 	CMD_CONNECT_FIRST = 3
 	CMD_APPEND_NODE_SURE = 4
 )

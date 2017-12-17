@@ -115,6 +115,7 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	server.clientsCount++
 	server.lock.Unlock()
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+	(*conn).SetReadDeadline(time.Now().Add(time.Second*3))
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
@@ -166,6 +167,10 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			if err != nil {
 				log.Errorf("cluster服务-binlog写入缓存文件错误：%+v", err)
 			}
+		case CMD_JOIN:
+			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
+			(*conn.conn).SetReadDeadline(time.Time{})
+			conn.send_queue <- server.pack(CMD_JOIN, "ok")
 		default:
 		}
 		conn.recvBuf.ResetPos()

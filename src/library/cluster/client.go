@@ -21,6 +21,10 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	client.conn = &conn
 	client.dns = dns
 	client.isClosed = false
+
+	//发送一个握手消息，用来确认加入集群
+	client.Send(CMD_JOIN, "")
+
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
@@ -54,10 +58,25 @@ func (client *tcpClient) onClose()  {
 }
 
 // todo 这里应该使用新的channel服务进行发送
-func (client *tcpClient) Send(cmd int, messages []string) {
-	//send_msg := pack(cmd, client.client_id, msgs)
-	//log.Println("cluster client发送消息", len(send_msg), string(send_msg), send_msg)
-	//(*client.conn).Write(send_msg)
+func (client *tcpClient) Send(cmd int, message string) {
+	sendMsg := client.pack(cmd, message)
+	log.Debugf("cluster client发送消息, %d, %s", len(sendMsg), sendMsg)
+	(*client.conn).Write(sendMsg)
+}
+
+func (tcp *tcpClient) pack(cmd int, msg string) []byte {
+	m := []byte(msg)
+	l := len(m)
+	r := make([]byte, l + 6)
+	cl := l + 2
+	r[0] = byte(cl)
+	r[1] = byte(cl >> 8)
+	r[2] = byte(cl >> 16)
+	r[3] = byte(cl >> 32)
+	r[4] = byte(cmd)
+	r[5] = byte(cmd >> 8)
+	copy(r[6:], m)
+	return r
 }
 
 // 收到消息回调函数
@@ -82,26 +101,9 @@ func (client *tcpClient) onMessage(msg []byte) {
 				if err != nil {
 					log.Errorf("cluster服务-client-binlog写入缓存文件错误：%+v", err)
 				}
-			case CMD_APPEND_NODE:
-				//client.send(CMD_APPEND_NODE, []string{""})
-				//log.Debugf("cluster client收到追加节点消息")
-				//log.Debugf("cluster client追加节点：%s", content[0] + ":" + content[1])
-				//
-				//// 关闭client连接
-				//client.close()
-				//// 将client连接到下一个节点
-				//port, _:= strconv.Atoi(content[1])
-				//client.reset(content[0], port)
-				//client.connect()
-				//发送闭环指令
-				//client.send(CMD_CONNECT_FIRST, []string{
-				//	"10.0.33.75",
-				//	fmt.Sprintf("%d", first_node.Port),
-				//})
-
+			case CMD_JOIN:
+				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 			default:
-				//链路转发
-				//client.send(cmd, content)
 		}
 		client.recvBuf.ResetPos()
 	}
