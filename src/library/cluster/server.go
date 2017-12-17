@@ -157,7 +157,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 		contentLen, _  := conn.recvBuf.ReadInt32()
 		cmd, _         := conn.recvBuf.ReadInt16() // 2字节 command
 		content, _     := conn.recvBuf.Read(contentLen-2)
-		log.Debugf("cluster服务收到消息，cmd=%d %s", cmd, string(content))
+		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, contentLen, string(content))
 
 		switch cmd {
 		case CMD_POS:
