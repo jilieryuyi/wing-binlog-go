@@ -145,7 +145,7 @@ func (h *Binlog) StartService() {
 		h.isClosed = false
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			if !h.isClosed {
+			if !h.isClosed && !h.BinlogHandler.isClosed {
 				// 非关闭情况下退出
 				log.Errorf("wing-binlog-go service exit: %+v", err)
 			} else {
