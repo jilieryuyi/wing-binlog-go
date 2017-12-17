@@ -69,9 +69,9 @@ func (client *tcpClient) onMessage(msg []byte) {
 		if clen < 6 {
 			return
 		}
+		contentLen, _  := client.recvBuf.ReadInt32()
 		// 2字节 command
 		cmd, _         := client.recvBuf.ReadInt16()
-		contentLen, _  := client.recvBuf.ReadInt32()
 		content, _     := client.recvBuf.Read(contentLen-2)
 		log.Debugf("cluster client收到消息content=%d, %d, %s", cmd, contentLen, content)
 
