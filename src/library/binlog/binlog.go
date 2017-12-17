@@ -118,12 +118,17 @@ func (h *Binlog) Close() {
 	log.Debug("binlog-服务Close-all退出...")
 }
 
-func (h *Binlog) Start() {
-	for _, service := range h.BinlogHandler.services {
-		service.Start()
-		service.SetContext(h.ctx)
-	}
-	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
+// 仅仅停止服务
+func (h *Binlog) StopService() {
+	log.Debug("停止binlog服务")
+	h.BinlogHandler.lock.Lock()
+	h.BinlogHandler.isClosed = true
+	// 退出顺序，先停止canal对mysql数据的接收
+	h.handler.Close()
+	h.BinlogHandler.lock.Unlock()
+}
+
+func (h *Binlog) StartService() {
 	go func() {
 		startPos := mysql.Position{
 			Name: h.Config.BinFile,
@@ -141,6 +146,15 @@ func (h *Binlog) Start() {
 			return
 		}
 	}()
+}
+
+func (h *Binlog) Start() {
+	for _, service := range h.BinlogHandler.services {
+		service.Start()
+		service.SetContext(h.ctx)
+	}
+	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
+	h.StartService()
 }
 
 func (h *Binlog) Reload(service string) {

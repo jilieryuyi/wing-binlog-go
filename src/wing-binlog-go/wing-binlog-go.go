@@ -4,6 +4,7 @@ import (
 	"library/binlog"
 	"library/services"
 	"library/app"
+	"library/global"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
 	"os"
@@ -163,8 +164,7 @@ func main() {
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
 	blog.Start()
-
-
+	global.SetBinlog(blog)
 
 	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()

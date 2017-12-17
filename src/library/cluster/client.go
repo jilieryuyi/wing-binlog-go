@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	"time"
+	"library/global"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -103,6 +104,8 @@ func (client *tcpClient) onMessage(msg []byte) {
 				}
 			case CMD_JOIN:
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
+				//这里是follower节点，所以后续要停止数据采集操作
+				global.GetBinlog().StopService()
 			default:
 		}
 		client.recvBuf.ResetPos()
