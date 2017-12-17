@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	"time"
-	"github.com/siddontang/go-mysql/server"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
