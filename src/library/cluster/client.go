@@ -71,30 +71,9 @@ func (client *tcpClient) onMessage(msg []byte) {
 		}
 		// 2字节 command
 		cmd, _         := client.recvBuf.ReadInt16()
-		client_id, _   := client.recvBuf.Read(32)
-		content        := make([]string, 1)
-		index          := 0
-		log.Debugf("cluster服务client收到消息，cmd=%d %d %s", cmd, len(client_id), string(client_id))
-		for {
-			// 4字节长度，即int32
-			l, err := client.recvBuf.ReadInt32()
-			if err != nil {
-				break
-			}
-			cb, err := client.recvBuf.Read(l)
-			if err != nil {
-				break
-			}
-			content = append(content[:index], string(cb))
-			log.Debugf("cluster client收到消息content=%d %d %s %v", l, index, content[index], cb)
-			index++
-		}
-
-		//if string(client_id) == client.client_id {
-		//	log.Debugf("cluster client收到消息闭环 %s", string(client_id))
-		//	client.recvBuf.ResetPos()
-		//	return
-		//}
+		contentLen, _  := client.recvBuf.ReadInt32()
+		content        := client.recvBuf.Read(contentLen-2)
+		log.Debugf("cluster client收到消息content=%d, %d, %s", cmd, contentLen, content)
 
 		switch cmd {
 			case CMD_APPEND_NODE:
