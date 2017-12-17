@@ -9,7 +9,6 @@ import (
 	"context"
 	"bytes"
 	"fmt"
-	"library/cluster"
 )
 
 func NewUnixServer() *UnixServer {
@@ -59,7 +58,7 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		}
 		case CMD_JOINTO:
 			log.Debugf("收到加入群集指令：%s", string(content))
-			server.cluster.Client.ConnectTo(string(content))
+			server.binlog.BinlogHandler.Cluster.Client.ConnectTo(string(content))
 		default:
 			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}
@@ -85,11 +84,10 @@ func (server *UnixServer) Close() {
 	server.clear()
 }
 
-func (server *UnixServer) Start(binlog *binlog.Binlog, clu *cluster.TcpServer, cancel *context.CancelFunc, pid string) {
+func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFunc, pid string) {
 	server.cancel = cancel
 	server.binlog = binlog
 	server.pidFile = pid
-	server.cluster = clu
 	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")

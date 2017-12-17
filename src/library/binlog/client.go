@@ -1,11 +1,10 @@
-package cluster
+package binlog
 
 import (
 	"net"
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	"time"
-	"library/global"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -98,14 +97,11 @@ func (client *tcpClient) onMessage(msg []byte) {
 		switch cmd {
 			case CMD_POS:
 				log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
-				_, err := client.cacheHandler.WriteAt(content, 0)
-				if err != nil {
-					log.Errorf("cluster服务-client-binlog写入缓存文件错误：%+v", err)
-				}
+				client.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 			case CMD_JOIN:
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 				//这里是follower节点，所以后续要停止数据采集操作
-				global.GetBinlog().StopService()
+				//global.GetBinlog().StopService()
 			default:
 		}
 		client.recvBuf.ResetPos()

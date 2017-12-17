@@ -7,12 +7,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/services"
-	"library/cluster"
 	"context"
 	"sync"
 )
 
-func NewBinlog(cluster *cluster.TcpServer, ctx *context.Context) *Binlog {
+func NewBinlog(ctx *context.Context) *Binlog {
 	config, _ := GetMysqlConfig()
 	debug_config := config
 	debug_config.Password = "******"
@@ -38,12 +37,17 @@ func NewBinlog(cluster *cluster.TcpServer, ctx *context.Context) *Binlog {
 		os.Exit(1)
 	}
 	var b [defaultBufSize]byte
+
+	// 集群服务
+	cluster := NewCluster(ctx, binlog)
+	cluster.Start()
+
 	binlog.BinlogHandler = &binlogHandler{
 		services : make(map[string]services.Service),
 		servicesCount : 0,
 		lock : new(sync.Mutex),
 		wg : new(sync.WaitGroup),
-		cluster : cluster,
+		Cluster : cluster,
 		ctx : ctx,
 	}
 	binlog.BinlogHandler.wg.Add(1)
@@ -106,6 +110,7 @@ func (h *Binlog) Close() {
 	h.BinlogHandler.wg.Wait()
 	//关闭cache
 	h.BinlogHandler.cacheHandler.Close()
+	h.BinlogHandler.Cluster.Close()
 	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
 
 	//以下操作服务内部完成

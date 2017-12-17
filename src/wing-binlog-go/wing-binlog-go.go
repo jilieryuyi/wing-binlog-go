@@ -4,7 +4,6 @@ import (
 	"library/binlog"
 	"library/services"
 	"library/app"
-	"library/global"
 	_ "github.com/go-sql-driver/mysql"
 	"runtime"
 	"os"
@@ -18,7 +17,6 @@ import (
 	"library/file"
 	"flag"
 	log "github.com/sirupsen/logrus"
-	"library/cluster"
 	"library/unix"
 	"library/command"
 	"time"
@@ -152,23 +150,17 @@ func main() {
 	websocket_service := services.NewWebSocketService()
 	http_service      := services.NewHttpService()
 
-	// 集群服务
-	clu := cluster.NewCluster(&ctx)
-	clu.Start()
-	defer clu.Close()
-
 	// 核心binlog服务
-	blog := binlog.NewBinlog(clu, &ctx)
+	blog := binlog.NewBinlog(&ctx)
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
 	blog.Start()
-	global.SetBinlog(blog)
 
 	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()
-	server.Start(blog, clu, &cancel, pid)
+	server.Start(blog, &cancel, pid)
 	defer server.Close()
 
 	sc := make(chan os.Signal, 1)

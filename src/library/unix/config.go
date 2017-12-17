@@ -4,7 +4,6 @@ import (
 	"net"
 	"context"
 	"library/binlog"
-	"library/cluster"
 )
 const (
 	CMD_STOP = 1
@@ -21,5 +20,5 @@ type UnixServer struct {
 	cancel *context.CancelFunc
 	binlog *binlog.Binlog
 	pidFile string
-	cluster *cluster.TcpServer
+	cluster *binlog.TcpServer
 }

@@ -1,4 +1,4 @@
-package cluster
+package binlog
 
 import (
 	"fmt"
@@ -163,10 +163,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 		switch cmd {
 		case CMD_POS:
 			log.Debugf("cluster服务-binlog写入缓存：%s", string(content))
-			_, err := server.cacheHandler.WriteAt(content, 0)
-			if err != nil {
-				log.Errorf("cluster服务-binlog写入缓存文件错误：%+v", err)
-			}
+			server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 		case CMD_JOIN:
 			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
 			(*conn.conn).SetReadDeadline(time.Time{})
