@@ -22,6 +22,11 @@ func (server *TcpServer) Start() {
 		log.Debugf("cluster服务%s等待新的连接...", dns)
 		for {
 			conn, err := listen.Accept()
+			select {
+				case <-(*server.ctx).Done():
+					return
+				default:
+			}
 			if err != nil {
 				log.Errorf("cluster服务accept错误：%+v", err)
 				continue
@@ -168,6 +173,8 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- server.pack(CMD_JOIN, "ok")
+			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.Event_index))
+			conn.send_queue <- server.pack(CMD_POS, data)
 		default:
 		}
 		conn.recvBuf.ResetPos()

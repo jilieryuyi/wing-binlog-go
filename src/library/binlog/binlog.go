@@ -78,6 +78,9 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	}
 	log.Debugf("binlog配置：%+v", binlog.Config)
 
+	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
+	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
+
 	// 初始化缓存文件句柄
 	mysql_binlog_position_cache := file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"
 	dir := file.WPath{mysql_binlog_position_cache}
