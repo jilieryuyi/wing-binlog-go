@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	log "github.com/sirupsen/logrus"
 	"time"
+	"fmt"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -23,7 +24,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	client.isClosed = false
 
 	//发送一个握手消息，用来确认加入集群
-	client.Send(CMD_JOIN, "")
+	client.Send(CMD_JOIN, fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort))
 
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
