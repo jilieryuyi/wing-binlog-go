@@ -102,9 +102,11 @@ func (h *Binlog) Close() {
 	}
 	h.BinlogHandler.lock.Lock()
 	h.isClosed = true
-	h.BinlogHandler.isClosed = true
 	// 退出顺序，先停止canal对mysql数据的接收
-	h.handler.Close()
+	if !h.BinlogHandler.isClosed {
+		h.handler.Close()
+	}
+	h.BinlogHandler.isClosed = true
 	log.Debug("binlog-h.handler.Close退出...")
 	h.BinlogHandler.lock.Unlock()
 
