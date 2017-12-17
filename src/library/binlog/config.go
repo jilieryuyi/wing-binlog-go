@@ -6,13 +6,12 @@ import (
 	"errors"
 	"library/file"
 	"library/services"
-	"library/cluster"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"time"
 	"unicode/utf8"
-	"os"
 	"context"
+	"os"
 	"sync"
 )
 
@@ -71,6 +70,19 @@ const (
 	MAX_CHAN_FOR_SAVE_POSITION = 128
 	defaultBufSize = 4096
 	DEFAULT_FLOAT_PREC = 6
+
+	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
+	TCP_DEFAULT_CLIENT_SIZE       = 64
+	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
+	TCP_RECV_DEFAULT_SIZE         = 4096
+	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
+	CLUSTER_NODE_DEFAULT_SIZE     = 4
+
+	CMD_APPEND_NODE   = 1
+	CMD_POS    = 2
+	CMD_JOIN   = 3
+	CMD_CONNECT_FIRST = 3
+	CMD_APPEND_NODE_SURE = 4
 )
 
 type binlogHandler struct {
@@ -84,7 +96,7 @@ type binlogHandler struct {
 	wg *sync.WaitGroup
 	isClosed bool
 	ctx *context.Context
-	cluster *cluster.TcpServer
+	Cluster *TcpServer
 }
 
 // 获取mysql配置

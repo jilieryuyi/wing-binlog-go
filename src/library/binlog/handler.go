@@ -270,7 +270,7 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
 	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.Event_index))
 	h.SaveBinlogPostionCache(data)
-	h.cluster.SendPos(data)
+	h.Cluster.SendPos(data)
 	return nil
 }
 
