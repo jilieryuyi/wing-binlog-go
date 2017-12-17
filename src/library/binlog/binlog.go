@@ -7,11 +7,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/services"
+	"library/cluster"
 	"context"
 	"sync"
 )
 
-func NewBinlog() *Binlog {
+func NewBinlog(cluster *cluster.TcpServer, ctx *context.Context) *Binlog {
 	config, _ := GetMysqlConfig()
 	debug_config := config
 	debug_config.Password = "******"
@@ -20,6 +21,7 @@ func NewBinlog() *Binlog {
 		Config : config,
 		wg : new(sync.WaitGroup),
 		lock : new(sync.Mutex),
+		ctx : ctx,
 	}
 	config_file := file.GetCurrentPath() + "/config/canal.toml"
 	cfg, err := canal.NewConfigWithFile(config_file)
@@ -36,18 +38,20 @@ func NewBinlog() *Binlog {
 		os.Exit(1)
 	}
 	var b [defaultBufSize]byte
-	binlog.BinlogHandler = binlogHandler{
+	binlog.BinlogHandler = &binlogHandler{
 		services : make(map[string]services.Service),
 		servicesCount : 0,
 		lock : new(sync.Mutex),
 		wg : new(sync.WaitGroup),
+		cluster : cluster,
+		ctx : ctx,
 	}
 	binlog.BinlogHandler.wg.Add(1)
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.isClosed = false
-	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
+	binlog.handler.SetEventHandler(binlog.BinlogHandler)
 	binlog.isClosed = true
 	current_pos, err:= binlog.handler.GetMasterPos()
 	if f != "" {
@@ -114,12 +118,10 @@ func (h *Binlog) Close() {
 	log.Debug("binlog-服务Close-all退出...")
 }
 
-func (h *Binlog) Start(ctx *context.Context) {
-	h.ctx = ctx
-	h.BinlogHandler.ctx = ctx
+func (h *Binlog) Start() {
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
-		service.SetContext(ctx)
+		service.SetContext(h.ctx)
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
 	go func() {

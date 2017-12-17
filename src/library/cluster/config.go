@@ -34,8 +34,8 @@ type Cluster struct {
 	Port int           //节点端口
 	ServiceIp string   //对外服务ip
 	is_down bool       //是否已下线
-	client *tcp_client
-	server *tcp_server
+	client *tcpClient
+	server *TcpServer
 	nodes []*cluster_node
 	nodes_count int
 	lock *sync.Mutex
@@ -47,18 +47,17 @@ type cluster_node struct {
 	is_enable bool
 }
 
-type tcp_client struct {
-	ip string
-	port int
+type tcpClient struct {
+	dns string
 	conn *net.Conn
-	is_closed bool
-	recv_times int64
-	recv_buf *buffer.WBuffer //[]byte
-	client_id string         //用来标识一个客户端，随机字符串
+	isClosed bool
+	recvTimes int64
+	recvBuf *buffer.WBuffer   //[]byte
+	//clientId string           //用来标识一个客户端，随机字符串
 	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 }
 
-type tcp_client_node struct {
+type tcpClientNode struct {
 	conn *net.Conn           // 客户端连接进来的资源句柄
 	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
 	send_queue chan []byte   // 发送channel
@@ -69,36 +68,34 @@ type tcp_client_node struct {
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
 }
 
-type tcp_server struct {
+type TcpServer struct {
 	listen string
-	service_ip string
-	cluster *Cluster
 	port int
-	client *tcp_client
-	clients []*tcp_client_node
-	lock *sync.Mutex          // 互斥锁，修改资源时锁定
+	Client *tcpClient
+	clients []*tcpClientNode
 	clients_count int
+	lock *sync.Mutex          // 互斥锁，修改资源时锁定
+	listener *net.Listener
 }
 
-type cluster_config struct{
-	Cluster node_config
+type clusterConfig struct{
+	Cluster nodeConfig
 }
 
-type node_config struct {
+type nodeConfig struct {
 	Listen string
 	Port int
-	ServiceIp string
+	//ServiceIp string
 }
 
-func getServiceConfig() (*cluster_config, error) {
-	var config cluster_config
-	config_file := file.GetCurrentPath()+"/config/cluster.toml"
+func getServiceConfig() (*clusterConfig, error) {
+	var config clusterConfig
+	config_file := file.CurrentPath+"/config/cluster.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Errorf("config file %s does not exists", config_file)
 		return nil, ErrorFileNotFound
 	}
-
 	if _, err := toml.DecodeFile(config_file, &config); err != nil {
 		log.Println(err)
 		return nil, ErrorFileParse
