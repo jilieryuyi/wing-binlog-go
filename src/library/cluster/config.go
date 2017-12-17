@@ -8,6 +8,8 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"errors"
+	"context"
+	"os"
 )
 var (
 	ErrorFileNotFound = errors.New("config file not fount")
@@ -24,7 +26,7 @@ const (
 
 const (
 	CMD_APPEND_NODE   = 1
-	CMD_APPEND_NET    = 2
+	CMD_POS    = 2
 	CMD_CONNECT_FIRST = 3
 	CMD_APPEND_NODE_SURE = 4
 )
@@ -61,9 +63,9 @@ type tcpClientNode struct {
 	conn *net.Conn           // 客户端连接进来的资源句柄
 	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
 	send_queue chan []byte   // 发送channel
-	send_failure_times int64 // 发送失败次数
+	sendFailureTimes int64 // 发送失败次数
 	weight int               // 权重 0 - 100
-	recv_buf *buffer.WBuffer //[]byte          // 读缓冲区
+	recvBuf *buffer.WBuffer  //[]byte          // 读缓冲区
 	connect_time int64       // 连接成功的时间戳
 	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
 }
@@ -73,9 +75,13 @@ type TcpServer struct {
 	port int
 	Client *tcpClient
 	clients []*tcpClientNode
-	clients_count int
+	clientsCount int
 	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 	listener *net.Listener
+	wg *sync.WaitGroup
+	sendFailureTimes int64
+	ctx *context.Context
+	cacheHandler *os.File
 }
 
 type clusterConfig struct{

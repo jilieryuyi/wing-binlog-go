@@ -268,19 +268,20 @@ func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
 
 func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
-	h.SaveBinlogPostionCache(p)
-	h.cluster.SendPos(p.Name, p.Pos)
+	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.Event_index))
+	h.SaveBinlogPostionCache(data)
+	h.cluster.SendPos(data)
 	return nil
 }
 
-func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
-	data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
+func (h *binlogHandler) SaveBinlogPostionCache(data string) {
+	//data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
 	log.Debugf("binlog写入缓存：%s", data)
 	wdata := []byte(data)
 	_, err := h.cacheHandler.WriteAt(wdata, 0)
 	select {
 	case <-(*h.ctx).Done():
-		log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%+v", pos)
+		log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%s", data)
 		h.wg.Done()
 	default:
 	}

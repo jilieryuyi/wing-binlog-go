@@ -151,7 +151,7 @@ func main() {
 	http_service      := services.NewHttpService()
 
 	// 集群服务
-	clu := cluster.NewCluster()
+	clu := cluster.NewCluster(&ctx)
 	clu.Start()
 	defer clu.Close()
 
@@ -162,6 +162,8 @@ func main() {
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
 	blog.Start()
+
+
 
 	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()
