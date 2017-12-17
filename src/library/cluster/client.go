@@ -8,6 +8,8 @@ import (
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
+	client.lock.Lock()
+	defer client.lock.Unlock()
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 	if err != nil {
 		log.Errorf("cluster服务client连接错误: %s", err)
@@ -16,12 +18,9 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	if !client.isClosed {
 		client.onClose()
 	}
-	client.lock.Lock()
 	client.conn = &conn
 	client.dns = dns
 	client.isClosed = false
-	client.lock.Unlock()
-	//conn.SetDeadline(time.Now().Add(time.Second*3))
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
