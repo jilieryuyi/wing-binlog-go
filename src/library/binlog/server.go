@@ -173,11 +173,15 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			log.Debugf("cluster服务-binlog写入缓存：%s", string(content))
 			server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 		case CMD_JOIN:
+			// 这里需要把服务ip和端口发送过来
 			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- server.pack(CMD_JOIN, "ok")
 			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.Event_index))
 			server.SendClientPos(conn, data)
+			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
+			conn.ServiceDns = string(content)
+			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
 		default:
 		}
 		conn.recvBuf.ResetPos()
