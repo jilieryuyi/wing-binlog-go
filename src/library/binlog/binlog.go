@@ -9,6 +9,7 @@ import (
 	"library/services"
 	"context"
 	"sync"
+	"time"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -106,17 +107,21 @@ func (h *Binlog) Close() {
 	if !h.BinlogHandler.isClosed {
 		h.handler.Close()
 	}
-	h.BinlogHandler.isClosed = true
 	log.Debug("binlog-h.handler.Close退出...")
-	h.BinlogHandler.lock.Unlock()
-
 	//等待cache写完
-	log.Debug("binlog-h.BinlogHandler.cacheHandler 等待退出...")
+	log.Debug("binlog-h.BinlogHandler.cacheHandler等待退出...")
+	go func() {
+		time.Sleep(time.Second*1)
+		h.BinlogHandler.wg.Done()
+	}()
+
 	h.BinlogHandler.wg.Wait()
+	h.BinlogHandler.isClosed = true
 	//关闭cache
 	h.BinlogHandler.cacheHandler.Close()
 	h.BinlogHandler.Cluster.Close()
 	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
+	h.BinlogHandler.lock.Unlock()
 
 	//以下操作服务内部完成
 	//等待服务数据发送完成
@@ -136,6 +141,7 @@ func (h *Binlog) StopService() {
 	// 退出顺序，先停止canal对mysql数据的接收
 	h.handler.Close()
 	h.BinlogHandler.lock.Unlock()
+	log.Debug("停止binlog服务--end")
 }
 
 func (h *Binlog) StartService() {
@@ -165,6 +171,7 @@ func (h *Binlog) Start() {
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
 	h.StartService()
+	h.StopService()
 }
 
 func (h *Binlog) Reload(service string) {
