@@ -189,11 +189,6 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 }
 
 func (server *TcpServer) saveNodes() {
-	select {
-	case <-(*server.ctx).Done():
-		server.wg.Add(1)
-	default:
-	}
 	nodes := "[\""
 	for k, v := range server.clients {
 		nodes += v.ServiceDns
@@ -206,12 +201,6 @@ func (server *TcpServer) saveNodes() {
 	log.Debugf("cluster写入nodes：%s", nodes)
 	data := []byte(nodes)
 	_, err := server.cacheHandler.WriteAt(data, 0)
-	select {
-	case <-(*server.ctx).Done():
-		log.Debugf("cluster写入nodes-服务退出，等待saveNodes完成，%s", data)
-		server.wg.Done()
-	default:
-	}
 	if err != nil {
 		log.Errorf("cluster写入nodes缓存文件错误：%+v", err)
 		return
