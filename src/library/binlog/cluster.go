@@ -11,32 +11,12 @@ import (
 	"os"
 )
 
-//
-//type Cluster struct {
-//	Listen string      //监听ip，一般为0.0.0.0即可
-//	Port int           //节点端口
-//	ServiceIp string   //对外服务ip
-//	is_down bool       //是否已下线
-//	client *tcpClient
-//	server *TcpServer
-//	nodes []*cluster_node
-//	nodes_count int
-//	lock *sync.Mutex
-//}
-
-//type cluster_node struct {
-//	service_ip string
-//	port int
-//	is_enable bool
-//}
-
 type tcpClient struct {
 	dns string
 	conn *net.Conn
 	isClosed bool
 	recvTimes int64
-	recvBuf *buffer.WBuffer   //[]byte
-	//clientId string           //用来标识一个客户端，随机字符串
+	recvBuf *buffer.WBuffer   // []byte
 	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 	binlog *Binlog
 	ServiceIp string
@@ -72,13 +52,9 @@ type TcpServer struct {
 }
 
 type clusterConfig struct{
-	Cluster nodeConfig
-}
-
-type nodeConfig struct {
-	Listen string
-	Port int
-	ServiceIp string
+	Listen string `toml:"listen"`
+	Port int `toml:"port"`
+	ServiceIp string `toml:"service_ip"`
 }
 
 func getServiceConfig() (*clusterConfig, error) {
@@ -99,12 +75,12 @@ func getServiceConfig() (*clusterConfig, error) {
 
 func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 	config, _:= getServiceConfig()
-	log.Infof("cluster server初始化 ...............")
-	log.Infof("listen: %s:%d", config.Cluster.Listen, config.Cluster.Port)
+	log.Infof("cluster server初始化: %+v", config)
+	log.Infof("listen: %s:%d", config.Listen, config.Port)
 
 	server := &TcpServer{
-		listen : config.Cluster.Listen,
-		port : config.Cluster.Port,
+		listen : config.Listen,
+		port : config.Port,
 		lock : new(sync.Mutex),
 		clientsCount : 0,
 		listener : nil,
@@ -113,7 +89,7 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		sendFailureTimes : int64(0),
 		ctx : ctx,
 		binlog : binlog,
-		ServiceIp : config.Cluster.ServiceIp,
+		ServiceIp : config.ServiceIp,
 	}
 
 	server.Client = &tcpClient{
@@ -122,8 +98,8 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		recvBuf : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 		lock : new(sync.Mutex),
 		binlog : binlog,
-		ServiceIp : config.Cluster.ServiceIp,
-		ServicePort : config.Cluster.Port,
+		ServiceIp : config.ServiceIp,
+		ServicePort : config.Port,
 	}
 
 
