@@ -171,7 +171,7 @@ func (h *Binlog) Start() {
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
 	h.StartService()
-	h.StopService()
+	//h.StopService() -- debug
 }
 
 func (h *Binlog) Reload(service string) {
