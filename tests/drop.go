@@ -6,19 +6,18 @@ import (
 	"regexp"
 	"log"
 	"bytes"
-	//"fmt"
 )
 
 func main() {
 	//expDropTable  := regexp.MustCompile("(?i)^DROP\\sTABLE(\\s{1,}IF\\s{1,}EXISTS){0,1}\\s.*?`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}\\s.*")
-	expDropTable   := regexp.MustCompile("(?i)^DROP(\\s){1,}TABLE((\\s){1,}IF(\\s){1,}EXISTS){0,1}(\\s){1,}`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}($|\\s)")
+	expDropTable   := regexp.MustCompile("(?i)^DROP(\\s){1,}TABLE((\\s){1,}IF(\\s){1,}(NOT\\s{1,}){0,1}EXISTS){0,1}(\\s){1,}`{0,1}(.*?)`{0,1}\\.{0,1}`{0,1}([^`\\.]+?)`{0,1}($|\\s)")
 	cases := []string{
 		"drop table test1",
 		"drop  table   test1",
 		"DROP  TABLE test1",
 		"DROP TABLE test1",
-		"DROP   table   test.test1 IF EXISTS test.test1",
-		"DROP table test.test1 IF EXISTS test.test1",
+		"DROP   table   IF EXISTS test.test1",
+		"DROP table IF EXISTS test.test1",
 		"drop   table `test1`",
 		"DROP   TABLE   `test1`",
 		"DROP    table    `test`.`test1` IF EXISTS `test`.`test1`",
@@ -30,6 +29,13 @@ func main() {
 		"DROP   table   if exists    `test`.`test1`",
 		"DROP   table if    exists   test.`test1`",
 		"DROP table if exists test.`test1`",
+		"DROP   table   if  not  exists   test1",
+		"DROP   table    if  not exists   `test1`",
+		"DROP   table    if not exists    test.test1",
+		"DROP   table   if not exists    `test`.test1",
+		"DROP   table   if not exists    `test`.`test1`",
+		"DROP   table if   not  exists   test.`test1`",
+		"DROP table if not exists test.`test1`",
 	}
 
 	table := []byte("test1")
@@ -45,11 +51,11 @@ func main() {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 			return
 		}
-		if len(m) < 8 {
+		if len(m) < 9 {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 			return
 		}
-		if !bytes.Equal(m[7], table) {
+		if !bytes.Equal(m[8], table) {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 		}
 	}
