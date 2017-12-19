@@ -29,13 +29,6 @@ func main() {
 		"DROP   table   if exists    `test`.`test1`",
 		"DROP   table if    exists   test.`test1`",
 		"DROP table if exists test.`test1`",
-		"DROP   table   if  not  exists   test1",
-		"DROP   table    if  not exists   `test1`",
-		"DROP   table    if not exists    test.test1",
-		"DROP   table   if not exists    `test`.test1",
-		"DROP   table   if not exists    `test`.`test1`",
-		"DROP   table if   not  exists   test.`test1`",
-		"DROP table if not exists test.`test1`",
 	}
 
 	table := []byte("test1")
@@ -51,11 +44,11 @@ func main() {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 			return
 		}
-		if len(m) < 9 {
+		if len(m) < 8 {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 			return
 		}
-		if !bytes.Equal(m[8], table) {
+		if !bytes.Equal(m[7], table) {
 			log.Fatalf("TestDropTableExp: case %s failed\n", s)
 		}
 	}
