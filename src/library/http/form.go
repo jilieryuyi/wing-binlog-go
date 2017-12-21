@@ -16,7 +16,7 @@ var defaultHttpClient = http.Client {
 	Transport: &http.Transport {
 		MaxIdleConnsPerHost:16,
 		Dial: func(netw, addr string) (net.Conn, error) {
-			deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
+			//deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
 
 			//conn, err := net.DialTimeout(netw, addr, time.Second * HTTP_POST_TIMEOUT)
 			//if err != nil {
@@ -37,7 +37,7 @@ var defaultHttpClient = http.Client {
 
 
 
-			conn.SetDeadline(deadline)
+			//conn.SetDeadline(deadline)
 			return conn, nil
 		},
 	},
