@@ -69,6 +69,8 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	}
 	return res, nil
 }
+
+
 func Get(addr string) (*[]byte, *int, *http.Header, error) {
 	// 上传JSON数据
 	req, e := http.NewRequest("GET", addr, nil)
@@ -77,7 +79,7 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
 		return nil, nil, nil, e
 	}
 	// 完成后断开连接
-	req.Header.Set("Connection", "close")
+	req.Header.Set("Connection", "keep-alive")
 	// 执行
 	resp, ee := defaultHttpClient.Do(req)
 	if ee != nil {

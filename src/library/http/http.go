@@ -32,10 +32,11 @@ func init() {
 	ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port);
 	ws.Start()
 	server := &HttpServer{
-		Path : file.GetCurrentPath() + "/web",
+		Path : file.CurrentPath + "/web",
 		Ip   : config.Http.Listen,
 		Port : config.Http.Port,
 		ws   : ws,
+		httpHandler : http.FileServer(http.Dir(file.CurrentPath + "/web")),
 	}
 	server.Start()
 }
