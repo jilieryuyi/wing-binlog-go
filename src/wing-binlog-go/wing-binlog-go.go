@@ -148,7 +148,7 @@ func main() {
 	// 各种通信服务
 	tcp_service       := services.NewTcpService()
 	websocket_service := services.NewWebSocketService()
-	http_service      := services.NewHttpService()
+	http_service      := services.NewHttpService(&ctx)
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)

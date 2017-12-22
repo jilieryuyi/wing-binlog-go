@@ -9,10 +9,11 @@ import (
 	"library/http"
 	"regexp"
 	"context"
+	"runtime"
 )
 
 // 创建一个新的http服务
-func NewHttpService() *HttpService {
+func NewHttpService(ctx *context.Context) *HttpService {
 	config, _ := getHttpConfig()
 	log.Debugf("http服务配置：%+v", config)
 	if !config.Enable {
@@ -20,7 +21,6 @@ func NewHttpService() *HttpService {
 	}
 	glen   := len(config.Groups)
 	client := &HttpService {
-		//send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		lock               : new(sync.Mutex),
 		groups             : make([][]*httpNode, glen),
 		groups_mode        : make([]int, glen),
@@ -30,6 +30,7 @@ func NewHttpService() *HttpService {
 		time_tick          : config.TimeTick,
 		wg                 : new(sync.WaitGroup),
 		clients_count      : 0,
+		ctx                : ctx,
 	}
 	index := 0
 	for _, v := range config.Groups {
@@ -64,9 +65,15 @@ func (client *HttpService) Start() {
 	if !client.enable {
 		return
 	}
+	cpu := runtime.NumCPU()
 	for _, clients :=range client.groups {
 		for _, h := range clients {
-			go client.clientSendService(h)
+			go client.errorCheckService(h)
+			// 启用cpu数量的服务协程
+			for i := 0; i < cpu; i++ {
+				client.wg.Add(1)
+				go client.clientSendService(h)
+			}
 		}
 	}
 }
@@ -150,8 +157,6 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 
 // 节点服务协程
 func (client *HttpService) clientSendService(node *httpNode) {
-	go client.errorCheckService(node)
-	client.wg.Add(1)
 	defer client.wg.Done()
 	for {
 		select {
@@ -306,7 +311,7 @@ func (client *HttpService) Close() {
 }
 
 func (tcp *HttpService) SetContext(ctx *context.Context) {
-	tcp.ctx = ctx
+	//tcp.ctx = ctx
 }
 
 func (tcp *HttpService) Reload() {
