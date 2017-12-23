@@ -294,7 +294,7 @@ func (tcp *HttpService) Reload() {
 	tcp.clientsCount = 0
 	for i, _ := range tcp.groups {
 		tcp.groups[i] = make([]*httpNode, 0)
-		tcp.groupsMode[i]   = 0
+		tcp.groupsMode[i] = 0
 		tcp.groupsFilter[i] = make([]string, 0)
 	}
 	index := 0
