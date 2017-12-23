@@ -9,6 +9,9 @@ import (
 	"library/services"
 	"context"
 	"sync"
+	"fmt"
+	"github.com/siddontang/go-mysql/server"
+	"sync/atomic"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -44,7 +47,8 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	}
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 
-	binlog.BinlogHandler.wg.Add(1)
+	//wait fro SaveBinlogPostionCache complete
+	//binlog.BinlogHandler.wg.Add(1)
 	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.isClosed = false
@@ -112,10 +116,9 @@ func (h *Binlog) Close() {
 	h.isClosed = true
 	if !h.BinlogHandler.isClosed {
 		h.handler.Close()
-		h.BinlogHandler.wg.Done()
 	}
-
-	h.BinlogHandler.wg.Wait()
+	data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.Event_index))
+	h.BinlogHandler.SaveBinlogPostionCache(data)
 	h.BinlogHandler.isClosed = true
 	h.BinlogHandler.cacheHandler.Close()
 	h.BinlogHandler.Cluster.Close()
