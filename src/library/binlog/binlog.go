@@ -10,7 +10,6 @@ import (
 	"context"
 	"sync"
 	"fmt"
-	"github.com/siddontang/go-mysql/server"
 	"sync/atomic"
 )
 
@@ -41,7 +40,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		services      : make(map[string]services.Service),
 		servicesCount : 0,
 		lock          : new(sync.Mutex),
-		wg            : new(sync.WaitGroup),
+		//wg            : new(sync.WaitGroup),
 		Cluster       : cluster,
 		ctx           : ctx,
 	}
