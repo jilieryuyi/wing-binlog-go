@@ -13,7 +13,7 @@ import (
 	"context"
 )
 
-func NewWebSocketService() *WebSocketService {
+func NewWebSocketService(ctx *context.Context) *WebSocketService {
 	config, _ := getWebsocketConfig()
 	tcp := &WebSocketService {
 		Ip                 : config.Tcp.Listen,
@@ -28,6 +28,7 @@ func NewWebSocketService() *WebSocketService {
 		send_failure_times : 0,
 		enable             : config.Enable,
 		wg                 : new(sync.WaitGroup),
+		ctx                : ctx,
 	}
 	for _, v := range config.Groups {
 		var con [TCP_DEFAULT_CLIENT_SIZE]*websocketClientNode
@@ -374,10 +375,6 @@ func (tcp *WebSocketService) Close() {
 	}
 	tcp.lock.Unlock()
 	log.Debug("websocket服务退出...end")
-}
-
-func (tcp *WebSocketService) SetContext(ctx *context.Context) {
-	tcp.ctx = ctx
 }
 
 func (tcp *WebSocketService) Reload() {

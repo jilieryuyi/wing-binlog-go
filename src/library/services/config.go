@@ -18,7 +18,6 @@ type Service interface {
 	// 开始服务
 	Start()
 	Close()
-	SetContext(ctx *context.Context)
 	Reload()
 }
 
@@ -37,11 +36,7 @@ type TcpConfig struct {
 	Tcp tcpConfig
 }
 
-type HttpConfig struct {
-	Enable bool
-	TimeTick int //故障检测的时间间隔，单位为秒
-	Groups map[string]httpNodeConfig
-}
+
 
 type httpNodeConfig struct {
 	Mode int
@@ -112,35 +107,9 @@ type TcpService struct {
 	wg *sync.WaitGroup
 }
 
-type HttpService struct {
-	Service
-	//send_queue chan []byte     // 发送channel
-	groups [][]*httpNode       // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groups_mode []int          // 分组的模式 1，2 广播还是复载均衡
-	groups_filter [][]string   // 分组过滤器
-	lock *sync.Mutex           // 互斥锁，修改资源时锁定
-	send_failure_times int64   // 发送失败次数
-	enable bool
-	time_tick int              // 故障检测的时间间隔
-	ctx *context.Context
-	wg *sync.WaitGroup
-	clients_count int
-}
 
-type httpNode struct {
-	url string                  // url
-	send_queue chan string      // 发送channel
-	weight int                  // 权重 0 - 100
-	send_times int64            // 发送次数
-	send_failure_times int64    // 发送失败次数
-	is_down bool                // 是否因为故障下线的节点
-	failure_times_flag int32    // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
-	lock *sync.Mutex            // 互斥锁，修改资源时锁定
-	cache [][]byte
-	cache_index int
-	cache_is_init bool
-	cache_full bool
-}
+
+
 
 type WKafka struct {
 	Service

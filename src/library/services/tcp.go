@@ -11,7 +11,7 @@ import (
 	"context"
 )
 
-func NewTcpService() *TcpService {
+func NewTcpService(ctx *context.Context) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
 		Ip                 : config.Tcp.Listen,
@@ -28,6 +28,7 @@ func NewTcpService() *TcpService {
 		//isClosed           : false,
 		wg                 : new(sync.WaitGroup),
 		listener           : nil,
+		ctx                : ctx,
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
@@ -392,10 +393,6 @@ func (tcp *TcpService) Close() {
 	}
 	tcp.lock.Unlock()
 	log.Debug("tcp服务退出...end")
-}
-
-func (tcp *TcpService) SetContext(ctx *context.Context) {
-	tcp.ctx = ctx
 }
 
 // 重新加载服务
