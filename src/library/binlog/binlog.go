@@ -9,7 +9,6 @@ import (
 	"library/services"
 	"context"
 	"sync"
-	"time"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -115,7 +114,7 @@ func (h *Binlog) Close() {
 		h.handler.Close()
 		h.BinlogHandler.wg.Done()
 	}
-	
+
 	h.BinlogHandler.wg.Wait()
 	h.BinlogHandler.isClosed = true
 	h.BinlogHandler.cacheHandler.Close()
