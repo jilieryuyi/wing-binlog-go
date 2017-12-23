@@ -113,11 +113,9 @@ func (h *Binlog) Close() {
 	h.isClosed = true
 	if !h.BinlogHandler.isClosed {
 		h.handler.Close()
-	}
-	go func() {
-		time.Sleep(time.Second*1)
 		h.BinlogHandler.wg.Done()
-	}()
+	}
+	
 	h.BinlogHandler.wg.Wait()
 	h.BinlogHandler.isClosed = true
 	h.BinlogHandler.cacheHandler.Close()
