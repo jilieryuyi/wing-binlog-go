@@ -167,7 +167,6 @@ func (h *Binlog) StartService() {
 func (h *Binlog) Start() {
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
-		service.SetContext(h.ctx)
 	}
 	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
 	h.StartService()

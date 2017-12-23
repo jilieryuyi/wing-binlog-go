@@ -109,34 +109,40 @@ func init() {
 	//library.Reset()
 }
 
-func main() {
-	flag.Parse()
+func commandService() bool {
 	// 显示版本信息
 	if (*version) {
 		fmt.Println(VERSION)
-		return
+		return true
 	}
 	// 停止服务
 	if (*stop) {
 		command.Stop()
-		return
+		return true
 	}
 	// 重新加载服务
 	if *service_reload != "" {
 		command.Reload(*service_reload)
-		return
+		return true
 	}
 	// 帮助
 	if *help {
 		usage()
-		return
+		return true
 	}
 	// 加入集群
 	if *joinTo != "" {
 		command.JoinTo(*joinTo)
+		return true
+	}
+	return false
+}
+
+func main() {
+	flag.Parse()
+	if commandService() {
 		return
 	}
-
 	// 退出程序时删除pid文件
 	defer clearPid()
 	// 性能测试
@@ -146,8 +152,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// 各种通信服务
-	tcp_service       := services.NewTcpService()
-	websocket_service := services.NewWebSocketService()
+	tcp_service       := services.NewTcpService(&ctx)
+	websocket_service := services.NewWebSocketService(&ctx)
 	http_service      := services.NewHttpService(&ctx)
 
 	// 核心binlog服务
