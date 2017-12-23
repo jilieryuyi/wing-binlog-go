@@ -6,12 +6,35 @@ import (
 	log "github.com/sirupsen/logrus"
 	"time"
 	"fmt"
+	"library/buffer"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
 	client.lock.Lock()
 	defer client.lock.Unlock()
+
+	// todo 查询当前leader serviceIp
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
+	buf := make([]byte, 256)
+	client.Send(CMD_GET_LEADER, "")
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	size, err := conn.Read(buf)
+	if err != nil || size <= 0 {
+		log.Errorf("get leader service ip error: %+v", err)
+		return false
+	}
+
+	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
+	dataBuf.Write(buf[:size])
+	contentLen, _  := dataBuf.ReadInt32()
+	dataBuf.ReadInt16() // 2字节 command
+	content, _     := dataBuf.Read(contentLen-2)
+	// leader dns
+	dns = string(content)
+	conn.Close()
+
+	// 连接到leader
+	conn, err = net.DialTimeout("tcp", dns, time.Second*3)
 	if err != nil {
 		log.Errorf("cluster服务client连接错误: %s", err)
 		return false
@@ -103,6 +126,8 @@ func (client *tcpClient) onMessage(msg []byte) {
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 				//这里是follower节点，所以后续要停止数据采集操作
 				client.binlog.StopService()
+		    case CMD_NEW_NODE:
+				client.binlog.setMember(string(content), false)
 			default:
 		}
 		client.recvBuf.ResetPos()

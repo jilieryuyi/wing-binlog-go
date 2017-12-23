@@ -35,22 +35,6 @@ type AppConfig struct {
 	BinPos int64  `toml:"bin_pos"`
 }
 
-//type ClientConfig struct {
-//	Slave_id int
-//	Ignore_tables []string
-//	Bin_file string
-//	Bin_pos int64
-//}
-
-//type MysqlConfig struct {
-//	Host string
-//	User string
-//	Password string
-//	Port int
-//	Charset string
-//	DbName string
-//}
-
 type Binlog struct {
 	Config *AppConfig
 	handler *canal.Canal
@@ -58,7 +42,9 @@ type Binlog struct {
 	BinlogHandler *binlogHandler
 	ctx *context.Context
 	wg *sync.WaitGroup
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	lock *sync.Mutex
+	isLeader bool
+	members map[string]bool
 }
 
 type positionCache struct {
@@ -81,6 +67,8 @@ const (
 	CMD_APPEND_NODE   = 1
 	CMD_POS    = 2
 	CMD_JOIN   = 3
+	CMD_GET_LEADER = 4
+	CMD_NEW_NODE = 5
 	CMD_CONNECT_FIRST = 3
 	CMD_APPEND_NODE_SURE = 4
 )
