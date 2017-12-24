@@ -199,6 +199,7 @@ func (h *Binlog) StartService() {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if !h.isClosed {
+		log.Debug("binlog service is not in close status")
 		return
 	}
 	go func() {
