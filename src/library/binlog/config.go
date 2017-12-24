@@ -10,8 +10,8 @@ import (
 	"github.com/siddontang/go-mysql/mysql"
 	"time"
 	"unicode/utf8"
-	"os"
 	"context"
+	"os"
 	"sync"
 )
 
@@ -35,30 +35,21 @@ type AppConfig struct {
 	BinPos int64  `toml:"bin_pos"`
 }
 
-//type ClientConfig struct {
-//	Slave_id int
-//	Ignore_tables []string
-//	Bin_file string
-//	Bin_pos int64
-//}
-
-//type MysqlConfig struct {
-//	Host string
-//	User string
-//	Password string
-//	Port int
-//	Charset string
-//	DbName string
-//}
-
 type Binlog struct {
 	Config *AppConfig
 	handler *canal.Canal
 	isClosed bool
-	BinlogHandler binlogHandler
+	BinlogHandler *binlogHandler
 	ctx *context.Context
 	wg *sync.WaitGroup
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
+	lock *sync.Mutex
+	isLeader bool
+	members map[string]*member
+}
+
+type member struct {
+	isLeader bool
+	index int
 }
 
 type positionCache struct {
@@ -70,6 +61,21 @@ const (
 	MAX_CHAN_FOR_SAVE_POSITION = 128
 	defaultBufSize = 4096
 	DEFAULT_FLOAT_PREC = 6
+
+	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
+	TCP_DEFAULT_CLIENT_SIZE       = 64
+	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
+	TCP_RECV_DEFAULT_SIZE         = 4096
+	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
+	CLUSTER_NODE_DEFAULT_SIZE     = 4
+
+	CMD_APPEND_NODE   = 1
+	CMD_POS    = 2
+	CMD_JOIN   = 3
+	CMD_GET_LEADER = 4
+	CMD_NEW_NODE = 5
+	CMD_CONNECT_FIRST = 3
+	CMD_APPEND_NODE_SURE = 4
 )
 
 type binlogHandler struct {
@@ -80,9 +86,12 @@ type binlogHandler struct {
 	servicesCount int
 	cacheHandler *os.File
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	wg *sync.WaitGroup
+	//wg *sync.WaitGroup
 	isClosed bool
 	ctx *context.Context
+	Cluster *TcpServer
+	lastPos uint32
+	lastBinFile string
 }
 
 // 获取mysql配置

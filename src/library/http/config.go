@@ -7,6 +7,7 @@ import (
 	"errors"
 	"sync"
 	"github.com/gorilla/websocket"
+	"net/http"
 )
 
 var (
@@ -35,6 +36,7 @@ type HttpServer struct{
 	Ip string   // 监听ip 0.0.0.0
 	Port int    // 9989
 	ws *WebSocketService
+	httpHandler http.Handler
 }
 
 type OnLineUser struct {

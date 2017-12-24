@@ -9,52 +9,59 @@ import (
 	"library/services"
 	"context"
 	"sync"
+	"fmt"
+	"sync/atomic"
 )
 
-func NewBinlog() *Binlog {
-	config, _ := GetMysqlConfig()
-	debug_config := config
-	debug_config.Password = "******"
-	log.Debugf("binlog配置：%+v", debug_config)
-	binlog := &Binlog {
-		Config : config,
-		wg : new(sync.WaitGroup),
-		lock : new(sync.Mutex),
-	}
-	config_file := file.GetCurrentPath() + "/config/canal.toml"
-	cfg, err := canal.NewConfigWithFile(config_file)
-	if err != nil {
-		log.Panic("binlog错误：", err)
-		os.Exit(1)
-	}
-	debug_cfg := *cfg
-	debug_cfg.Password = "******"
-	log.Debugf("binlog配置(cfg)：%+v", debug_cfg)
-	binlog.handler, err = canal.NewCanal(cfg)
-	if err != nil {
-		log.Panicf("binlog创建canal错误：%+v", err)
-		os.Exit(1)
-	}
+func NewBinlog(ctx *context.Context) *Binlog {
 	var b [defaultBufSize]byte
-	binlog.BinlogHandler = binlogHandler{
-		services : make(map[string]services.Service),
-		servicesCount : 0,
-		lock : new(sync.Mutex),
-		wg : new(sync.WaitGroup),
+	config, _   := GetMysqlConfig()
+	cfg, err    := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
+	if err != nil {
+		log.Panicf("binlog create canal config error：%+v", err)
 	}
-	binlog.BinlogHandler.wg.Add(1)
+
+	binlog := &Binlog {
+		Config   : config,
+		wg       : new(sync.WaitGroup),
+		lock     : new(sync.Mutex),
+		ctx      : ctx,
+		isLeader : true,
+		members  : make(map[string]*member),
+	}
+	cluster := NewCluster(ctx, binlog)
+	cluster.Start()
+	binlog.setMember(fmt.Sprintf("%s:%d", cluster.ServiceIp, cluster.port), true)
+	handler, err := canal.NewCanal(cfg)
+	if err != nil {
+		log.Panicf("binlog create canal error：%+v", err)
+	}
+	binlog.handler = handler
+	binlog.BinlogHandler = &binlogHandler{
+		services      : make(map[string]services.Service),
+		servicesCount : 0,
+		lock          : new(sync.Mutex),
+		//wg            : new(sync.WaitGroup),
+		Cluster       : cluster,
+		ctx           : ctx,
+	}
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
+
+	//wait fro SaveBinlogPostionCache complete
+	//binlog.BinlogHandler.wg.Add(1)
 	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.isClosed = false
-	binlog.handler.SetEventHandler(&binlog.BinlogHandler)
+
+	binlog.handler.SetEventHandler(binlog.BinlogHandler)
 	binlog.isClosed = true
+
 	current_pos, err:= binlog.handler.GetMasterPos()
 	if f != "" {
 		binlog.Config.BinFile = f
 	} else {
 		if err != nil {
-			log.Panicf("binlog获取GetMasterPos错误：%+v", err)
+			log.Panicf("binlog get cache error：%+v", err)
 		} else {
 			binlog.Config.BinFile = current_pos.Name
 		}
@@ -63,65 +70,138 @@ func NewBinlog() *Binlog {
 		binlog.Config.BinPos = p
 	} else {
 		if err != nil {
-			log.Panicf("binlog获取GetMasterPos错误：%+v", err)
+			log.Panicf("binlog get cache error：%+v", err)
 		} else {
 			binlog.Config.BinPos = int64(current_pos.Pos)
 		}
 	}
-	log.Debugf("binlog配置：%+v", binlog.Config)
-
-	// 初始化缓存文件句柄
-	mysql_binlog_position_cache := file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"
-	dir := file.WPath{mysql_binlog_position_cache}
-	dir = file.WPath{dir.GetParent()}
+	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
+	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
+	mysqlBinlogCacheFile := file.CurrentPath +"/cache/mysql_binlog_position.pos"
+	dir := file.WPath{mysqlBinlogCacheFile}
+	dir  = file.WPath{dir.GetParent()}
 	dir.Mkdir()
 	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC | os.O_TRUNC
-	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(
-		mysql_binlog_position_cache, flag , 0755)
+	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag , 0755)
 	if err != nil {
-		log.Panicf("binlog服务，打开缓存文件错误：%s, %+v", mysql_binlog_position_cache, err)
+		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
 	return binlog
 }
 
+// set member
+func (h *Binlog) setMember(dns string, isLeader bool) {
+	log.Debugf("set member: %s, %t", dns, isLeader)
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	index := len(h.members) + 1
+	h.members[dns] = &member{
+		isLeader:isLeader,
+		index:index,
+	}
+}
+
+// get leader dns
+func (h *Binlog) getLeader() string  {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	for dns, member:= range h.members  {
+		if member.isLeader {
+			return dns
+		}
+	}
+	return ""
+}
+
+// set current isLeader
+func (h *Binlog) leader(isLeader bool) {
+	log.Debugf("binlog set leader %t", isLeader)
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h.isLeader = isLeader
+	dns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	v, ok := h.members[dns]
+	if ok {
+		log.Debugf("%s is leader now", dns)
+		v.isLeader = isLeader
+	}
+}
+
+func (h *Binlog) isNextLeader() bool {
+	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	currentIndex := 0
+	leaderIndex  := 0
+	for dns, member:= range h.members  {
+		if dns == currentDns {
+			currentIndex = member.index
+		}
+		if member.isLeader {
+			leaderIndex = member.index
+		}
+	}
+	return leaderIndex+1 == currentIndex
+}
+
+func (h *Binlog) ShowMembers() string {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	l := len(h.members)
+	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
+	res += fmt.Sprintf("==========================+=============\r\n")
+	res += fmt.Sprintf("%-25s | %s", "node", "role") + "\r\n"
+	res += fmt.Sprintf("--------------------------+-------------\r\n")
+	for dns, member := range h.members {
+		role := "follower"
+		if member.isLeader {
+			role = "leader"
+		}
+		res += fmt.Sprintf("%-25s | %s", dns, role) + "\r\n"
+	}
+	res += fmt.Sprintf("--------------------------+-------------\r\n")
+	return res
+}
+
 func (h *Binlog) Close() {
-	log.Debug("binlog服务退出...")
+	log.Warn("binlog service exit")
 	if h.isClosed  {
 		return
 	}
-	h.BinlogHandler.lock.Lock()
+	h.lock.Lock()
 	h.isClosed = true
-	h.BinlogHandler.isClosed = true
-	// 退出顺序，先停止canal对mysql数据的接收
-	h.handler.Close()
-	log.Debug("binlog-h.handler.Close退出...")
-	h.BinlogHandler.lock.Unlock()
-
-	//等待cache写完
-	log.Debug("binlog-h.BinlogHandler.cacheHandler 等待退出...")
-	h.BinlogHandler.wg.Wait()
-	//关闭cache
+	h.lock.Unlock()
+	h.StopService()
 	h.BinlogHandler.cacheHandler.Close()
-	log.Debug("binlog-h.BinlogHandler.cacheHandler.Close退出...")
-
-	//以下操作服务内部完成
-	//等待服务数据发送完成
-	//关闭服务
-	for _, service := range h.BinlogHandler.services {
-		log.Debug("服务退出...")
+	h.BinlogHandler.Cluster.Close()
+	for name, service := range h.BinlogHandler.services {
+		log.Debugf("%s service exit", name)
 		service.Close()
+		//log.Debugf("%s service exit end", name)
 	}
-	log.Debug("binlog-服务Close-all退出...")
 }
 
-func (h *Binlog) Start(ctx *context.Context) {
-	h.ctx = ctx
-	h.BinlogHandler.ctx = ctx
-	for _, service := range h.BinlogHandler.services {
-		service.Start()
-		service.SetContext(ctx)
+func (h *Binlog) StopService() {
+	log.Debug("binlog service stop")
+	h.BinlogHandler.lock.Lock()
+	defer h.BinlogHandler.lock.Unlock()
+	if !h.BinlogHandler.isClosed {
+		h.handler.Close()
+	} else {
+		data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.Event_index))
+		h.BinlogHandler.SaveBinlogPostionCache(data)
 	}
-	log.Debugf("binlog调试：%s,%d", h.Config.BinFile, uint32(h.Config.BinPos))
+	h.BinlogHandler.isClosed = true
+	h.isClosed = true
+	//debug.PrintStack()
+}
+
+func (h *Binlog) StartService() {
+	log.Debug("binlog start service")
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	if !h.isClosed {
+		log.Debug("binlog service is not in close status")
+		return
+	}
 	go func() {
 		startPos := mysql.Position{
 			Name: h.Config.BinFile,
@@ -130,39 +210,46 @@ func (h *Binlog) Start(ctx *context.Context) {
 		h.isClosed = false
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			if !h.isClosed {
+			if !h.isClosed && !h.BinlogHandler.isClosed {
 				// 非关闭情况下退出
-				log.Errorf("wing-binlog-go service exit: %+v", err)
+				log.Errorf("binlog service exit: %+v", err)
 			} else {
-				log.Infof("wing-binlog-go service exit: %+v", err)
+				log.Warnf("binlog service exit: %+v", err)
 			}
 			return
 		}
 	}()
 }
 
+func (h *Binlog) Start() {
+	for _, service := range h.BinlogHandler.services {
+		service.Start()
+	}
+	h.StartService()
+}
+
 func (h *Binlog) Reload(service string) {
 	var (
-		tcp = "tcp"
+		tcp       = "tcp"
 		websocket = "websocket"
-		http = "http"
-		kafka = "kafka"
-		all = "all"
+		http      = "http"
+		kafka     = "kafka"
+		all       = "all"
 	)
 	switch service {
 	case tcp:
-		log.Debugf("重新加载tcp服务")
+		log.Debugf("tcp service reload")
 		h.BinlogHandler.services["tcp"].Reload()
 	case websocket:
-		log.Debugf("重新加载websocket服务")
+		log.Debugf("websocket service reload")
 		h.BinlogHandler.services["websocket"].Reload()
 	case http:
-		log.Debugf("重新加载http服务")
+		log.Debugf("http service reload")
 		h.BinlogHandler.services["http"].Reload()
 	case kafka:
-		log.Debugf("重新加载kafka服务")
+		log.Debugf("kafka service reload")
 	case all:
-		log.Debugf("重新加载全部服务")
+		log.Debugf("all service reload")
 		h.BinlogHandler.services["tcp"].Reload()
 		h.BinlogHandler.services["websocket"].Reload()
 		h.BinlogHandler.services["http"].Reload()

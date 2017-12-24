@@ -267,23 +267,28 @@ func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
 }
 
 func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
+	//h.lock.Lock()
+	//defer h.lock.Unlock()
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
-	h.SaveBinlogPostionCache(p)
+	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.Event_index))
+	h.SaveBinlogPostionCache(data)
+	h.Cluster.SendPos(data)
+	h.lastBinFile = p.Name
+	h.lastPos = p.Pos
 	return nil
 }
 
-func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
-	data := fmt.Sprintf("%s:%d:%d", pos.Name, pos.Pos, atomic.LoadInt64(&h.Event_index))
+func (h *binlogHandler) SaveBinlogPostionCache(data string) {
+
 	log.Debugf("binlog写入缓存：%s", data)
 	wdata := []byte(data)
 	_, err := h.cacheHandler.WriteAt(wdata, 0)
-	select {
-	case <-(*h.ctx).Done():
-		log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%+v", pos)
-		h.wg.Done()
-	default:
-	}
-
+	//select {
+	//case <-(*h.ctx).Done():
+	//	log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%s", data)
+	//	h.wg.Done()
+	//default:
+	//}
 	if err != nil {
 		log.Errorf("binlog写入缓存文件错误：%+v", err)
 		return
@@ -291,7 +296,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(pos mysql.Position) {
 }
 
 func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
-	wfile := file.WFile{file.GetCurrentPath() +"/cache/mysql_binlog_position.pos"}
+	wfile := file.WFile{file.CurrentPath +"/cache/mysql_binlog_position.pos"}
 	str := wfile.ReadAll()
 	if str == "" {
 		return "", int64(0), int64(0)

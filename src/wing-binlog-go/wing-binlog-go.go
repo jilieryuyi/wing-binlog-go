@@ -15,12 +15,10 @@ import (
 	"io/ioutil"
 	"strconv"
 	"library/file"
-	_ "flag"
+	"flag"
 	log "github.com/sirupsen/logrus"
-	_ "library/cluster"
 	"library/unix"
 	"library/command"
-	"flag"
 	"time"
 	"context"
 )
@@ -36,6 +34,8 @@ var (
 	//-service-reload all ##重新加载全部服务
 	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
 	help = flag.Bool("help", false, "help")
+	joinTo = flag.String("join-to", "", "join to cluster")
+	members = flag.Bool("members", false, "show members from current node")
 )
 
 const (
@@ -82,13 +82,15 @@ func pprofService() {
 
 func usage() {
 	fmt.Println("*********************************************************************")
-	fmt.Println("wing-binlog-go                             --start service")
-	fmt.Println("wing-binlog-go -version                    --show version info")
-	fmt.Println("wing-binlog-go -stop                       --stop service")
-	fmt.Println("wing-binlog-go -service-reload  http       --reload http service")
-	fmt.Println("wing-binlog-go -service-reload  tcp        --reload tcp service")
-	fmt.Println("wing-binlog-go -service-reload  websocket  --reload websocket service")
-	fmt.Println("wing-binlog-go -service-reload  all        --reload all service")
+	fmt.Println("wing-binlog-go                                   --start service")
+	fmt.Println("wing-binlog-go -version                          --show version info")
+	fmt.Println("wing-binlog-go -stop                             --stop service")
+	fmt.Println("wing-binlog-go -service-reload  http             --reload http service")
+	fmt.Println("wing-binlog-go -service-reload  tcp              --reload tcp service")
+	fmt.Println("wing-binlog-go -service-reload  websocket        --reload websocket service")
+	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
+	fmt.Println("wing-binlog-go -join-to  [serviceIp:servicePort] --join to cluster")
+	fmt.Println("wing-binlog-go -members                          --show cluster members")
 	fmt.Println("*********************************************************************")
 }
 
@@ -110,48 +112,67 @@ func init() {
 	//library.Reset()
 }
 
-func main() {
-	flag.Parse()
-	//syslog.Println("debug",*debug)
-	//if len(os.Args) > 1 && os.Args[1] == "stop" {
-	//	killPid()
-	//	return
-	//}
+func commandService() bool {
+	// 显示版本信息
 	if (*version) {
 		fmt.Println(VERSION)
-		return
+		return true
 	}
+	// 停止服务
 	if (*stop) {
 		command.Stop()
-		return
+		return true
 	}
+	// 重新加载服务
 	if *service_reload != "" {
 		command.Reload(*service_reload)
-		return
+		return true
 	}
+	// 帮助
 	if *help {
 		usage()
+		return true
+	}
+	// 加入集群
+	if *joinTo != "" {
+		command.JoinTo(*joinTo)
+		return true
+	}
+
+	if *members {
+		command.ShowMembers()
+		return true
+	}
+	return false
+}
+
+func main() {
+	flag.Parse()
+	if commandService() {
 		return
 	}
+	// 退出程序时删除pid文件
 	defer clearPid()
+	// 性能测试
  	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
-	tcp_service       := services.NewTcpService()
-	websocket_service := services.NewWebSocketService()
-	http_service      := services.NewHttpService()
-	//kafaka_service    := services.NewKafkaService()
+	// 各种通信服务
+	tcp_service       := services.NewTcpService(&ctx)
+	websocket_service := services.NewWebSocketService(&ctx)
+	http_service      := services.NewHttpService(&ctx)
 
-	blog := binlog.NewBinlog()
-	// 注册服务
+	// 核心binlog服务
+	blog := binlog.NewBinlog(&ctx)
+	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
 	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
-	//blog.BinlogHandler.RegisterService("kafka", kafaka_service)
-	blog.Start(&ctx)
+	blog.Start()
 
+	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()
 	server.Start(blog, &cancel, pid)
 	defer server.Close()
@@ -169,5 +190,4 @@ func main() {
 	cancel()
 	blog.Close()
 	fmt.Println("服务退出...")
-	//time.Sleep(time.Second)
 }

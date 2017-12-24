@@ -56,6 +56,13 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			log.Debugf("收到重新加载指令：%s", string(content))
 			server.binlog.Reload(string(content))
 		}
+		case CMD_JOINTO:
+			log.Debugf("收到加入群集指令：%s", string(content))
+			server.binlog.BinlogHandler.Cluster.Client.ConnectTo(string(content))
+		case CMD_SHOW_MEMBERS:
+			c.Write([]byte(server.binlog.ShowMembers()))
+		default:
+			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}
 
 		//_, err = c.Write(data)

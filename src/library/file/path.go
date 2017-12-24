@@ -16,6 +16,9 @@ func GetCurrentPath() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
+
+var CurrentPath = GetCurrentPath()
+
 type WPath struct {
 	Dir string
 }
