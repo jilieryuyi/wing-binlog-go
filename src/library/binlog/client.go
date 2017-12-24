@@ -95,6 +95,12 @@ func (client *tcpClient) getLeaderDns(dns string) string {
 func (client *tcpClient) onClose()  {
 	client.lock.Lock()
 	defer client.lock.Unlock()
+
+	if !client.isClosed {
+		client.isClosed = true
+		(*client.conn).Close()
+	}
+
 	log.Debug("cluster client close")
 	//todo
 	//如果当前节点数量只有两个
@@ -124,12 +130,6 @@ func (client *tcpClient) onClose()  {
 	//如果当前节点的索引为leader的索引的下一个
 	//等待下一个节点确认leader断线--双确认
 	//则将当前节点设置为leader
-
-	if client.isClosed {
-		return
-	}
-	client.isClosed = true
-	(*client.conn).Close()
 }
 
 // todo 这里应该使用新的channel服务进行发送
