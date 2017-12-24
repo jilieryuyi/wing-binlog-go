@@ -35,6 +35,7 @@ var (
 	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
 	help = flag.Bool("help", false, "help")
 	joinTo = flag.String("join-to", "", "join to cluster")
+	members = flag.Bool("members", false, "show members from current node")
 )
 
 const (
@@ -81,13 +82,15 @@ func pprofService() {
 
 func usage() {
 	fmt.Println("*********************************************************************")
-	fmt.Println("wing-binlog-go                             --start service")
-	fmt.Println("wing-binlog-go -version                    --show version info")
-	fmt.Println("wing-binlog-go -stop                       --stop service")
-	fmt.Println("wing-binlog-go -service-reload  http       --reload http service")
-	fmt.Println("wing-binlog-go -service-reload  tcp        --reload tcp service")
-	fmt.Println("wing-binlog-go -service-reload  websocket  --reload websocket service")
-	fmt.Println("wing-binlog-go -service-reload  all        --reload all service")
+	fmt.Println("wing-binlog-go                                   --start service")
+	fmt.Println("wing-binlog-go -version                          --show version info")
+	fmt.Println("wing-binlog-go -stop                             --stop service")
+	fmt.Println("wing-binlog-go -service-reload  http             --reload http service")
+	fmt.Println("wing-binlog-go -service-reload  tcp              --reload tcp service")
+	fmt.Println("wing-binlog-go -service-reload  websocket        --reload websocket service")
+	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
+	fmt.Println("wing-binlog-go -join-to  [serviceIp:servicePort] --join to cluster")
+	fmt.Println("wing-binlog-go -members                          --show cluster members")
 	fmt.Println("*********************************************************************")
 }
 
@@ -133,6 +136,11 @@ func commandService() bool {
 	// 加入集群
 	if *joinTo != "" {
 		command.JoinTo(*joinTo)
+		return true
+	}
+
+	if *members {
+		command.ShowMembers()
 		return true
 	}
 	return false

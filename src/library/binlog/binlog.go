@@ -107,6 +107,32 @@ func (h *Binlog) getLeader() string  {
 	return ""
 }
 
+func (h *Binlog) leader(isLeader bool) {
+	log.Debugf("binlog set leader %t", isLeader)
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h.isLeader = isLeader
+}
+
+func (h *Binlog) ShowMembers() string {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	res := fmt.Sprintf("%-25s%s", "service", "isLeader") + "\r\n"
+	unit := "node"
+	l := len(h.members)
+	if l > 1 {
+		unit = "nodes"
+	}
+	res += fmt.Sprintf("%d %s----------------------------\r\n", l, unit)
+	for dns, isLeader:= range h.members  {
+		isL := "no"
+		if isLeader {
+			isL = "yes"
+		}
+		res += fmt.Sprintf("%-25s%s", dns, isL) + "\r\n"
+	}
+	return res
+}
 func (h *Binlog) Close() {
 	log.Warn("binlog service exit")
 	if h.isClosed  {
@@ -125,12 +151,7 @@ func (h *Binlog) Close() {
 	}
 }
 
-func (h *Binlog) leader(isLeader bool) {
-	log.Debugf("binlog set leader %t", isLeader)
-	h.lock.Lock()
-	defer h.lock.Unlock()
-	h.isLeader = isLeader
-}
+
 
 func (h *Binlog) StopService() {
 	log.Debug("binlog service stop")
