@@ -142,7 +142,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	dblen := len(db) + len(table) + len(point)
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i += 2 {
-			atomic.AddInt64(&h.Event_index, int64(1))
+			atomic.AddInt64(&h.EventIndex, int64(1))
 			buf := h.buf[:0]
 			buf = append(buf, byte(dblen))
 			buf = append(buf, byte(dblen >> 8))
@@ -192,7 +192,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, "\",\"time\":"...)
 			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
 			buf = append(buf, "},\"event_index\":"...)
-			buf = strconv.AppendInt(buf, h.Event_index, 10)
+			buf = strconv.AppendInt(buf, h.EventIndex, 10)
 			buf = append(buf, ",\"table\":\""...)
 			buf = append(buf, e.Table.Name...)
 			buf = append(buf, "\"}"...)
@@ -200,7 +200,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
-			atomic.AddInt64(&h.Event_index, int64(1))
+			atomic.AddInt64(&h.EventIndex, int64(1))
 			buf := h.buf[:0]
 			buf = append(buf, byte(dblen))
 			buf = append(buf, byte(dblen >> 8))
@@ -232,7 +232,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			buf = append(buf, "\",\"time\":"...)
 			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
 			buf = append(buf, "},\"event_index\":"...)
-			buf = strconv.AppendInt(buf, h.Event_index, 10)
+			buf = strconv.AppendInt(buf, h.EventIndex, 10)
 			buf = append(buf, ",\"table\":\""...)
 			buf = append(buf, e.Table.Name...)
 			buf = append(buf, "\"}"...)
@@ -270,7 +270,7 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	//h.lock.Lock()
 	//defer h.lock.Unlock()
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
-	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.Event_index))
+	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.EventIndex))
 	h.SaveBinlogPostionCache(data)
 	h.Cluster.SendPos(data)
 	h.lastBinFile = p.Name
@@ -278,8 +278,22 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	return nil
 }
 
-func (h *binlogHandler) SaveBinlogPostionCache(data string) {
+func (h *binlogHandler) setCacheInfo(data string) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	res := strings.Split(data, ":")
+	if len(res) < 3 {
+		log.Errorf("setCacheInfo data error: %s", data)
+		return
+	}
+	h.lastBinFile = res[0]
+	wstr  := wstring.WString{res[1]}
+	h.lastPos = uint32(wstr.ToInt64())
+	wstr  = wstring.WString{res[2]}
+	h.EventIndex = wstr.ToInt64()
+}
 
+func (h *binlogHandler) SaveBinlogPostionCache(data string) {
 	log.Debugf("binlog写入缓存：%s", data)
 	wdata := []byte(data)
 	_, err := h.cacheHandler.WriteAt(wdata, 0)
