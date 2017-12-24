@@ -39,4 +39,5 @@ type httpNode struct {
 	cacheIndex int
 	cacheIsInit bool
 	cacheFull bool
+	errorCheckTimes int64
 }

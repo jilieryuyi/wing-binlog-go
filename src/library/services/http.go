@@ -123,7 +123,16 @@ func (client *HttpService) sendCache(node *httpNode) {
 func (client *HttpService) errorCheckService(node *httpNode) {
 	for {
 		node.lock.Lock()
+		sleepTime := time.Second * client.timeTick
 		if node.isDown {
+			times := atomic.LoadInt64(&node.errorCheckTimes)
+			step := float64(times)/float64(1000)
+			if step > float64(1) {
+				sleepTime = time.Duration(step) * time.Second
+				if sleepTime > 60 {
+					sleepTime = 60
+				}
+			}
 			// 发送空包检测
 			// post默认3秒超时，所以这里不会死锁
 			log.Debugf("http服务-故障节点探测：%s", node.url)
@@ -131,15 +140,17 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 			if err == nil {
 				//重新上线
 				node.isDown = false
+				atomic.StoreInt64(&node.errorCheckTimes, 0)
 				log.Warn("http服务节点恢复", node.url)
 				//对失败的cache进行重发
 				client.sendCache(node)
 			} else {
 				log.Errorf("http服务-故障节点发生错误：%+v", err)
 			}
+			atomic.AddInt64(&node.errorCheckTimes, 1)
 		}
 		node.lock.Unlock()
-		time.Sleep(time.Second * client.timeTick)
+		time.Sleep(sleepTime)
 		select{
 		case <-(*client.ctx).Done():
 			log.Debugf("http服务errorCheckService退出：%s", node.url)
@@ -318,6 +329,7 @@ func (tcp *HttpService) Reload() {
 				lock               : new(sync.Mutex),
 				failureTimesFlag : int32(0),
 				cacheIsInit      : false,
+				errorCheckTimes  : int64(0),
 			}
 			tcp.clientsCount++
 		}
