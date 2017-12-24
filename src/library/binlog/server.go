@@ -176,7 +176,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
 			(*conn.conn).SetReadDeadline(time.Time{})
 			conn.send_queue <- server.pack(CMD_JOIN, "ok")
-			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.Event_index))
+			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
 			server.SendClientPos(conn, data)
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
 			conn.ServiceDns = string(content)

@@ -40,7 +40,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	}
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 
-	binlog.BinlogHandler.Event_index = index
+	binlog.BinlogHandler.EventIndex = index
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.isClosed = false
 
@@ -198,7 +198,7 @@ func (h *Binlog) StopService() {
 	if !h.BinlogHandler.isClosed {
 		h.handler.Close()
 	} else {
-		data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.Event_index))
+		data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.EventIndex))
 		h.BinlogHandler.SaveBinlogPostionCache(data)
 	}
 	h.BinlogHandler.isClosed = true
