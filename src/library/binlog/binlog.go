@@ -122,6 +122,7 @@ func (h *Binlog) leader(isLeader bool) {
 	dns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	v, ok := h.members[dns]
 	if ok {
+		log.Debugf("%s is leader now", dns)
 		v.isLeader = isLeader
 	}
 }
@@ -194,6 +195,7 @@ func (h *Binlog) StopService() {
 }
 
 func (h *Binlog) StartService() {
+	log.Debug("binlog start service")
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if !h.isClosed {
