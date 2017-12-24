@@ -20,22 +20,23 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
 	}
-	handler, err := canal.NewCanal(cfg)
-	if err != nil {
-		log.Panicf("binlog create canal error：%+v", err)
-	}
 
 	binlog := &Binlog {
 		Config   : config,
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
-		handler  : handler,
 		isLeader : true,
 		members  : make(map[string]bool),
 	}
 	cluster := NewCluster(ctx, binlog)
 	cluster.Start()
+
+	handler, err := canal.NewCanal(cfg)
+	if err != nil {
+		log.Panicf("binlog create canal error：%+v", err)
+	}
+	binlog.handler = handler
 	binlog.BinlogHandler = &binlogHandler{
 		services      : make(map[string]services.Service),
 		servicesCount : 0,
@@ -111,19 +112,16 @@ func (h *Binlog) Close() {
 	if h.isClosed  {
 		return
 	}
-	h.BinlogHandler.lock.Lock()
+	h.lock.Lock()
 	h.isClosed = true
-	if !h.BinlogHandler.isClosed {
-		h.handler.Close()
-	}
-	data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.Event_index))
-	h.BinlogHandler.SaveBinlogPostionCache(data)
-	h.BinlogHandler.isClosed = true
+	h.lock.Unlock()
+	h.StopService()
 	h.BinlogHandler.cacheHandler.Close()
 	h.BinlogHandler.Cluster.Close()
-	h.BinlogHandler.lock.Unlock()
-	for _, service := range h.BinlogHandler.services {
+	for name, service := range h.BinlogHandler.services {
+		log.Debugf("%s service exit", name)
 		service.Close()
+		log.Debugf("%s service exit end", name)
 	}
 }
 
@@ -131,8 +129,14 @@ func (h *Binlog) StopService() {
 	log.Debug("binlog service stop")
 	h.BinlogHandler.lock.Lock()
 	defer h.BinlogHandler.lock.Unlock()
+	if !h.BinlogHandler.isClosed {
+		h.handler.Close()
+	} else {
+		data := fmt.Sprintf("%s:%d:%d", h.BinlogHandler.lastBinFile, h.BinlogHandler.lastPos, atomic.LoadInt64(&h.BinlogHandler.Event_index))
+		h.BinlogHandler.SaveBinlogPostionCache(data)
+	}
 	h.BinlogHandler.isClosed = true
-	h.handler.Close()
+	//debug.PrintStack()
 }
 
 func (h *Binlog) StartService() {
@@ -148,7 +152,7 @@ func (h *Binlog) StartService() {
 				// 非关闭情况下退出
 				log.Errorf("binlog service exit: %+v", err)
 			} else {
-				log.Warn("binlog service exit: %+v", err)
+				log.Warnf("binlog service exit: %+v", err)
 			}
 			return
 		}
