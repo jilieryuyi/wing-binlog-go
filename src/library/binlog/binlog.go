@@ -156,20 +156,19 @@ func (h *Binlog) isNextLeader() bool {
 func (h *Binlog) ShowMembers() string {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	res := fmt.Sprintf("%-25s%s", "service", "isLeader") + "\r\n"
-	unit := "node"
 	l := len(h.members)
-	if l > 1 {
-		unit = "nodes"
-	}
-	res += fmt.Sprintf("%d %s----------------------------\r\n", l, unit)
-	for dns, member:= range h.members  {
-		isL := "no"
+	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
+	res += fmt.Sprintf("==========================+=============\r\n")
+	res += fmt.Sprintf("%-25s | %s", "node", "role") + "\r\n"
+	res += fmt.Sprintf("--------------------------+-------------\r\n")
+	for dns, member := range h.members {
+		role := "follower"
 		if member.isLeader {
-			isL = "yes"
+			role = "leader"
 		}
-		res += fmt.Sprintf("%-25s%s", dns, isL) + "\r\n"
+		res += fmt.Sprintf("%-25s | %s", dns, role) + "\r\n"
 	}
+	res += fmt.Sprintf("--------------------------+-------------\r\n")
 	return res
 }
 
