@@ -32,7 +32,7 @@ type AppConfig struct {
 	ReadTimeout     time.Duration `toml:"read_timeout"`
 
 	BinFile string `toml:"bin_file"`
-	BinPos int64  `toml:"bin_pos"`
+	BinPos uint32  `toml:"bin_pos"`
 }
 
 type Binlog struct {

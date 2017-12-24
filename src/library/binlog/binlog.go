@@ -61,12 +61,12 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		}
 	}
 	if p > 0 {
-		binlog.Config.BinPos = p
+		binlog.Config.BinPos = uint32(p)
 	} else {
 		if err != nil {
 			log.Panicf("binlog get cache error：%+v", err)
 		} else {
-			binlog.Config.BinPos = int64(current_pos.Pos)
+			binlog.Config.BinPos = current_pos.Pos
 		}
 	}
 
@@ -219,8 +219,8 @@ func (h *Binlog) StartService() {
 	}
 	go func() {
 		startPos := mysql.Position{
-			Name: h.Config.BinFile,
-			Pos:  uint32(h.Config.BinPos),
+			Name: h.BinlogHandler.lastBinFile,
+			Pos:  h.BinlogHandler.lastPos,
 		}
 		h.isClosed = false
 		err := h.handler.RunFrom(startPos)
