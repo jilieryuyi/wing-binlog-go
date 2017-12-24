@@ -79,14 +79,13 @@ const (
 )
 
 type binlogHandler struct {
-	Event_index int64
+	EventIndex int64
 	canal.DummyEventHandler
 	buf               []byte
 	services map[string] services.Service
 	servicesCount int
 	cacheHandler *os.File
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	//wg *sync.WaitGroup
 	isClosed bool
 	ctx *context.Context
 	Cluster *TcpServer
