@@ -14,49 +14,14 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	defer client.lock.Unlock()
 
 	log.Debugf("connect to: %s", dns)
-	// todo 查询当前leader serviceIp
-	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
-
-	client.conn = &conn
-	client.dns = ""
-	client.isClosed = true
-
-	buf := make([]byte, 256)
-	client.Send(CMD_GET_LEADER, "")
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
-	size, err := conn.Read(buf)
-	if err != nil || size <= 0 {
-		log.Errorf("get leader service ip error: %+v", err)
+	dns = client.getLeaderDns(dns)
+	if dns == "" {
 		return false
 	}
-
-	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
-	dataBuf.Write(buf[:size])
-	contentLen, _  := dataBuf.ReadInt32()
-	dataBuf.ReadInt16() // 2字节 command
-	content, _     := dataBuf.Read(contentLen-2)
-	// leader dns
-	dns = string(content)
-	log.Debugf("get leader is: %s", dns)
-	conn.Close()
-	client.binlog.setMember(dns, true)
-	// 连接到leader
-	conn, err = net.DialTimeout("tcp", dns, time.Second*3)
-	if err != nil {
-		log.Errorf("cluster服务client连接错误: %s", err)
-		return false
-	}
-	if !client.isClosed {
-		client.onClose()
-	}
-	client.conn = &conn
 	client.dns = dns
-	client.isClosed = false
-
-	//发送一个握手消息，用来确认加入集群
-	nodeDns := fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort)
-	log.Debugf("send join: %s", nodeDns)
-	client.Send(CMD_JOIN, nodeDns)
+	if client.connect() != nil {
+		return false
+	}
 
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
@@ -66,9 +31,9 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 			for k,_:= range buf {
 				buf[k] = byte(0)
 			}
-			size, err := conn.Read(buf)
+			size, err := (*client.conn).Read(buf)
 			if err != nil {
-				log.Errorf("%s 连接发生错误: %s", conn.RemoteAddr().String(), err)
+				log.Errorf("%s 连接发生错误: %s", (*client.conn).RemoteAddr().String(), err)
 				client.onClose();
 				return
 			}
@@ -80,9 +45,86 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	return true
 }
 
+func (client *tcpClient) connect() error {
+	client.binlog.setMember(client.dns, true)
+	// 连接到leader
+	conn, err := net.DialTimeout("tcp", client.dns, time.Second*3)
+	if err != nil {
+		log.Errorf("cluster服务client连接错误: %s", err)
+		return err
+	}
+	if !client.isClosed {
+		client.onClose()
+	}
+	client.conn = &conn
+	client.isClosed = false
+
+	//发送一个握手消息，用来确认加入集群
+	nodeDns := fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort)
+	log.Debugf("send join: %s", nodeDns)
+	client.Send(CMD_JOIN, nodeDns)
+	return nil
+}
+
+func (client *tcpClient) getLeaderDns(dns string) string {
+	// todo 查询当前leader serviceIp
+	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
+	buf := make([]byte, 256)
+	sendMsg := client.pack(CMD_GET_LEADER, "")
+	conn.Write(sendMsg)
+
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	size, err := conn.Read(buf)
+	if err != nil || size <= 0 {
+		log.Errorf("get leader service ip error: %+v", err)
+		return ""
+	}
+
+	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
+	dataBuf.Write(buf[:size])
+	contentLen, _  := dataBuf.ReadInt32()
+	dataBuf.ReadInt16() // 2字节 command
+	content, _     := dataBuf.Read(contentLen-2)
+	// leader dns
+	dns = string(content)
+	log.Debugf("get leader is: %s", dns)
+	conn.Close()
+	return dns
+}
+
 func (client *tcpClient) onClose()  {
 	client.lock.Lock()
 	defer client.lock.Unlock()
+	log.Debug("cluster client close")
+	//todo
+	//如果当前节点数量只有两个
+	nodesCount := len(client.binlog.members)
+	if nodesCount <= 2 && client.binlog.isNextLeader() {
+		log.Debug("current is next leader")
+		//尝试重连三次
+		errTimes := 0
+		for i := 0; i < 3; i++ {
+			err := client.connect()
+			log.Debug("try to reconnect %d times", (i+1))
+			if err == nil {
+				break
+			} else {
+				errTimes++
+			}
+		}
+		if errTimes >= 3 {
+			log.Debug("reconnect failure, set current node is leader")
+			//如果都失败，则把当前节点设置为leader
+			client.binlog.StartService()
+			client.binlog.leader(true)
+		}
+	}
+
+	//如果当前节点数量大于2
+	//如果当前节点的索引为leader的索引的下一个
+	//等待下一个节点确认leader断线--双确认
+	//则将当前节点设置为leader
+
 	if client.isClosed {
 		return
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"net"
 	"os"
-	"fmt"
 )
 
 type tcpClient struct {
@@ -92,7 +91,6 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		binlog : binlog,
 		ServiceIp : config.ServiceIp,
 	}
-	binlog.setMember(fmt.Sprintf("%s:%d", config.ServiceIp, config.Port), true)
 	server.Client = &tcpClient{
 		isClosed : true,
 		recvTimes : int64(0),
@@ -102,7 +100,6 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		ServiceIp : config.ServiceIp,
 		ServicePort : config.Port,
 	}
-
 
 	// 初始化缓存文件句柄
 	cache := file.CurrentPath +"/cache/nodes.list"

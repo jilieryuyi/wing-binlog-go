@@ -44,7 +44,12 @@ type Binlog struct {
 	wg *sync.WaitGroup
 	lock *sync.Mutex
 	isLeader bool
-	members map[string]bool
+	members map[string]*member
+}
+
+type member struct {
+	isLeader bool
+	index int
 }
 
 type positionCache struct {
