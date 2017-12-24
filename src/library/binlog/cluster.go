@@ -92,12 +92,12 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		ServiceIp : config.ServiceIp,
 	}
 	server.Client = &tcpClient{
-		isClosed : true,
-		recvTimes : int64(0),
-		recvBuf : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
-		lock : new(sync.Mutex),
-		binlog : binlog,
-		ServiceIp : config.ServiceIp,
+		isClosed    : true,
+		recvTimes   : int64(0),
+		recvBuf     : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
+		lock        : new(sync.Mutex),
+		binlog      : binlog,
+		ServiceIp   : config.ServiceIp,
 		ServicePort : config.Port,
 	}
 
@@ -107,12 +107,11 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 	dir    = file.WPath{dir.GetParent()}
 
 	dir.Mkdir()
-	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC | os.O_TRUNC
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC// | os.O_TRUNC
 	var err error
-	server.cacheHandler, err = os.OpenFile(cache, flag , 0755)
+	server.cacheHandler, err = os.OpenFile(cache, flag, 0755)
 	if err != nil {
 		log.Panicf("binlog服务，打开缓存文件错误：%s, %+v", cache, err)
 	}
-
 	return server
 }

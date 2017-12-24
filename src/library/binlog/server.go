@@ -221,4 +221,5 @@ func (server *TcpServer) Close() {
 	if server.listener != nil {
 		(*server.listener).Close()
 	}
+	server.cacheHandler.Close()
 }
