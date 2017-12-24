@@ -39,7 +39,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	dns = string(content)
 	log.Debugf("get leader is: %s", dns)
 	conn.Close()
-
+	client.binlog.setMember(dns, true)
 	// 连接到leader
 	conn, err = net.DialTimeout("tcp", dns, time.Second*3)
 	if err != nil {

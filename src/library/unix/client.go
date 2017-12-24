@@ -4,6 +4,7 @@ import (
 	"net"
 	"library/file"
 	log "github.com/sirupsen/logrus"
+	"github.com/juju/errors"
 )
 
 func NewUnixClient() *UnixClient {
@@ -15,18 +16,18 @@ func NewUnixClient() *UnixClient {
 	return client
 }
 
-func (client *UnixClient) onMessage() {
+func (client *UnixClient) Read() ([]byte, error) {
 	if client.conn == nil {
-		return
+		return nil, errors.New("not connect")
 	}
-	buf := make([]byte, 1024)
-	for {
-		n, err := (*client.conn).Read(buf[:])
-		if err != nil {
-			return
-		}
-		log.Debugf("unix服务客户端收到消息：%s", string(buf[0:n]))
+	buf := make([]byte, 10240)
+
+	n, err := (*client.conn).Read(buf[:])
+	if err != nil {
+		return nil, err
 	}
+	//log.Debugf("unix服务客户端收到消息：%s", string(buf[0:n]))
+	return buf[:n], nil
 }
 
 func (client *UnixClient) Start() {
@@ -40,7 +41,7 @@ func (client *UnixClient) Start() {
 		log.Panicf("unix服务客户端异常：%+v", err)
 	}
 	client.conn = &c
-	go client.onMessage()
+	//go client.onMessage()
 }
 
 func (tcp *UnixClient) Pack(cmd int, msg string) []byte {
