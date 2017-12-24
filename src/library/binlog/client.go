@@ -69,6 +69,10 @@ func (client *tcpClient) connect() error {
 func (client *tcpClient) getLeaderDns(dns string) string {
 	// todo 查询当前leader serviceIp
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
+	if err != nil {
+		log.Errorf("get leader dns error: %+v", err)
+		return ""
+	}
 	buf := make([]byte, 256)
 	sendMsg := client.pack(CMD_GET_LEADER, "")
 	conn.Write(sendMsg)
