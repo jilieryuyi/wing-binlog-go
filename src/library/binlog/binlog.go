@@ -126,6 +126,7 @@ func (h *Binlog) Close() {
 }
 
 func (h *Binlog) leader(isLeader bool) {
+	log.Debugf("binlog set leader %t", isLeader)
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	h.isLeader = isLeader
