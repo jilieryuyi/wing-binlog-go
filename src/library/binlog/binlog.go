@@ -11,6 +11,8 @@ import (
 	"sync"
 	"fmt"
 	"sync/atomic"
+	"encoding/json"
+	"time"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -48,7 +50,6 @@ func NewBinlog(ctx *context.Context) *Binlog {
 
 	binlog.handler = newCanal()
 	binlog.handler.SetEventHandler(binlog.BinlogHandler)
-
 
 	current_pos, err := binlog.handler.GetMasterPos()
 	if f != "" {
@@ -97,6 +98,19 @@ func newCanal() (*canal.Canal) {
 		log.Panicf("binlog create canal error：%+v", err)
 	}
 	return handler
+}
+
+// recover, try to rejoin to the cluster
+func (h *Binlog) recover() {
+	wfile := file.WFile{file.CurrentPath +"/cache/nodes.list"}
+	str := wfile.ReadAll()
+	if str == "" {
+		return
+	}
+	var nodes interface{}
+	json.Unmarshal([]byte(str), &nodes)
+	dns := nodes.([]string)[0]
+	h.BinlogHandler.Cluster.Client.ConnectTo(dns)
 }
 
 
@@ -240,6 +254,10 @@ func (h *Binlog) Start() {
 		service.Start()
 	}
 	h.StartService()
+	go func() {
+		time.Sleep(time.Microsecond*10)
+		h.recover()
+	}()
 }
 
 func (h *Binlog) Reload(service string) {
