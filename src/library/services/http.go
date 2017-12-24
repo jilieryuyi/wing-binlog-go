@@ -35,12 +35,12 @@ func NewHttpService(ctx *context.Context) *HttpService {
 	}
 	index := 0
 	for _, v := range config.Groups {
-		nodes_len := len(v.Nodes)
-		client.groups[index]        = make([]*httpNode, nodes_len)
+		nodesLen := len(v.Nodes)
+		client.groups[index]        = make([]*httpNode, nodesLen)
 		client.groupsMode[index]   = v.Mode
 		client.groupsFilter[index] = make([]string, len(v.Filter))
 		client.groupsFilter[index] = append(client.groupsFilter[index][:0], v.Filter...)
-		for i := 0; i < nodes_len; i++ {
+		for i := 0; i < nodesLen; i++ {
 			w, _ := strconv.Atoi(v.Nodes[i][1])
 			client.groups[index][i] = &httpNode{
 				url              : v.Nodes[i][0],
@@ -65,14 +65,16 @@ func (client *HttpService) Start() {
 	if !client.enable {
 		return
 	}
-	cpu := runtime.NumCPU()
-	for _, clients := range client.groups {
-		for _, h := range clients {
-			go client.errorCheckService(h)
-			// 启用cpu数量的服务协程
-			for i := 0; i < cpu; i++ {
-				client.wg.Add(1)
-				go client.clientSendService(h)
+	if client.clientsCount > 0 {
+		cpu := runtime.NumCPU()
+		for _, clients := range client.groups {
+			for _, h := range clients {
+				go client.errorCheckService(h)
+				// 启用cpu数量的服务协程
+				for i := 0; i < cpu; i++ {
+					client.wg.Add(1)
+					go client.clientSendService(h)
+				}
 			}
 		}
 	}
@@ -281,7 +283,7 @@ func (client *HttpService) SendAll(msg []byte) bool {
 }
 
 func (client *HttpService) Close() {
-	log.Warn("http service exit")
+	log.Warn("http service close")
 	if client.clientsCount > 0 {
 		client.wg.Wait()
 	}
@@ -299,12 +301,12 @@ func (tcp *HttpService) Reload() {
 	}
 	index := 0
 	for _, v := range config.Groups {
-		nodes_len := len(v.Nodes)
-		tcp.groups[index]        = make([]*httpNode, nodes_len)
+		nodesLen := len(v.Nodes)
+		tcp.groups[index]        = make([]*httpNode, nodesLen)
 		tcp.groupsMode[index]   = v.Mode
 		tcp.groupsFilter[index] = make([]string, len(v.Filter))
 		tcp.groupsFilter[index] = append(tcp.groupsFilter[index][:0], v.Filter...)
-		for i := 0; i < nodes_len; i++ {
+		for i := 0; i < nodesLen; i++ {
 			w, _ := strconv.Atoi(v.Nodes[i][1])
 			tcp.groups[index][i] = &httpNode{
 				url                : v.Nodes[i][0],
