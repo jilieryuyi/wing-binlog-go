@@ -16,6 +16,11 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	log.Debugf("connect to: %s", dns)
 	// todo 查询当前leader serviceIp
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
+
+	client.conn = &conn
+	client.dns = ""
+	client.isClosed = true
+
 	buf := make([]byte, 256)
 	client.Send(CMD_GET_LEADER, "")
 	conn.SetReadDeadline(time.Now().Add(time.Second*3))
