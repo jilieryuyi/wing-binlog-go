@@ -191,6 +191,7 @@ func (h *Binlog) StopService() {
 		h.BinlogHandler.SaveBinlogPostionCache(data)
 	}
 	h.BinlogHandler.isClosed = true
+	h.isClosed = true
 	//debug.PrintStack()
 }
 
