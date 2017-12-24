@@ -125,6 +125,12 @@ func (h *Binlog) Close() {
 	}
 }
 
+func (h *Binlog) leader(isLeader bool) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	h.isLeader = isLeader
+}
+
 func (h *Binlog) StopService() {
 	log.Debug("binlog service stop")
 	h.BinlogHandler.lock.Lock()
