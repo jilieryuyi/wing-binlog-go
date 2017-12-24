@@ -54,7 +54,9 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	client.isClosed = false
 
 	//发送一个握手消息，用来确认加入集群
-	client.Send(CMD_JOIN, fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort))
+	nodeDns := fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort)
+	log.Debugf("send join: %s", nodeDns)
+	client.Send(CMD_JOIN, nodeDns)
 
 	go func(){
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
