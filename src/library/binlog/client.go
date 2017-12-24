@@ -18,6 +18,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	if dns == "" {
 		return false
 	}
+	client.binlog.setMember(client.dns, true)
 	client.dns = dns
 	if client.connect() != nil {
 		return false
@@ -46,7 +47,6 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 }
 
 func (client *tcpClient) connect() error {
-	client.binlog.setMember(client.dns, true)
 	// 连接到leader
 	conn, err := net.DialTimeout("tcp", client.dns, time.Second*3)
 	if err != nil {
@@ -105,7 +105,7 @@ func (client *tcpClient) onClose()  {
 		errTimes := 0
 		for i := 0; i < 3; i++ {
 			err := client.connect()
-			log.Debug("try to reconnect %d times", (i+1))
+			log.Debugf("try to reconnect %d times", (i+1))
 			if err == nil {
 				break
 			} else {
