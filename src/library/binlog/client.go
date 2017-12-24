@@ -13,6 +13,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	client.lock.Lock()
 	defer client.lock.Unlock()
 
+	log.Debugf("connect to: %s", dns)
 	// todo 查询当前leader serviceIp
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 	buf := make([]byte, 256)
