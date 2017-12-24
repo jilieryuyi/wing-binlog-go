@@ -37,6 +37,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	content, _     := dataBuf.Read(contentLen-2)
 	// leader dns
 	dns = string(content)
+	log.Debugf("get leader is: %s", dns)
 	conn.Close()
 
 	// 连接到leader
