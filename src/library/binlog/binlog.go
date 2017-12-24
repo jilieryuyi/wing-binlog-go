@@ -14,13 +14,11 @@ import (
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
-	var b [defaultBufSize]byte
 	config, _   := GetMysqlConfig()
-	cfg, err    := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
-	if err != nil {
-		log.Panicf("binlog create canal config error：%+v", err)
-	}
-
+	var (
+		b [defaultBufSize]byte
+	 	err error
+	)
 	binlog := &Binlog {
 		Config   : config,
 		wg       : new(sync.WaitGroup),
@@ -32,31 +30,27 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	cluster := NewCluster(ctx, binlog)
 	cluster.Start()
 	binlog.setMember(fmt.Sprintf("%s:%d", cluster.ServiceIp, cluster.port), true)
-	handler, err := canal.NewCanal(cfg)
-	if err != nil {
-		log.Panicf("binlog create canal error：%+v", err)
-	}
-	binlog.handler = handler
+
 	binlog.BinlogHandler = &binlogHandler{
 		services      : make(map[string]services.Service),
 		servicesCount : 0,
 		lock          : new(sync.Mutex),
-		//wg            : new(sync.WaitGroup),
 		Cluster       : cluster,
 		ctx           : ctx,
 	}
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 
-	//wait fro SaveBinlogPostionCache complete
-	//binlog.BinlogHandler.wg.Add(1)
 	binlog.BinlogHandler.Event_index = index
 	binlog.BinlogHandler.buf = b[:0]
 	binlog.BinlogHandler.isClosed = false
 
-	binlog.handler.SetEventHandler(binlog.BinlogHandler)
 	binlog.isClosed = true
 
-	current_pos, err:= binlog.handler.GetMasterPos()
+	binlog.handler = newCanal()
+	binlog.handler.SetEventHandler(binlog.BinlogHandler)
+
+
+	current_pos, err := binlog.handler.GetMasterPos()
 	if f != "" {
 		binlog.Config.BinFile = f
 	} else {
@@ -75,8 +69,11 @@ func NewBinlog(ctx *context.Context) *Binlog {
 			binlog.Config.BinPos = int64(current_pos.Pos)
 		}
 	}
+
+
 	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
 	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
+
 	mysqlBinlogCacheFile := file.CurrentPath +"/cache/mysql_binlog_position.pos"
 	dir := file.WPath{mysqlBinlogCacheFile}
 	dir  = file.WPath{dir.GetParent()}
@@ -88,6 +85,20 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	}
 	return binlog
 }
+
+
+func newCanal() (*canal.Canal) {
+	cfg, err    := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
+	if err != nil {
+		log.Panicf("binlog create canal config error：%+v", err)
+	}
+	handler, err := canal.NewCanal(cfg)
+	if err != nil {
+		log.Panicf("binlog create canal error：%+v", err)
+	}
+	return handler
+}
+
 
 // set member
 func (h *Binlog) setMember(dns string, isLeader bool) {
@@ -192,6 +203,9 @@ func (h *Binlog) StopService() {
 	}
 	h.BinlogHandler.isClosed = true
 	h.isClosed = true
+	//reset cacnal handler
+	h.handler = newCanal()
+	h.handler.SetEventHandler(h.BinlogHandler)
 	//debug.PrintStack()
 }
 
