@@ -153,6 +153,7 @@ func (server *TcpServer) onClose(conn *tcpClientNode) {
 		}
 	}
 	server.lock.Unlock()
+	server.binlog.setStatus(conn.ServiceDns, MEMBER_STATUS_LEAVE)
 }
 
 func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
