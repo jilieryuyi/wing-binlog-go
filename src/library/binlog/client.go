@@ -7,6 +7,8 @@ import (
 	"time"
 	"fmt"
 	"library/buffer"
+	"bytes"
+	"strconv"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -14,11 +16,12 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	defer client.lock.Unlock()
 
 	log.Debugf("connect to: %s", dns)
-	dns = client.getLeaderDns(dns)
+	var index int
+	dns, index = client.getLeaderDns(dns)
 	if dns == "" {
 		return false
 	}
-	client.binlog.setMember(client.dns, true)
+	client.binlog.setMember(client.dns, true, index)
 	client.dns = dns
 	if client.connect() != nil {
 		return false
@@ -66,12 +69,12 @@ func (client *tcpClient) connect() error {
 	return nil
 }
 
-func (client *tcpClient) getLeaderDns(dns string) string {
+func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	// todo 查询当前leader serviceIp
 	conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 	if err != nil {
 		log.Errorf("get leader dns error: %+v", err)
-		return ""
+		return "", 0
 	}
 	buf := make([]byte, 256)
 	sendMsg := client.pack(CMD_GET_LEADER, "")
@@ -81,7 +84,7 @@ func (client *tcpClient) getLeaderDns(dns string) string {
 	size, err := conn.Read(buf)
 	if err != nil || size <= 0 {
 		log.Errorf("get leader service ip error: %+v", err)
-		return ""
+		return "", 0
 	}
 
 	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
@@ -90,10 +93,15 @@ func (client *tcpClient) getLeaderDns(dns string) string {
 	dataBuf.ReadInt16() // 2字节 command
 	content, _     := dataBuf.Read(contentLen-2)
 	// leader dns
-	dns = string(content)
-	log.Debugf("get leader is: %s", dns)
+
+	i := bytes.LastIndex(content, []byte(","))
+
+	dns = string(content[i+1:])
+	index, _ := strconv.Atoi(content[:i])
+	log.Debugf("get leader is: %s--%d", dns, index)
 	conn.Close()
-	return dns
+
+	return dns, index
 }
 
 func (client *tcpClient) onClose()  {
@@ -184,7 +192,8 @@ func (client *tcpClient) onMessage(msg []byte) {
 				client.binlog.StopService(false)
 				client.binlog.leader(false)
 		    case CMD_NEW_NODE:
-				client.binlog.setMember(string(content), false)
+				index := len(client.binlog.members) + 1
+				client.binlog.setMember(string(content), false, index)
 			default:
 		}
 		client.recvBuf.ResetPos()
