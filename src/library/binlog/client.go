@@ -91,17 +91,12 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	dataBuf.Write(buf[:size])
 	contentLen, _  := dataBuf.ReadInt32()
 	dataBuf.ReadInt16() // 2字节 command
-	content, _     := dataBuf.Read(contentLen-2)
-	// leader dns
-
-	i := bytes.LastIndex(content, []byte(","))
-
-	dns = string(content[i+1:])
-	index, _ := strconv.Atoi(string(content[:i]))
-	log.Debugf("get leader is: %s--%d", dns, index)
+	index := dataBuf.ReadInt16()
+	content, _     := dataBuf.Read(contentLen-4)
+	log.Debugf("get leader is: %s--%d", string(content), index)
 	conn.Close()
 
-	return dns, index
+	return string(content), index
 }
 
 func (client *tcpClient) onClose()  {
@@ -192,8 +187,11 @@ func (client *tcpClient) onMessage(msg []byte) {
 				client.binlog.StopService(false)
 				client.binlog.leader(false)
 		    case CMD_NEW_NODE:
-				index := len(client.binlog.members) + 1
-				client.binlog.setMember(string(content), false, index)
+				//index := len(client.binlog.members) + 1
+				// leader分配的索引
+				index := int(contentLen[0]) + int(contentLen[1] << 8)
+				dns := string(content[2:])
+				client.binlog.setMember(dns, false, index)
 			default:
 		}
 		client.recvBuf.ResetPos()

@@ -182,15 +182,24 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			conn.ServiceDns = string(content)
 			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
 			server.saveNodes()
-			index := len(server.binlog.members) + 1
-			server.binlog.setMember(conn.ServiceDns, false, index)
+			//index := len(server.binlog.members) + 1
+			index := server.binlog.setMember(conn.ServiceDns, false, 0)
 			// todo: 将新增的节点广播给所有的节点，然后节点的members新增一个
-			server.send(CMD_NEW_NODE, conn.ServiceDns)
+
+			r := make([]byte, len(conn.ServiceDns) + 2)
+			r[0] = byte(index)
+			r[1] = byte(index >> 8)
+			copy(r[2:], conn.ServiceDns)
+
+			server.send(CMD_NEW_NODE, string(r))
 		case CMD_GET_LEADER:
 			//todo: get leader ip and response
 			dns, index := server.binlog.getLeader()
-			data := fmt.Sprintf("%d,%s", index, dns)
-			conn.send_queue <- server.pack(CMD_GET_LEADER, data)
+			r := make([]byte, len(dns) + 2)
+			r[0] = byte(index)
+			r[1] = byte(index >> 8)
+			copy(r[2:], dns)
+			conn.send_queue <- server.pack(CMD_GET_LEADER, string(r))
 		default:
 		}
 		conn.recvBuf.ResetPos()
