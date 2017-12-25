@@ -19,7 +19,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 	if dns == "" {
 		return false
 	}
-	client.binlog.setMember(client.dns, true, index)
+	client.binlog.setMember(dns, true, index)
 	client.dns = dns
 	if client.connect() != nil {
 		return false
