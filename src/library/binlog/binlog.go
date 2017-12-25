@@ -175,17 +175,17 @@ func (h *Binlog) ShowMembers() string {
 	defer h.lock.Unlock()
 	l := len(h.members)
 	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
-	res += fmt.Sprintf("==========================+=============\r\n")
-	res += fmt.Sprintf("%-25s | %s", "node", "role") + "\r\n"
-	res += fmt.Sprintf("--------------------------+-------------\r\n")
+	res += fmt.Sprintf("======+=========================+==========+===============\r\n")
+	res += fmt.Sprintf("%-6s| %-23s | %-8s | %s", "index", "node", "role", "status") + "\r\n"
+	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	for dns, member := range h.members {
 		role := "follower"
 		if member.isLeader {
 			role = "leader"
 		}
-		res += fmt.Sprintf("%-25s | %s", dns, role) + "\r\n"
+		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s", member.index, dns, role, "live") + "\r\n"
 	}
-	res += fmt.Sprintf("--------------------------+-------------\r\n")
+	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	return res
 }
 
