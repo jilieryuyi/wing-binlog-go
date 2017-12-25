@@ -97,7 +97,7 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	i := bytes.LastIndex(content, []byte(","))
 
 	dns = string(content[i+1:])
-	index, _ := strconv.Atoi(content[:i])
+	index, _ := strconv.Atoi(string(content[:i]))
 	log.Debugf("get leader is: %s--%d", dns, index)
 	conn.Close()
 
