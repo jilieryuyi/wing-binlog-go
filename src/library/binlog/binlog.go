@@ -31,8 +31,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	}
 	cluster := NewCluster(ctx, binlog)
 	cluster.Start()
-	i := len(binlog.members) + 1
-	binlog.setMember(fmt.Sprintf("%s:%d", cluster.ServiceIp, cluster.port), true, i)
+	binlog.setMember(fmt.Sprintf("%s:%d", cluster.ServiceIp, cluster.port), true, 0)
 
 	binlog.BinlogHandler = &binlogHandler{
 		services      : make(map[string]services.Service),
@@ -119,15 +118,18 @@ func (h *Binlog) recover() {
 
 
 // set member
-func (h *Binlog) setMember(dns string, isLeader bool, index int) {
+func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 	log.Debugf("set member: %s, %t", dns, isLeader)
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	//index := len(h.members) + 1
+	if index <= 0 {
+		index = len(h.members) + 1
+	}
 	h.members[dns] = &member{
 		isLeader:isLeader,
 		index:index,
 	}
+	return index
 }
 
 // get leader dns
