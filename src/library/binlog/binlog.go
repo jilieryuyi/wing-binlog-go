@@ -126,8 +126,9 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 		index = len(h.members) + 1
 	}
 	h.members[dns] = &member{
-		isLeader:isLeader,
-		index:index,
+		isLeader : isLeader,
+		index    : index,
+		status   : MEMBER_STATUS_LIVE,
 	}
 	return index
 }
@@ -155,6 +156,16 @@ func (h *Binlog) leader(isLeader bool) {
 	if ok {
 		log.Debugf("%s is leader now", dns)
 		v.isLeader = isLeader
+	}
+}
+
+func (h *Binlog) setStatus(dns string, status string) {
+	h.lock.Lock()
+	defer h.lock.Unlock()
+	v, ok := h.members[dns]
+	if ok {
+		log.Debugf("set %s status: %s", dns, status)
+		v.status = status
 	}
 }
 
@@ -186,7 +197,7 @@ func (h *Binlog) ShowMembers() string {
 		if member.isLeader {
 			role = "leader"
 		}
-		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s", member.index, dns, role, "live") + "\r\n"
+		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s", member.index, dns, role, member.status) + "\r\n"
 	}
 	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	return res
