@@ -197,7 +197,7 @@ func (h *Binlog) Close() {
 	h.lock.Lock()
 	h.isClosed = true
 	h.lock.Unlock()
-	h.StopService()
+	h.StopService(true)
 	h.BinlogHandler.cacheHandler.Close()
 	h.BinlogHandler.Cluster.Close()
 	for name, service := range h.BinlogHandler.services {
@@ -207,7 +207,7 @@ func (h *Binlog) Close() {
 	}
 }
 
-func (h *Binlog) StopService() {
+func (h *Binlog) StopService(exit bool) {
 	log.Debug("binlog service stop")
 	h.BinlogHandler.lock.Lock()
 	defer h.BinlogHandler.lock.Unlock()
@@ -220,8 +220,10 @@ func (h *Binlog) StopService() {
 	h.BinlogHandler.isClosed = true
 	h.isClosed = true
 	//reset cacnal handler
-	h.handler = newCanal()
-	h.handler.SetEventHandler(h.BinlogHandler)
+	if !exit {
+		h.handler = newCanal()
+		h.handler.SetEventHandler(h.BinlogHandler)
+	}
 	//debug.PrintStack()
 }
 
