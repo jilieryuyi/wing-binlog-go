@@ -7,8 +7,6 @@ import (
 	"time"
 	"fmt"
 	"library/buffer"
-	"bytes"
-	"strconv"
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
@@ -91,7 +89,7 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	dataBuf.Write(buf[:size])
 	contentLen, _  := dataBuf.ReadInt32()
 	dataBuf.ReadInt16() // 2字节 command
-	index := dataBuf.ReadInt16()
+	index, _ := dataBuf.ReadInt16()
 	content, _     := dataBuf.Read(contentLen-4)
 	log.Debugf("get leader is: %s--%d", string(content), index)
 	conn.Close()
@@ -189,7 +187,7 @@ func (client *tcpClient) onMessage(msg []byte) {
 		    case CMD_NEW_NODE:
 				//index := len(client.binlog.members) + 1
 				// leader分配的索引
-				index := int(contentLen[0]) + int(contentLen[1] << 8)
+				index := int(content[0]) + int(content[1] << 8)
 				dns := string(content[2:])
 				client.binlog.setMember(dns, false, index)
 			default:
