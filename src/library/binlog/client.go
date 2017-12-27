@@ -195,3 +195,4 @@ func (client *tcpClient) onMessage(msg []byte) {
 		client.recvBuf.ResetPos()
 	}
 }
+
