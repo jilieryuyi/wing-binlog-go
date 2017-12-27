@@ -25,13 +25,13 @@ type tcpClient struct {
 
 type tcpClientNode struct {
 	conn *net.Conn           // 客户端连接进来的资源句柄
-	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
-	send_queue chan []byte   // 发送channel
+	isConnected bool         // 是否还连接着 true 表示正常 false表示已断开
+	sendQueue chan []byte    // 发送channel
 	sendFailureTimes int64   // 发送失败次数
 	weight int               // 权重 0 - 100
-	recvBuf *buffer.WBuffer  //[]byte          // 读缓冲区
-	connect_time int64       // 连接成功的时间戳
-	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
+	recvBuf *buffer.WBuffer  // []byte          // 读缓冲区
+	connectTime int64        // 连接成功的时间戳
+	sendTimes int64          // 发送次数，用来计算负载均衡，如果 mode == 2
 	ServiceDns string        // 节点服务器的服务 ip:port
 }
 
@@ -52,8 +52,8 @@ type TcpServer struct {
 }
 
 type clusterConfig struct{
-	Listen string `toml:"listen"`
-	Port int `toml:"port"`
+	Listen    string `toml:"listen"`
+	Port      int    `toml:"port"`
 	ServiceIp string `toml:"service_ip"`
 }
 
@@ -115,3 +115,4 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 	}
 	return server
 }
+
