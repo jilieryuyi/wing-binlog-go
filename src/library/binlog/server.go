@@ -40,8 +40,8 @@ func (server *TcpServer) Start() {
 func (server *TcpServer) SendPos(data string) {
 	server.send(CMD_POS, data)
 }
-func (server *TcpServer) SendClientPos(conn *tcpClientNode, data string) {
-	conn.sendQueue <- server.pack(CMD_POS, data)
+func (server *TcpServer) SendClientPos(node *tcpClientNode, data string) {
+	node.sendQueue <- server.pack(CMD_POS, data)
 }
 
 // 广播
@@ -53,8 +53,8 @@ func (server *TcpServer) send(cmd int, msg string){
 	}
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	for _, conn := range server.clients {
-		conn.sendQueue <- server.pack(cmd, msg)
+	for _, node := range server.clients {
+		node.sendQueue <- server.pack(cmd, msg)
 	}
 }
 
@@ -141,10 +141,10 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	}
 }
 
-func (server *TcpServer) onClose(conn *tcpClientNode) {
+func (server *TcpServer) onClose(node *tcpClientNode) {
 	server.lock.Lock()
 	for index, client := range server.clients {
-		if client.conn == conn.conn {
+		if client.conn == node.conn {
 			client.isConnected = false
 			server.clientsCount--
 			log.Warnf("cluster服务客户端掉线 %s", (*client.conn).RemoteAddr().String())
@@ -153,19 +153,19 @@ func (server *TcpServer) onClose(conn *tcpClientNode) {
 		}
 	}
 	server.lock.Unlock()
-	server.binlog.setStatus(conn.ServiceDns, MEMBER_STATUS_LEAVE)
+	server.binlog.setStatus(node.ServiceDns, MEMBER_STATUS_LEAVE)
 }
 
-func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
-	conn.recvBuf.Write(msg)
+func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
+	node.recvBuf.Write(msg)
 	for {
-		clen := conn.recvBuf.Size()
+		clen := node.recvBuf.Size()
 		if clen < 6 {
 			return
 		}
-		contentLen, _  := conn.recvBuf.ReadInt32()
-		cmd, _         := conn.recvBuf.ReadInt16() // 2字节 command
-		content, _     := conn.recvBuf.Read(contentLen-2)
+		contentLen, _  := node.recvBuf.ReadInt32()
+		cmd, _         := node.recvBuf.ReadInt16() // 2字节 command
+		content, _     := node.recvBuf.Read(contentLen-2)
 		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, contentLen, string(content))
 
 		switch cmd {
@@ -174,23 +174,23 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 		case CMD_JOIN:
 			// 这里需要把服务ip和端口发送过来
-			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.sendQueue <- server.pack(CMD_JOIN, "ok")
+			log.Debugf("cluster服务-client加入集群成功%s", (*node.conn).RemoteAddr().String())
+			(*node.conn).SetReadDeadline(time.Time{})
+			node.sendQueue <- server.pack(CMD_JOIN, "ok")
 			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
-			server.SendClientPos(conn, data)
+			server.SendClientPos(node, data)
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
-			conn.ServiceDns = string(content)
+			node.ServiceDns = string(content)
 			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
 			server.saveNodes()
 			//index := len(server.binlog.members) + 1
-			index := server.binlog.setMember(conn.ServiceDns, false, 0)
+			index := server.binlog.setMember(node.ServiceDns, false, 0)
 			// todo: 将新增的节点广播给所有的节点，然后节点的members新增一个
 
-			r := make([]byte, len(conn.ServiceDns) + 2)
+			r := make([]byte, len(node.ServiceDns) + 2)
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
-			copy(r[2:], conn.ServiceDns)
+			copy(r[2:], node.ServiceDns)
 
 			server.send(CMD_NEW_NODE, string(r))
 		case CMD_GET_LEADER:
@@ -200,10 +200,10 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
 			copy(r[2:], dns)
-			conn.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
+			node.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
 		default:
 		}
-		conn.recvBuf.ResetPos()
+		node.recvBuf.ResetPos()
 	}
 }
 
