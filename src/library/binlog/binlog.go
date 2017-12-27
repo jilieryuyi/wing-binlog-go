@@ -19,7 +19,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	config, _   := GetMysqlConfig()
 	var (
 		b [defaultBufSize]byte
-	 	err error
+		err error
 	)
 	binlog := &Binlog {
 		Config   : config,
@@ -190,14 +190,14 @@ func (h *Binlog) ShowMembers() string {
 	l := len(h.members)
 	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
 	res += fmt.Sprintf("======+=========================+==========+===============\r\n")
-	res += fmt.Sprintf("%-6s| %-23s | %-8s | %s", "index", "node", "role", "status") + "\r\n"
+	res += fmt.Sprintf("%-6s| %-23s | %-8s | %s\r\n", "index", "node", "role", "status")
 	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	for dns, member := range h.members {
 		role := "follower"
 		if member.isLeader {
 			role = "leader"
 		}
-		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s", member.index, dns, role, member.status) + "\r\n"
+		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s\r\n", member.index, dns, role, member.status)
 	}
 	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	return res
