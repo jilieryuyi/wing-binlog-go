@@ -41,7 +41,7 @@ func (server *TcpServer) SendPos(data string) {
 	server.send(CMD_POS, data)
 }
 func (server *TcpServer) SendClientPos(conn *tcpClientNode, data string) {
-	conn.send_queue <- server.pack(CMD_POS, data)
+	conn.sendQueue <- server.pack(CMD_POS, data)
 }
 
 // 广播
@@ -54,7 +54,7 @@ func (server *TcpServer) send(cmd int, msg string){
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	for _, conn := range server.clients {
-		conn.send_queue <- server.pack(cmd, msg)
+		conn.sendQueue <- server.pack(cmd, msg)
 	}
 }
 
@@ -77,19 +77,19 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 	server.wg.Add(1)
 	defer server.wg.Done()
 	for {
-		if !node.is_connected {
+		if !node.isConnected {
 			log.Info("cluster服务-clientService退出")
 			return
 		}
 		select {
-		case msg, ok := <-node.send_queue:
+		case msg, ok := <-node.sendQueue:
 			if !ok {
 				log.Info("cluster服务-发送消息channel通道关闭")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			size, err := (*node.conn).Write(msg)
-			atomic.AddInt64(&node.send_times, int64(1))
+			atomic.AddInt64(&node.sendTimes, int64(1))
 			if (size <= 0 || err != nil) {
 				atomic.AddInt64(&server.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
@@ -97,7 +97,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 					node.sendFailureTimes)
 			}
 		case <-(*server.ctx).Done():
-			if len(node.send_queue) <= 0 {
+			if len(node.sendQueue) <= 0 {
 				log.Info("cluster服务-clientService退出")
 				return
 			}
@@ -108,12 +108,12 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode {
 		conn               : conn,
-		is_connected       : true,
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+		isConnected       : true,
+		sendQueue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes   : 0,
 		weight             : 0,
-		connect_time       : time.Now().Unix(),
-		send_times         : int64(0),
+		connectTime       : time.Now().Unix(),
+		sendTimes         : int64(0),
 		recvBuf            : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 	}
 	go server.clientService(cnode)
@@ -126,7 +126,7 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
-		for k,_:= range buf {
+		for k, _ := range buf {
 			buf[k] = byte(0)
 		}
 		size, err := (*conn).Read(buf)
@@ -145,7 +145,7 @@ func (server *TcpServer) onClose(conn *tcpClientNode) {
 	server.lock.Lock()
 	for index, client := range server.clients {
 		if client.conn == conn.conn {
-			client.is_connected = false
+			client.isConnected = false
 			server.clientsCount--
 			log.Warnf("cluster服务客户端掉线 %s", (*client.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
@@ -176,7 +176,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			// 这里需要把服务ip和端口发送过来
 			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
 			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- server.pack(CMD_JOIN, "ok")
+			conn.sendQueue <- server.pack(CMD_JOIN, "ok")
 			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
 			server.SendClientPos(conn, data)
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
@@ -200,7 +200,7 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
 			copy(r[2:], dns)
-			conn.send_queue <- server.pack(CMD_GET_LEADER, string(r))
+			conn.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
 		default:
 		}
 		conn.recvBuf.ResetPos()
@@ -236,3 +236,4 @@ func (server *TcpServer) Close() {
 	}
 	server.cacheHandler.Close()
 }
+
