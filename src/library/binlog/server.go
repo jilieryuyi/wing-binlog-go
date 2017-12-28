@@ -40,8 +40,8 @@ func (server *TcpServer) Start() {
 func (server *TcpServer) SendPos(data string) {
 	server.send(CMD_POS, data)
 }
-func (server *TcpServer) SendClientPos(conn *tcpClientNode, data string) {
-	conn.send_queue <- server.pack(CMD_POS, data)
+func (server *TcpServer) SendClientPos(node *tcpClientNode, data string) {
+	node.sendQueue <- server.pack(CMD_POS, data)
 }
 
 // 广播
@@ -53,8 +53,8 @@ func (server *TcpServer) send(cmd int, msg string){
 	}
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	for _, conn := range server.clients {
-		conn.send_queue <- server.pack(cmd, msg)
+	for _, node := range server.clients {
+		node.sendQueue <- server.pack(cmd, msg)
 	}
 }
 
@@ -77,19 +77,19 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 	server.wg.Add(1)
 	defer server.wg.Done()
 	for {
-		if !node.is_connected {
+		if !node.isConnected {
 			log.Info("cluster服务-clientService退出")
 			return
 		}
 		select {
-		case msg, ok := <-node.send_queue:
+		case msg, ok := <-node.sendQueue:
 			if !ok {
 				log.Info("cluster服务-发送消息channel通道关闭")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			size, err := (*node.conn).Write(msg)
-			atomic.AddInt64(&node.send_times, int64(1))
+			atomic.AddInt64(&node.sendTimes, int64(1))
 			if (size <= 0 || err != nil) {
 				atomic.AddInt64(&server.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
@@ -97,7 +97,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 					node.sendFailureTimes)
 			}
 		case <-(*server.ctx).Done():
-			if len(node.send_queue) <= 0 {
+			if len(node.sendQueue) <= 0 {
 				log.Info("cluster服务-clientService退出")
 				return
 			}
@@ -108,12 +108,12 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode {
 		conn               : conn,
-		is_connected       : true,
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
+		isConnected       : true,
+		sendQueue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes   : 0,
 		weight             : 0,
-		connect_time       : time.Now().Unix(),
-		send_times         : int64(0),
+		connectTime       : time.Now().Unix(),
+		sendTimes         : int64(0),
 		recvBuf            : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 	}
 	go server.clientService(cnode)
@@ -126,7 +126,7 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
-		for k,_:= range buf {
+		for k, _ := range buf {
 			buf[k] = byte(0)
 		}
 		size, err := (*conn).Read(buf)
@@ -141,11 +141,11 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	}
 }
 
-func (server *TcpServer) onClose(conn *tcpClientNode) {
+func (server *TcpServer) onClose(node *tcpClientNode) {
 	server.lock.Lock()
 	for index, client := range server.clients {
-		if client.conn == conn.conn {
-			client.is_connected = false
+		if client.conn == node.conn {
+			client.isConnected = false
 			server.clientsCount--
 			log.Warnf("cluster服务客户端掉线 %s", (*client.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
@@ -153,19 +153,19 @@ func (server *TcpServer) onClose(conn *tcpClientNode) {
 		}
 	}
 	server.lock.Unlock()
-	server.binlog.setStatus(conn.ServiceDns, MEMBER_STATUS_LEAVE)
+	server.binlog.setStatus(node.ServiceDns, MEMBER_STATUS_LEAVE)
 }
 
-func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
-	conn.recvBuf.Write(msg)
+func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
+	node.recvBuf.Write(msg)
 	for {
-		clen := conn.recvBuf.Size()
+		clen := node.recvBuf.Size()
 		if clen < 6 {
 			return
 		}
-		contentLen, _  := conn.recvBuf.ReadInt32()
-		cmd, _         := conn.recvBuf.ReadInt16() // 2字节 command
-		content, _     := conn.recvBuf.Read(contentLen-2)
+		contentLen, _  := node.recvBuf.ReadInt32()
+		cmd, _         := node.recvBuf.ReadInt16() // 2字节 command
+		content, _     := node.recvBuf.Read(contentLen-2)
 		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, contentLen, string(content))
 
 		switch cmd {
@@ -174,23 +174,23 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 		case CMD_JOIN:
 			// 这里需要把服务ip和端口发送过来
-			log.Debugf("cluster服务-client加入集群成功%s", (*conn.conn).RemoteAddr().String())
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.send_queue <- server.pack(CMD_JOIN, "ok")
+			log.Debugf("cluster服务-client加入集群成功%s", (*node.conn).RemoteAddr().String())
+			(*node.conn).SetReadDeadline(time.Time{})
+			node.sendQueue <- server.pack(CMD_JOIN, "ok")
 			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
-			server.SendClientPos(conn, data)
+			server.SendClientPos(node, data)
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
-			conn.ServiceDns = string(content)
+			node.ServiceDns = string(content)
 			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
 			server.saveNodes()
 			//index := len(server.binlog.members) + 1
-			index := server.binlog.setMember(conn.ServiceDns, false, 0)
+			index := server.binlog.setMember(node.ServiceDns, false, 0)
 			// todo: 将新增的节点广播给所有的节点，然后节点的members新增一个
 
-			r := make([]byte, len(conn.ServiceDns) + 2)
+			r := make([]byte, len(node.ServiceDns) + 2)
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
-			copy(r[2:], conn.ServiceDns)
+			copy(r[2:], node.ServiceDns)
 
 			server.send(CMD_NEW_NODE, string(r))
 		case CMD_GET_LEADER:
@@ -200,10 +200,10 @@ func (server *TcpServer) onMessage(conn *tcpClientNode, msg []byte) {
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
 			copy(r[2:], dns)
-			conn.send_queue <- server.pack(CMD_GET_LEADER, string(r))
+			node.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
 		default:
 		}
-		conn.recvBuf.ResetPos()
+		node.recvBuf.ResetPos()
 	}
 }
 
@@ -236,3 +236,4 @@ func (server *TcpServer) Close() {
 	}
 	server.cacheHandler.Close()
 }
+
