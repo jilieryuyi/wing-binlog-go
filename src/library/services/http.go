@@ -300,39 +300,40 @@ func (client *HttpService) Close() {
 	}
 }
 
-func (tcp *HttpService) Reload() {
+func (client *HttpService) Reload() {
 	config, _ := getHttpConfig()
 	log.Debug("http service reload: %+v", config)
-	tcp.enable = config.Enable
-	tcp.clientsCount = 0
-	for i, _ := range tcp.groups {
-		tcp.groups[i] = make([]*httpNode, 0)
-		tcp.groupsMode[i] = 0
-		tcp.groupsFilter[i] = make([]string, 0)
+	client.enable = config.Enable
+	client.clientsCount = 0
+	for i, _ := range client.groups {
+		client.groups[i] = make([]*httpNode, 0)
+		client.groupsMode[i] = 0
+		client.groupsFilter[i] = make([]string, 0)
 	}
 	index := 0
 	for _, v := range config.Groups {
 		nodesLen := len(v.Nodes)
-		tcp.groups[index]        = make([]*httpNode, nodesLen)
-		tcp.groupsMode[index]   = v.Mode
-		tcp.groupsFilter[index] = make([]string, len(v.Filter))
-		tcp.groupsFilter[index] = append(tcp.groupsFilter[index][:0], v.Filter...)
+		client.groups[index]       = make([]*httpNode, nodesLen)
+		client.groupsMode[index]   = v.Mode
+		client.groupsFilter[index] = make([]string, len(v.Filter))
+		client.groupsFilter[index] = append(client.groupsFilter[index][:0], v.Filter...)
 		for i := 0; i < nodesLen; i++ {
 			w, _ := strconv.Atoi(v.Nodes[i][1])
-			tcp.groups[index][i] = &httpNode{
-				url                : v.Nodes[i][0],
-				weight             : w,
-				sendQueue         : make(chan string, TCP_MAX_SEND_QUEUE),
-				sendTimes         : int64(0),
+			client.groups[index][i] = &httpNode{
+				url              : v.Nodes[i][0],
+				weight           : w,
+				sendQueue        : make(chan string, TCP_MAX_SEND_QUEUE),
+				sendTimes        : int64(0),
 				sendFailureTimes : int64(0),
-				isDown            : false,
-				lock               : new(sync.Mutex),
+				isDown           : false,
+				lock             : new(sync.Mutex),
 				failureTimesFlag : int32(0),
 				cacheIsInit      : false,
 				errorCheckTimes  : int64(0),
 			}
-			tcp.clientsCount++
+			client.clientsCount++
 		}
 		index++
 	}
 }
+
