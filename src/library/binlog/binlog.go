@@ -170,6 +170,8 @@ func (h *Binlog) setStatus(dns string, status string) {
 }
 
 func (h *Binlog) isNextLeader() bool {
+	//todo 判断当前节点是否为下一个leader
+	//判断逻辑：获取最小索引和当前索引，相等就是下一个leader
 	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	currentIndex := 0
 	leaderIndex  := 0
