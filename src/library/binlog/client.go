@@ -109,8 +109,8 @@ func (client *tcpClient) onClose()  {
 	log.Debug("cluster client close")
 	//todo
 	//如果当前节点数量只有两个
-	nodesCount := len(client.binlog.members)
-	if nodesCount <= 2 && client.binlog.isNextLeader() {
+	//nodesCount := len(client.binlog.members)
+	if /*nodesCount <= 2 &&*/ client.binlog.isNextLeader() {
 		log.Debug("current is next leader")
 		//尝试重连三次
 		errTimes := 0

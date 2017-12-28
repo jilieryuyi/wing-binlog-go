@@ -171,16 +171,19 @@ func (h *Binlog) isNextLeader() bool {
 	//判断逻辑：获取最小索引和当前索引，相等就是下一个leader
 	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	currentIndex := 0
-	leaderIndex  := 0
+	minIndex     := 0
 	for dns, member := range h.members {
-		if dns == currentDns {
+		if dns == currentDns && !member.isLeader {
 			currentIndex = member.index
-		}
-		if member.isLeader {
-			leaderIndex = member.index
+			minIndex     = member.index
 		}
 	}
-	return leaderIndex+1 == currentIndex
+	for _, member := range h.members {
+		if member.index < minIndex && !member.isLeader {
+			minIndex = member.index
+		}
+	}
+	return minIndex == currentIndex && minIndex > 0
 }
 
 func (h *Binlog) ShowMembers() string {
