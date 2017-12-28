@@ -190,6 +190,9 @@ func (client *tcpClient) onMessage(msg []byte) {
 				index := int(content[0]) + int(content[1] << 8)
 				dns := string(content[2:])
 				client.binlog.setMember(dns, false, index)
+			case CMD_KEEPALIVE:
+				// keep alive
+				log.Debugf("keep alive")
 			default:
 		}
 		client.recvBuf.ResetPos()

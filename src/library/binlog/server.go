@@ -10,6 +10,7 @@ import (
 )
 
 func (server *TcpServer) Start() {
+	go server.keepalive()
 	go func() {
 		//建立socket，监听端口
 		dns := fmt.Sprintf("%s:%d", server.listen, server.port)
@@ -154,6 +155,19 @@ func (server *TcpServer) onClose(node *tcpClientNode) {
 	}
 	server.lock.Unlock()
 	server.binlog.setStatus(node.ServiceDns, MEMBER_STATUS_LEAVE)
+}
+
+func (server *TcpServer) keepalive() {
+	for {
+		if server.clientsCount <= 0 {
+			time.Sleep(time.Second * 5)
+			continue
+		}
+		for _, node := range server.clients {
+			node.sendQueue <- server.pack(CMD_KEEPALIVE, "")
+		}
+		time.Sleep(time.Second * 5)
+	}
 }
 
 func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
