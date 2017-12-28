@@ -16,12 +16,12 @@ import (
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
-	config, _   := GetMysqlConfig()
+	config, _ := GetMysqlConfig()
 	var (
 		b [defaultBufSize]byte
-	 	err error
+		err error
 	)
-	binlog := &Binlog {
+	binlog := &Binlog{
 		Config   : config,
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
@@ -71,7 +71,6 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		}
 	}
 
-
 	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
 	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
 
@@ -87,9 +86,8 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	return binlog
 }
 
-
 func newCanal() (*canal.Canal) {
-	cfg, err    := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
+	cfg, err := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
 	}
@@ -116,7 +114,6 @@ func (h *Binlog) recover() {
 	h.BinlogHandler.Cluster.Client.ConnectTo(dns)
 }
 
-
 // set member
 func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 	log.Debugf("set member: %s, %t", dns, isLeader)
@@ -137,7 +134,7 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 func (h *Binlog) getLeader() (string, int)  {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	for dns, member:= range h.members  {
+	for dns, member := range h.members  {
 		if member.isLeader {
 			return dns, member.index
 		}
@@ -152,20 +149,20 @@ func (h *Binlog) leader(isLeader bool) {
 	defer h.lock.Unlock()
 	h.isLeader = isLeader
 	dns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
-	v, ok := h.members[dns]
-	if ok {
+
+	if member, found := h.members[dns]; found {
 		log.Debugf("%s is leader now", dns)
-		v.isLeader = isLeader
+		member.isLeader = isLeader
 	}
 }
 
 func (h *Binlog) setStatus(dns string, status string) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	v, ok := h.members[dns]
-	if ok {
+
+	if member, found := h.members[dns]; found {
 		log.Debugf("set %s status: %s", dns, status)
-		v.status = status
+		member.status = status
 	}
 }
 
@@ -175,7 +172,7 @@ func (h *Binlog) isNextLeader() bool {
 	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	currentIndex := 0
 	leaderIndex  := 0
-	for dns, member:= range h.members  {
+	for dns, member := range h.members {
 		if dns == currentDns {
 			currentIndex = member.index
 		}
@@ -192,14 +189,14 @@ func (h *Binlog) ShowMembers() string {
 	l := len(h.members)
 	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
 	res += fmt.Sprintf("======+=========================+==========+===============\r\n")
-	res += fmt.Sprintf("%-6s| %-23s | %-8s | %s", "index", "node", "role", "status") + "\r\n"
+	res += fmt.Sprintf("%-6s| %-23s | %-8s | %s\r\n", "index", "node", "role", "status")
 	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	for dns, member := range h.members {
 		role := "follower"
 		if member.isLeader {
 			role = "leader"
 		}
-		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s", member.index, dns, role, member.status) + "\r\n"
+		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s\r\n", member.index, dns, role, member.status)
 	}
 	res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
 	return res
