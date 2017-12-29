@@ -235,8 +235,8 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
-		for k, _ := range buf {
-			buf[k] = byte(0)
+		for i := range buf {
+			buf[i] = byte(0)
 		}
 		size, err := conn.Read(buf)
 		if err != nil {
