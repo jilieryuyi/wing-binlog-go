@@ -94,16 +94,16 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		}
 		// 如果不等于权重，即广播模式
 		if mode != MODEL_WEIGHT {
-			for _, conn := range clients {
-				if !conn.isConnected {
+			for _, node := range clients {
+				if !node.isConnected {
 					continue
 				}
 				log.Info("tcp服务-发送广播消息")
-				if len(conn.sendQueue) >= cap(conn.sendQueue) {
-					log.Warnf("tcp服务-发送缓冲区满：%s", (*conn.conn).RemoteAddr().String())
+				if len(node.sendQueue) >= cap(node.sendQueue) {
+					log.Warnf("tcp服务-发送缓冲区满：%s", (*node.conn).RemoteAddr().String())
 					continue
 				}
-				conn.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+				node.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
 			}
 		} else {
 			// 负载均衡模式
@@ -156,7 +156,7 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 
 // 掉线回调
 func (tcp *TcpService) onClose(node *tcpClientNode) {
-	var found bool
+	found := false
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
