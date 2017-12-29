@@ -155,28 +155,29 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 }
 
 // 掉线回调
-func (tcp *TcpService) onClose(conn *tcpClientNode) {
-	if conn.group == "" {
-		tcp.lock.Lock()
-		conn.isConnected = false
-		close(conn.sendQueue)
-		tcp.lock.Unlock()
-		return
-	}
-	//移除conn
-	//查实查找位置
+func (tcp *TcpService) onClose(node *tcpClientNode) {
+	var found bool
 	tcp.lock.Lock()
-	close(conn.sendQueue)
-	for index, con := range tcp.groups[conn.group] {
-		if con.conn == conn.conn {
-			con.isConnected = false
-			tcp.groups[conn.group] = append(tcp.groups[conn.group][:index], tcp.groups[conn.group][index+1:]...)
-			break
+	defer tcp.lock.Unlock()
+
+	close(node.sendQueue)
+	node.isConnected = false
+
+	if node.group != "" {
+		// remove node if exists
+		for index, cnode := range tcp.groups[node.group] {
+			if cnode.conn == node.conn {
+				tcp.groups[node.group] = append(tcp.groups[node.group][:index], tcp.groups[node.group][index+1:]...)
+				found = true
+				break
+			}
 		}
 	}
-	tcp.lock.Unlock()
-	atomic.AddInt32(&tcp.clientsCount, int32(-1))
-	log.Info("tcp服务-当前连输的客户端：", len(tcp.groups[conn.group]), tcp.groups[conn.group])
+
+	if found {
+		atomic.AddInt32(&tcp.clientsCount, int32(-1))
+		log.Info("tcp服务-当前连输的客户端：", len(tcp.groups[node.group]), tcp.groups[node.group])
+	}
 }
 
 // 客户端服务协程，一个客户端一个
