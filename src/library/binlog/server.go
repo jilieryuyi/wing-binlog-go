@@ -105,6 +105,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 		}
 	}
 }
+
 func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode {
@@ -112,7 +113,6 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 		isConnected       : true,
 		sendQueue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes   : 0,
-		weight             : 0,
 		connectTime       : time.Now().Unix(),
 		sendTimes         : int64(0),
 		recvBuf            : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
@@ -173,14 +173,14 @@ func (server *TcpServer) keepalive() {
 func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 	node.recvBuf.Write(msg)
 	for {
-		clen := node.recvBuf.Size()
-		if clen < 6 {
+		size := node.recvBuf.Size()
+		if size < 6 {
 			return
 		}
-		contentLen, _  := node.recvBuf.ReadInt32()
-		cmd, _         := node.recvBuf.ReadInt16() // 2字节 command
-		content, _     := node.recvBuf.Read(contentLen-2)
-		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, contentLen, string(content))
+		clen, _    := node.recvBuf.ReadInt32()
+		cmd, _     := node.recvBuf.ReadInt16() // 2字节 command
+		content, _ := node.recvBuf.Read(clen-2)
+		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, clen, string(content))
 
 		switch cmd {
 		case CMD_POS:
