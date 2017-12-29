@@ -260,56 +260,56 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 }
 
 // 收到消息回调函数
-func (tcp *TcpService) onMessage(conn *tcpClientNode, msg []byte, size int) {
-	conn.recvBuf = append(conn.recvBuf[:conn.recvBytes - size], msg[0:size]...)
+func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
+	node.recvBuf = append(node.recvBuf[:node.recvBytes - size], msg[0:size]...)
 	for {
-		size := len(conn.recvBuf)
+		size := len(node.recvBuf)
 		if size < 6 {
 			return
 		} else if size > TCP_RECV_DEFAULT_SIZE {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
-			conn.recvBuf = make([]byte, TCP_RECV_DEFAULT_SIZE)
+			node.recvBuf = make([]byte, TCP_RECV_DEFAULT_SIZE)
 			log.Info("tcp服务-新建缓冲区")
 			return
 		}
 		//4字节长度
-		clen := int(conn.recvBuf[0]) +
-			int(conn.recvBuf[1] << 8) +
-			int(conn.recvBuf[2] << 16) +
-			int(conn.recvBuf[3] << 32)
+		clen := int(node.recvBuf[0]) +
+			int(node.recvBuf[1] << 8) +
+			int(node.recvBuf[2] << 16) +
+			int(node.recvBuf[3] << 32)
 		//2字节 command
-		cmd := int(conn.recvBuf[4]) + int(conn.recvBuf[5] << 8)
+		cmd := int(node.recvBuf[4]) + int(node.recvBuf[5] << 8)
 		log.Debugf("收到消息：cmd=%d, content_len=%d", cmd, clen)
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Info("tcp服务-收到注册分组消息")
-			if len(conn.recvBuf) < 10 {
+			if len(node.recvBuf) < 10 {
 				return
 			}
 			//4字节 weight
-			weight := int(conn.recvBuf[6]) +
-				int(conn.recvBuf[7] << 8) +
-				int(conn.recvBuf[8] << 16) +
-				int(conn.recvBuf[9] << 32)
+			weight := int(node.recvBuf[6]) +
+				int(node.recvBuf[7] << 8) +
+				int(node.recvBuf[8] << 16) +
+				int(node.recvBuf[9] << 32)
 			if weight < 0 || weight > 100 {
-				conn.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
+				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(conn.recvBuf[10:clen + 4])
+			group := string(node.recvBuf[10:clen + 4])
 			tcp.lock.Lock()
 			if _, ok := tcp.groups[group]; !ok {
-				conn.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp服务-组不存在：%s", group))
+				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp服务-组不存在：%s", group))
 				tcp.lock.Unlock()
 				return
 			}
-			(*conn.conn).SetReadDeadline(time.Time{})
-			conn.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
-			conn.group  = group
-			conn.mode   = tcp.groupsMode[group]
-			conn.weight = weight
-			tcp.groups[group] = append(tcp.groups[group], conn)
-			if conn.mode == MODEL_WEIGHT {
+			(*node.conn).SetReadDeadline(time.Time{})
+			node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
+			node.group  = group
+			node.mode   = tcp.groupsMode[group]
+			node.weight = weight
+			tcp.groups[group] = append(tcp.groups[group], node)
+			if node.mode == MODEL_WEIGHT {
 				//weight 合理性格式化，保证所有的weight的和是100
 				all_weight := 0
 				for _, _conn := range tcp.groups[group] {
@@ -334,14 +334,14 @@ func (tcp *TcpService) onMessage(conn *tcpClientNode, msg []byte, size int) {
 			atomic.AddInt32(&tcp.clientsCount, int32(1))
 			tcp.lock.Unlock()
 		case CMD_TICK:
-			conn.sendQueue <- tcp.pack(CMD_TICK, "ok")
+			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
 		//心跳包
 		default:
-			conn.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
 		}
 		//数据移动
-		conn.recvBuf = append(conn.recvBuf[:0], conn.recvBuf[clen + 4:conn.recvBytes]...)
-		conn.recvBytes = conn.recvBytes - clen - 4
+		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:node.recvBytes]...)
+		node.recvBytes = node.recvBytes - clen - 4
 	}
 }
 
