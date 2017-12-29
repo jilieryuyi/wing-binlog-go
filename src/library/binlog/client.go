@@ -144,7 +144,7 @@ func (client *tcpClient) Send(cmd int, message string) {
 	(*client.conn).Write(sendMsg)
 }
 
-func (tcp *tcpClient) pack(cmd int, msg string) []byte {
+func (client *tcpClient) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
 	r := make([]byte, l + 6)
