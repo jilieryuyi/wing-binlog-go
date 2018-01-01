@@ -110,6 +110,14 @@ func (client *tcpClient) onClose()  {
 	//todo
 	//如果当前节点数量只有两个
 	//nodesCount := len(client.binlog.members)
+
+	//todo 需要等待 ceil(n/2) 个节点确认（选举）
+	//本身即是其中一个，所以等待int(n/2)个确认选举就可以了
+
+	//1、得到next leader
+	//2、如果当前节点不是next leader，则连接leader，确认选举
+	//3、如果当前是next leader，如果数量达到int(n/2)则选举成功
+
 	if /*nodesCount <= 2 &&*/ client.binlog.isNextLeader() {
 		log.Debug("current is next leader")
 		//尝试重连三次
