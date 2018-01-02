@@ -106,3 +106,4 @@ func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFun
 		}
 	}()
 }
+

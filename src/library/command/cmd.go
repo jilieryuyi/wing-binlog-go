@@ -38,3 +38,4 @@ func ShowMembers() {
 	fmt.Println(string(buf))
 	client.Close()
 }
+
