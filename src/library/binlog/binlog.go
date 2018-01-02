@@ -311,3 +311,4 @@ func (h *Binlog) Reload(service string) {
 		h.BinlogHandler.services["http"].Reload()
 	}
 }
+
