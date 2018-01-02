@@ -118,6 +118,10 @@ func (client *tcpClient) onClose()  {
 	//2、如果当前节点不是next leader，则连接leader，确认选举
 	//3、如果当前是next leader，如果数量达到int(n/2)则选举成功
 
+	//集群leader当节点<=2的时候，有一个明显的缺点，就是如果两个节点的网络断开，
+	//没办法进一步确认是否正的原leader节点已经下线，所以可能出现两个leader的情况
+	//并非100%可靠
+
 	if /*nodesCount <= 2 &&*/ client.binlog.isNextLeader() {
 		log.Debug("current is next leader")
 		//尝试重连三次
