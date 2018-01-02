@@ -403,85 +403,95 @@ func (tcp *TcpService) Reload() {
 	log.Debugf("新配置：%+v", config)
 	tcp.enable = config.Enable
 	restart := false
+
 	if tcp.Ip != config.Tcp.Listen || tcp.Port != config.Tcp.Port {
-		log.Debugf("tcp服务，更新ip或服务端口，需要重启tcp服务，旧：%s, 新：%s",
-			fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port),
-			fmt.Sprintf("%s:%d", config.Tcp.Listen, config.Tcp.Port))
+		log.Debugf("tcp service need to be restarted since ip address or/and port changed from %s:%d to %s:%d",
+			tcp.Ip,
+			tcp.Port,
+			config.Tcp.Listen,
+			config.Tcp.Port)
+		restart = true
 		tcp.Ip = config.Tcp.Listen
 		tcp.Port = config.Tcp.Port
-		restart              = true
-		tcp.clientsCount     = 0
-		tcp.recvTimes        = 0
-		tcp.sendTimes        = 0
+		tcp.clientsCount = 0
+		tcp.recvTimes = 0
+		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
 
-		//如果端口和监听ip发生变化，则需要清理所有的客户端连接
-		for k, v := range tcp.groups {
-			for _, conn := range v {
-				log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
-				(*conn.conn).Close()
+		for name, cgroup := range tcp.groups {
+			for _, cnode := range cgroup {
+				log.Debugf("closing service：%s", (*cnode.conn).RemoteAddr().String())
+				cnode.isConnected = false
+				close(cnode.sendQueue)
+				(*cnode.conn).Close()
 			}
-			log.Debugf("tcp服务删除分组：%s", k)
-			delete(tcp.groups, k)
+			log.Debugf("removing groups：%s", name)
+			delete(tcp.groups, name)
+			delete(tcp.groupsFilter, name)
+			delete(tcp.groupsMode, name)
 		}
-		for k, _ := range tcp.groupsMode {
-			log.Debugf("tcp服务删除分组模式：%s", k)
-			delete(tcp.groupsMode, k)
-		}
-		for k, _ := range tcp.groupsFilter {
-			log.Debugf("tcp服务删除分组过滤器：%s", k)
-			delete(tcp.groupsFilter, k)
-		}
-
-		for _, v := range config.Groups {
-			flen := len(v.Filter)
-			var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-			tcp.groups[v.Name]      = con[:0]
-			tcp.groupsMode[v.Name] = v.Mode
-			tcp.groupsFilter[v.Name] = make([]string, flen)
-			tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+		for _, ngroup := range config.Groups { // new group
+			flen := len(ngroup.Filter)
+			var node [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+			tcp.groups[ngroup.Name] = node[:0]
+			tcp.groupsFilter[ngroup.Name] = make([]string, flen)
+			tcp.groupsFilter[ngroup.Name] = append(tcp.groupsFilter[ngroup.Name][:0], ngroup.Filter...)
+			tcp.groupsMode[ngroup.Name] = ngroup.Mode
 		}
 	} else {
-		//如果监听ip和端口没发生变化，则需要diff分组
-		//检测是否发生删除和新增分组
-		for _, v := range config.Groups {
-
-			in_array := false
-			for k, _ := range tcp.groups {
-				if k == v.Name {
-					in_array = true
+		// 2-direction group comparision
+		for name, cgroup := range tcp.groups { // current group
+			found := false
+			for _, ngroup := range config.Groups { // new group
+				if name == ngroup.Name {
+					found = true
 					break
 				}
 			}
-
-			// 新增的分组
-			if !in_array {
-				log.Debugf("tcp服务新增分组：%s", v.Name)
-				flen := len(v.Filter)
-				var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-				tcp.groups[v.Name] = con[:0]
-				tcp.groupsMode[v.Name] = v.Mode
-				tcp.groupsFilter[v.Name] = make([]string, flen)
-				tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+			// remove group
+			if !found {
+				log.Debugf("group removed: %s", name)
+				for _, cnode := range cgroup {
+					log.Debugf("closing connection: %s", (*cnode.conn).RemoteAddr().String())
+					close(cnode.sendQueue)
+					cnode.isConnected = false
+					(*cnode.conn).Close()
+					tcp.clientsCount--
+				}
+				delete(tcp.groups, name)
+				delete(tcp.groupsFilter, name)
+				delete(tcp.groupsMode, name)
+			} else {
+				// replace group filters
+				group, _ := config.Groups[name]
+				flen := len(group.Filter)
+				tcp.groupsFilter[name] = make([]string, flen)
+				tcp.groupsFilter[name] = append(tcp.groupsFilter[name][:0], group.Filter...)
+				tcp.groupsMode[name] = group.Mode
 			}
 		}
 
-		for k, conns := range tcp.groups {
-			in_array := false
-			for _, v := range config.Groups {
-				if k == v.Name {
-					in_array = true
+		for _, ngroup := range config.Groups { // new group
+			found := false
+			for name := range tcp.groups {
+				if name == ngroup.Name {
+					found = true
 					break
 				}
 			}
-			//被删除的分组
-			if !in_array {
-				log.Debugf("tcp服务移除的分组：%s", k)
-				for _, conn := range conns {
-					log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
-					(*conn.conn).Close()
-				}
-				delete(tcp.groups, k)
+
+			// add it if new group found
+			if !found {
+				log.Debugf("new group: %s", ngroup.Name)
+				flen := len(ngroup.Filter)
+				var node [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+				tcp.groups[ngroup.Name] = node[:0]
+				tcp.groupsFilter[ngroup.Name] = make([]string, flen)
+				tcp.groupsFilter[ngroup.Name] = append(tcp.groupsFilter[ngroup.Name][:0], ngroup.Filter...)
+				tcp.groupsMode[ngroup.Name] = ngroup.Mode
+			} else {
+				// do nothing, the existing group is already processed in 1st round comparision
+				continue
 			}
 		}
 	}
