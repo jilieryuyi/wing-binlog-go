@@ -55,8 +55,8 @@ func (server *TcpServer) send(cmd int, msg string){
 	}
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	for _, node := range server.clients {
-		node.sendQueue <- server.pack(cmd, msg)
+	for _, cnode := range server.clients {
+		cnode.sendQueue <- server.pack(cmd, msg)
 	}
 }
 
@@ -128,8 +128,8 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
-		for k, _ := range buf {
-			buf[k] = byte(0)
+		for i := range buf {
+			buf[i] = byte(0)
 		}
 		size, err := (*conn).Read(buf)
 		if err != nil {
@@ -145,11 +145,11 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 
 func (server *TcpServer) onClose(node *tcpClientNode) {
 	server.lock.Lock()
-	for index, client := range server.clients {
-		if client.conn == node.conn {
-			client.isConnected = false
+	for index, cnode := range server.clients {
+		if cnode.conn == node.conn {
+			cnode.isConnected = false
 			server.clientsCount--
-			log.Warnf("cluster服务客户端掉线 %s", (*client.conn).RemoteAddr().String())
+			log.Warnf("cluster服务客户端掉线 %s", (*cnode.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
 			break
 		}
@@ -164,8 +164,8 @@ func (server *TcpServer) keepalive() {
 			time.Sleep(time.Second * 5)
 			continue
 		}
-		for _, node := range server.clients {
-			node.sendQueue <- server.pack(CMD_KEEPALIVE, "")
+		for _, cnode := range server.clients {
+			cnode.sendQueue <- server.pack(CMD_KEEPALIVE, "")
 		}
 		time.Sleep(time.Second * 5)
 	}
@@ -192,7 +192,10 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			log.Debugf("cluster服务-client加入集群成功%s", (*node.conn).RemoteAddr().String())
 			(*node.conn).SetReadDeadline(time.Time{})
 			node.sendQueue <- server.pack(CMD_JOIN, "ok")
-			data := fmt.Sprintf("%s:%d:%d", server.binlog.BinlogHandler.lastBinFile, server.binlog.BinlogHandler.lastPos, atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
+			data := fmt.Sprintf("%s:%d:%d",
+				server.binlog.BinlogHandler.lastBinFile,
+				server.binlog.BinlogHandler.lastPos,
+				atomic.LoadInt64(&server.binlog.BinlogHandler.EventIndex))
 			server.SendClientPos(node, data)
 			log.Debugf("cluster服务-服务节点加入集群：%s", string(content))
 			node.ServiceDns = string(content)

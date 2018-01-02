@@ -247,22 +247,22 @@ func (h *binlogHandler) String() string {
 }
 
 func (h *binlogHandler) OnRotate(e *replication.RotateEvent) error {
-	log.Debugf("binlog事件：OnRotate")
+	log.Debugf("OnRotate event fired, %+v", e)
 	return nil
 }
 
 func (h *binlogHandler) OnDDL(p mysql.Position, e *replication.QueryEvent) error {
-	log.Debugf("binlog事件：OnDDL")
+	log.Debugf("OnDDL event fired, %+v, %+v", p, e)
 	return nil
 }
 
 func (h *binlogHandler) OnXID(p mysql.Position) error {
-	log.Debugf("binlog事件：OnXID")
+	log.Debugf("OnXID event fired, %+v.", p)
 	return nil
 }
 
 func (h *binlogHandler) OnGTID(g mysql.GTIDSet) error {
-	log.Debugf("binlog事件：OnGTID", g)
+	log.Debugf("OnGTID event fired, GTID: %+v", g)
 	return nil
 }
 
