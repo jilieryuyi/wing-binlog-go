@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
 	"time"
+	"strings"
 	"sync/atomic"
 )
 
@@ -105,6 +106,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 		}
 	}
 }
+
 func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode {
@@ -112,7 +114,6 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 		isConnected       : true,
 		sendQueue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes   : 0,
-		weight             : 0,
 		connectTime       : time.Now().Unix(),
 		sendTimes         : int64(0),
 		recvBuf            : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
@@ -173,14 +174,14 @@ func (server *TcpServer) keepalive() {
 func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 	node.recvBuf.Write(msg)
 	for {
-		clen := node.recvBuf.Size()
-		if clen < 6 {
+		size := node.recvBuf.Size()
+		if size < 6 {
 			return
 		}
-		contentLen, _  := node.recvBuf.ReadInt32()
-		cmd, _         := node.recvBuf.ReadInt16() // 2字节 command
-		content, _     := node.recvBuf.Read(contentLen-2)
-		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, contentLen, string(content))
+		clen, _    := node.recvBuf.ReadInt32()
+		cmd, _     := node.recvBuf.ReadInt16() // 2字节 command
+		content, _ := node.recvBuf.Read(clen-2)
+		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, clen, string(content))
 
 		switch cmd {
 		case CMD_POS:
@@ -222,32 +223,28 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 }
 
 func (server *TcpServer) saveNodes() {
-	nodes := "[\""
-	for k, v := range server.clients {
-		nodes += v.ServiceDns
-		if k < server.clientsCount - 1 {
-			nodes += "\",\""
-		} else {
-			nodes += "\"]";
-		}
+	nodes := make([]string, len(server.clients))
+
+	for index, cnode := range server.clients {
+		nodes[index] = cnode.ServiceDns
 	}
-	log.Debugf("cluster写入nodes：%s", nodes)
-	data := []byte(nodes)
+	data := []byte(fmt.Sprintf("[\"%s\"]", strings.Join(nodes, "\",\"")))
 	_, err := server.cacheHandler.WriteAt(data, 0)
 	if err != nil {
-		log.Errorf("cluster写入nodes缓存文件错误：%+v", err)
+		log.Errorf("an error occurred when attempt to write node list file, error: %+v", err)
 		return
 	}
 }
 
 func (server *TcpServer) Close() {
 	server.wg.Wait()
-	for i := 0; i < server.clientsCount; i++ {
-		(*server.clients[i].conn).Close()
+	for _, cnode := range server.clients {
+		(*cnode.conn).Close()
 	}
 	if server.listener != nil {
 		(*server.listener).Close()
 	}
+	server.clientsCount = 0
 	server.cacheHandler.Close()
 }
 
