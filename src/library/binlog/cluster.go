@@ -28,7 +28,6 @@ type tcpClientNode struct {
 	isConnected bool         // 是否还连接着 true 表示正常 false表示已断开
 	sendQueue chan []byte    // 发送channel
 	sendFailureTimes int64   // 发送失败次数
-	weight int               // 权重 0 - 100
 	recvBuf *buffer.WBuffer  // []byte          // 读缓冲区
 	connectTime int64        // 连接成功的时间戳
 	sendTimes int64          // 发送次数，用来计算负载均衡，如果 mode == 2
@@ -71,7 +70,6 @@ func getServiceConfig() (*clusterConfig, error) {
 	}
 	return &config, nil
 }
-
 
 func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 	config, _:= getServiceConfig()
