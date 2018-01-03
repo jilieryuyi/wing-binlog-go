@@ -14,29 +14,29 @@ import (
 func NewTcpService(ctx *context.Context) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
-		Ip               : config.Tcp.Listen,
-		Port             : config.Tcp.Port,
+		Ip               : config.Listen,
+		Port             : config.Port,
 		clientsCount     : int32(0),
 		lock             : new(sync.Mutex),
-		groups           : make(map[string][]*tcpClientNode),
-		groupsMode       : make(map[string] int),
-		groupsFilter     : make(map[string] []string),
+		groups           : make(map[string] *tcpGroup),
 		recvTimes        : 0,
 		sendTimes        : 0,
 		sendFailureTimes : 0,
 		enable           : config.Enable,
-		//isClosed        : false,
 		wg               : new(sync.WaitGroup),
 		listener         : nil,
 		ctx              : ctx,
 	}
 	for _, v := range config.Groups {
 		flen := len(v.Filter)
-		var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-		tcp.groups[v.Name]      = con[:0]
-		tcp.groupsMode[v.Name] = v.Mode
-		tcp.groupsFilter[v.Name] = make([]string, flen)
-		tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+		var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+		tcp.groups[v.Name] = &tcpGroup{
+			name:  v.Name,
+			mode:  v.Mode,
+		}
+		tcp.groups[v.Name].nodes = nodes[:0]
+		tcp.groups[v.Name].filter  = make([]string, flen)
+		tcp.groups[v.Name].filter = append(tcp.groups[v.Name].filter[:0], v.Filter...)
 	}
 	return tcp
 }
@@ -52,24 +52,18 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		log.Info("tcp服务-没有连接的客户端")
 		return false
 	}
-	//if len(tcp.send_queue) >= cap(tcp.send_queue) {
-	//	log.Warn("tcp服务-发送缓冲区满")
-	//	return false
-	//}
 	table_len := int(msg[0]) + int(msg[1] << 8)
 	table     := string(msg[2:table_len+2])
-	//tcp.send_queue <-
-	//pack_msg := tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 
 	tcp.lock.Lock()
-	for group_name, clients := range tcp.groups {
+	for _, cgroup := range tcp.groups {
 		// 如果分组里面没有客户端连接，跳过
-		if len(clients) <= 0 {
+		if len(cgroup.nodes) <= 0 {
 			continue
 		}
 		// 分组的模式
-		mode   := tcp.groupsMode[group_name]
-		filter := tcp.groupsFilter[group_name]
+		mode   := cgroup.mode
+		filter := cgroup.filter
 		flen   := len(filter)
 		//2字节长度
 		//table_len := int(msg[0]) + int(msg[1] << 8);
@@ -94,36 +88,35 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		}
 		// 如果不等于权重，即广播模式
 		if mode != MODEL_WEIGHT {
-			for _, node := range clients {
-				if !node.isConnected {
+			for _, cnode := range cgroup.nodes {
+				if !cnode.isConnected {
 					continue
 				}
 				log.Info("tcp服务-发送广播消息")
-				if len(node.sendQueue) >= cap(node.sendQueue) {
-					log.Warnf("tcp服务-发送缓冲区满：%s", (*node.conn).RemoteAddr().String())
+				if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+					log.Warnf("tcp服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
 					continue
 				}
-				node.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+				cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
 			}
 		} else {
 			// 负载均衡模式
 			// todo 根据已经send_times的次数负载均衡
-			clen := len(clients)
-			target := clients[0]
+			target := cgroup.nodes[0]
 			//将发送次数/权重 作为负载基数，每次选择最小的发送
 			js := float64(atomic.LoadInt64(&target.sendTimes))/float64(target.weight)
-			for i := 1; i < clen; i++ {
-				stimes := atomic.LoadInt64(&clients[i].sendTimes)
+			for _, cnode := range cgroup.nodes {
+				stimes := atomic.LoadInt64(&cnode.sendTimes)
 				//conn.send_queue <- msg
 				if stimes == 0 {
 					//优先发送没有发过的
-					target = clients[i]
+					target = cnode
 					break
 				}
-				njs := float64(stimes)/float64(clients[i].weight)
+				njs := float64(stimes)/float64(cnode.weight)
 				if njs < js {
 					js = njs
-					target = clients[i]
+					target = cnode
 				}
 			}
 			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
@@ -156,7 +149,6 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 
 // 掉线回调
 func (tcp *TcpService) onClose(node *tcpClientNode) {
-	found := false
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
@@ -165,18 +157,15 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 
 	if node.group != "" {
 		// remove node if exists
-		for index, cnode := range tcp.groups[node.group] {
-			if cnode.conn == node.conn {
-				tcp.groups[node.group] = append(tcp.groups[node.group][:index], tcp.groups[node.group][index+1:]...)
-				found = true
-				break
+		if group, found := tcp.groups[node.group]; found {
+			for index, cnode := range group.nodes {
+				if cnode.conn == node.conn {
+					group.nodes = append(group.nodes[:index], group.nodes[index+1:]...)
+					atomic.AddInt32(&tcp.clientsCount, int32(-1))
+					break
+				}
 			}
 		}
-	}
-
-	if found {
-		atomic.AddInt32(&tcp.clientsCount, int32(-1))
-		log.Info("tcp服务-当前连输的客户端：", len(tcp.groups[node.group]), tcp.groups[node.group])
 	}
 }
 
@@ -296,42 +285,43 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(node.recvBuf[10:clen + 4])
+			name := string(node.recvBuf[10:clen + 4])
 			tcp.lock.Lock()
-			if _, ok := tcp.groups[group]; !ok {
+			group, found := tcp.groups[name]
+			if !found {
 				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp服务-组不存在：%s", group))
 				tcp.lock.Unlock()
 				return
 			}
 			(*node.conn).SetReadDeadline(time.Time{})
 			node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
-			node.group  = group
-			node.mode   = tcp.groupsMode[group]
+			node.group  = group.name
+			node.mode   = group.mode
 			node.weight = weight
-			tcp.groups[group] = append(tcp.groups[group], node)
+			group.nodes = append(group.nodes, node)
+			atomic.AddInt32(&tcp.clientsCount, int32(1))
 			if node.mode == MODEL_WEIGHT {
 				//weight 合理性格式化，保证所有的weight的和是100
 				all_weight := 0
-				for _, _conn := range tcp.groups[group] {
-					w := _conn.weight
+				for _, cnode := range group.nodes {
+					w := cnode.weight
 					if w <= 0 {
 						w = 100
 					}
 					all_weight += w
 				}
 
-				gl := len(tcp.groups[group])
+				gl := len(group.nodes)
 				yg := 0
-				for k, _conn := range tcp.groups[group] {
-					if k == gl - 1 {
-						_conn.weight = 100 - yg
+				for index, cnode := range group.nodes {
+					if index == gl - 1 {
+						cnode.weight = 100 - yg
 					} else {
-						_conn.weight = int(_conn.weight * 100 / all_weight)
-						yg += _conn.weight
+						cnode.weight = int(cnode.weight * 100 / all_weight)
+						yg += cnode.weight
 					}
 				}
 			}
-			atomic.AddInt32(&tcp.clientsCount, int32(1))
 			tcp.lock.Unlock()
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
@@ -386,10 +376,11 @@ func (tcp *TcpService) Close() {
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	for _, v := range tcp.groups {
-		for _, client := range v {
-			(*client.conn).Close()
-			client.isConnected = false
+	for _, cgroup := range tcp.groups {
+		for _, cnode := range cgroup.nodes {
+			close(cnode.sendQueue)
+			(*cnode.conn).Close()
+			cnode.isConnected = false
 		}
 	}
 	tcp.lock.Unlock()
@@ -404,22 +395,22 @@ func (tcp *TcpService) Reload() {
 	tcp.enable = config.Enable
 	restart := false
 
-	if tcp.Ip != config.Tcp.Listen || tcp.Port != config.Tcp.Port {
+	if tcp.Ip != config.Listen || tcp.Port != config.Port {
 		log.Debugf("tcp service need to be restarted since ip address or/and port changed from %s:%d to %s:%d",
 			tcp.Ip,
 			tcp.Port,
-			config.Tcp.Listen,
-			config.Tcp.Port)
+			config.Listen,
+			config.Port)
 		restart = true
-		tcp.Ip = config.Tcp.Listen
-		tcp.Port = config.Tcp.Port
+		tcp.Ip = config.Listen
+		tcp.Port = config.Port
 		tcp.clientsCount = 0
 		tcp.recvTimes = 0
 		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
 
 		for name, cgroup := range tcp.groups {
-			for _, cnode := range cgroup {
+			for _, cnode := range cgroup.nodes {
 				log.Debugf("closing service：%s", (*cnode.conn).RemoteAddr().String())
 				cnode.isConnected = false
 				close(cnode.sendQueue)
@@ -427,16 +418,19 @@ func (tcp *TcpService) Reload() {
 			}
 			log.Debugf("removing groups：%s", name)
 			delete(tcp.groups, name)
-			delete(tcp.groupsFilter, name)
-			delete(tcp.groupsMode, name)
+			//delete(tcp.groupsFilter, name)
+			//delete(tcp.groupsMode, name)
 		}
 		for _, ngroup := range config.Groups { // new group
 			flen := len(ngroup.Filter)
-			var node [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-			tcp.groups[ngroup.Name] = node[:0]
-			tcp.groupsFilter[ngroup.Name] = make([]string, flen)
-			tcp.groupsFilter[ngroup.Name] = append(tcp.groupsFilter[ngroup.Name][:0], ngroup.Filter...)
-			tcp.groupsMode[ngroup.Name] = ngroup.Mode
+			var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+			tcp.groups[ngroup.Name] = &tcpGroup{
+				name:  ngroup.Name,
+				mode:  ngroup.Mode,
+			}
+			tcp.groups[ngroup.Name].nodes = nodes[:0]
+			tcp.groups[ngroup.Name].filter  = make([]string, flen)
+			tcp.groups[ngroup.Name].filter = append(tcp.groups[ngroup.Name].filter[:0], ngroup.Filter...)
 		}
 	} else {
 		// 2-direction group comparision
@@ -451,7 +445,7 @@ func (tcp *TcpService) Reload() {
 			// remove group
 			if !found {
 				log.Debugf("group removed: %s", name)
-				for _, cnode := range cgroup {
+				for _, cnode := range cgroup.nodes {
 					log.Debugf("closing connection: %s", (*cnode.conn).RemoteAddr().String())
 					close(cnode.sendQueue)
 					cnode.isConnected = false
@@ -459,15 +453,15 @@ func (tcp *TcpService) Reload() {
 					tcp.clientsCount--
 				}
 				delete(tcp.groups, name)
-				delete(tcp.groupsFilter, name)
-				delete(tcp.groupsMode, name)
+				//delete(tcp.groupsFilter, name)
+				//delete(tcp.groupsMode, name)
 			} else {
 				// replace group filters
 				group, _ := config.Groups[name]
 				flen := len(group.Filter)
-				tcp.groupsFilter[name] = make([]string, flen)
-				tcp.groupsFilter[name] = append(tcp.groupsFilter[name][:0], group.Filter...)
-				tcp.groupsMode[name] = group.Mode
+				tcp.groups[name].filter  = make([]string, flen)
+				tcp.groups[name].filter = append(tcp.groups[name].filter[:0], group.Filter...)
+				tcp.groups[name].mode = group.Mode
 			}
 		}
 
@@ -484,11 +478,14 @@ func (tcp *TcpService) Reload() {
 			if !found {
 				log.Debugf("new group: %s", ngroup.Name)
 				flen := len(ngroup.Filter)
-				var node [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-				tcp.groups[ngroup.Name] = node[:0]
-				tcp.groupsFilter[ngroup.Name] = make([]string, flen)
-				tcp.groupsFilter[ngroup.Name] = append(tcp.groupsFilter[ngroup.Name][:0], ngroup.Filter...)
-				tcp.groupsMode[ngroup.Name] = ngroup.Mode
+				var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+				tcp.groups[ngroup.Name] = &tcpGroup{
+					name:  ngroup.Name,
+					mode:  ngroup.Mode,
+				}
+				tcp.groups[ngroup.Name].nodes = nodes[:0]
+				tcp.groups[ngroup.Name].filter  = make([]string, flen)
+				tcp.groups[ngroup.Name].filter = append(tcp.groups[ngroup.Name].filter[:0], ngroup.Filter...)
 			} else {
 				// do nothing, the existing group is already processed in 1st round comparision
 				continue
