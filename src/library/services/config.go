@@ -22,20 +22,17 @@ type Service interface {
 	Reload()
 }
 
-type tcpGroupConfig struct {
-	Mode int     // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
-	Name string  // = "group1"
-	Filter []string
-}
-type tcpConfig struct {
-	Listen string
-	Port int
+type tcpGroupConfig struct { // group node in toml
+	Mode int        // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
+	Name string     // = "group1"
+	Filter []string //
 }
 
-type TcpConfig struct {
-	Enable bool
-	Groups map[string]tcpGroupConfig
-	Tcp tcpConfig
+type TcpConfig struct { // <- toml
+	Listen string                    //
+	Port   int                       //
+	Enable bool                      //
+	Groups map[string]tcpGroupConfig //
 }
 
 type httpNodeConfig struct {
@@ -88,6 +85,13 @@ type tcpClientNode struct {
 	sendTimes int64         // 发送次数，用来计算负载均衡，如果 mode == 2
 }
 
+type tcpGroup struct {
+	name   string           //
+	mode   int              //
+	filter []string         //
+	nodes  []*tcpClientNode //
+}
+
 type TcpService struct {
 	Service
 	Ip string                             // 监听ip
@@ -96,15 +100,15 @@ type TcpService struct {
 	sendTimes int64                       // 发送消息的次数
 	sendFailureTimes int64                // 发送失败的次数
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groupsMode map[string] int            // 分组的模式 1，2 广播还是复载均衡
-	groupsFilter map[string] []string     // 分组的过滤器
+//	groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
+//	groupsMode map[string] int            // 分组的模式 1，2 广播还是复载均衡
+//	groupsFilter map[string] []string     // 分组的过滤器
+	groups map[string]*tcpGroup           //
 	clientsCount int32                    // 成功连接（已经进入分组）的客户端数量
-	enable bool
-	ctx *context.Context
-	listener *net.Listener
-	//isClosed bool
-	wg *sync.WaitGroup
+	enable bool                           //
+	ctx *context.Context                  //
+	listener *net.Listener                //
+	wg *sync.WaitGroup                    //
 }
 
 type WKafka struct {

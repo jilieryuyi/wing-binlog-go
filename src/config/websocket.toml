@@ -5,6 +5,8 @@
 ##tcp连接到wing-binlog-go时可以选择加入到组和设定权重，依据为组的名称
 ##当组的名称对应的mode为广播时，权重无效
 ##当组的mode为权重时，将依据设定的权重自动负载均衡
+listen = "0.0.0.0"
+port = 9997
 enable = true ##启用websocket服务
 [groups]
     [groups.g1]
@@ -15,6 +17,3 @@ enable = true ##启用websocket服务
      mode = 2
      name = "group2"
      filter = []
-[tcp]
-listen = "0.0.0.0"
-port = 9997
