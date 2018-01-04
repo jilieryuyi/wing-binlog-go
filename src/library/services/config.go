@@ -100,11 +100,7 @@ type TcpService struct {
 	sendTimes int64                       // 发送消息的次数
 	sendFailureTimes int64                // 发送失败的次数
 	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-//	groups map[string][]*tcpClientNode    // 客户端分组，现在支持两种分组，广播组合负载均衡组
-//	groupsMode map[string] int            // 分组的模式 1，2 广播还是复载均衡
-//	groupsFilter map[string] []string     // 分组的过滤器
 	groups map[string]*tcpGroup           //
-	clientsCount int32                    // 成功连接（已经进入分组）的客户端数量
 	enable bool                           //
 	ctx *context.Context                  //
 	listener *net.Listener                //
