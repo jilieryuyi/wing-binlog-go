@@ -48,13 +48,14 @@ func (server *TcpServer) SendClientPos(node *tcpClientNode, data string) {
 
 // 广播
 func (server *TcpServer) send(cmd int, msg string){
-	log.Infof("cluster服务-广播：%s", msg)
-	if server.clientsCount <= 0 {
-		log.Info("cluster服务-没有连接的客户端")
-		return
-	}
+	log.Debugf("cluster server sending broadcast: %s", msg)
 	server.lock.Lock()
 	defer server.lock.Unlock()
+	cc := len(server.clients)
+	if cc <= 0 {
+		log.Debugf("no follower found, cluster server send broadcast aborted.")
+		return
+	}
 	for _, cnode := range server.clients {
 		cnode.sendQueue <- server.pack(cmd, msg)
 	}
@@ -110,19 +111,21 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode {
-		conn               : conn,
-		isConnected       : true,
-		sendQueue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
-		sendFailureTimes   : 0,
-		connectTime       : time.Now().Unix(),
-		sendTimes         : int64(0),
-		recvBuf            : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
+		conn:             conn,
+		isConnected:      true,
+		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
+		sendFailureTimes: 0,
+		connectTime:      time.Now().Unix(),
+		sendTimes:        int64(0),
+		recvBuf:          buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 	}
 	go server.clientService(cnode)
+
 	server.lock.Lock()
-	server.clients = append(server.clients[:server.clientsCount], cnode)
-	server.clientsCount++
+	cc := len(server.clients)
+	server.clients = append(server.clients[:cc], cnode)
 	server.lock.Unlock()
+
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 	(*conn).SetReadDeadline(time.Now().Add(time.Second*3))
 	for {
@@ -148,7 +151,6 @@ func (server *TcpServer) onClose(node *tcpClientNode) {
 	for index, cnode := range server.clients {
 		if cnode.conn == node.conn {
 			cnode.isConnected = false
-			server.clientsCount--
 			log.Warnf("cluster服务客户端掉线 %s", (*cnode.conn).RemoteAddr().String())
 			server.clients = append(server.clients[:index], server.clients[index+1:]...)
 			break
@@ -160,7 +162,7 @@ func (server *TcpServer) onClose(node *tcpClientNode) {
 
 func (server *TcpServer) keepalive() {
 	for {
-		if server.clientsCount <= 0 {
+		if server.clients == nil {
 			time.Sleep(time.Second * 5)
 			continue
 		}
@@ -247,7 +249,6 @@ func (server *TcpServer) Close() {
 	if server.listener != nil {
 		(*server.listener).Close()
 	}
-	server.clientsCount = 0
 	server.cacheHandler.Close()
 }
 
