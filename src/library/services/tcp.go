@@ -14,24 +14,24 @@ import (
 func NewTcpService(ctx *context.Context) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
-		Ip               : config.Listen,
-		Port             : config.Port,
-		lock             : new(sync.Mutex),
-		groups           : make(map[string] *tcpGroup),
-		recvTimes        : 0,
-		sendTimes        : 0,
-		sendFailureTimes : 0,
-		enable           : config.Enable,
-		wg               : new(sync.WaitGroup),
-		listener         : nil,
-		ctx              : ctx,
+		Ip:               config.Listen,
+		Port:             config.Port,
+		lock:             new(sync.Mutex),
+		groups:           make(map[string] *tcpGroup),
+		recvTimes:        0,
+		sendTimes:        0,
+		sendFailureTimes: 0,
+		enable:           config.Enable,
+		wg:               new(sync.WaitGroup),
+		listener:         nil,
+		ctx:              ctx,
 	}
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
 		tcp.groups[cgroup.Name] = &tcpGroup{
-			name:  cgroup.Name,
-			mode:  cgroup.Mode,
+			name: cgroup.Name,
+			mode: cgroup.Mode,
 		}
 		tcp.groups[cgroup.Name].nodes = nodes[:0]
 		tcp.groups[cgroup.Name].filter  = make([]string, flen)
@@ -97,18 +97,19 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 			target := cgroup.nodes[0]
 			//将发送次数/权重 作为负载基数，每次选择最小的发送
 			js := float64(atomic.LoadInt64(&target.sendTimes))/float64(target.weight)
-			for _, cnode := range cgroup.nodes {
-				stimes := atomic.LoadInt64(&cnode.sendTimes)
+			clen := len(cgroup.nodes)
+			for i := 1; i < clen; i++ {
+				stimes := atomic.LoadInt64(&cgroup.nodes[i].sendTimes)
 				//conn.send_queue <- msg
 				if stimes == 0 {
 					//优先发送没有发过的
-					target = cnode
+					target = cgroup.nodes[i]
 					break
 				}
-				njs := float64(stimes)/float64(cnode.weight)
+				njs := float64(stimes)/float64(cgroup.nodes[i].weight)
 				if njs < js {
 					js = njs
-					target = cnode
+					target = cgroup.nodes[i]
 				}
 			}
 			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
@@ -195,17 +196,17 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 func (tcp *TcpService) onConnect(conn net.Conn) {
 	log.Info("tcp服务-新的连接：",conn.RemoteAddr().String())
 	cnode := &tcpClientNode {
-		conn             : &conn,
-		isConnected      : true,
-		sendQueue        : make(chan []byte, TCP_MAX_SEND_QUEUE),
-		sendFailureTimes : 0,
-		weight           : 0,
-		mode             : MODEL_BROADCAST,
-		connectTime      : time.Now().Unix(),
-		sendTimes        : int64(0),
-		recvBuf          : make([]byte, TCP_RECV_DEFAULT_SIZE),
-		recvBytes        : 0,
-		group            : "",
+		conn:             &conn,
+		isConnected:      true,
+		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
+		sendFailureTimes: 0,
+		weight:           0,
+		mode:             MODEL_BROADCAST,
+		connectTime:      time.Now().Unix(),
+		sendTimes:        int64(0),
+		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
+		recvBytes:        0,
+		group:            "",
 	}
 	go tcp.clientSendService(cnode)
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
