@@ -36,8 +36,9 @@ type TcpConfig struct { // <- toml
 }
 
 type httpNodeConfig struct {
-	Mode int
-	Nodes [][]string
+	Name   string
+	Mode   int
+	Nodes  [][]string
 	Filter []string
 }
 
