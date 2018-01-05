@@ -12,15 +12,17 @@ import (
 )
 
 type tcpClient struct {
-	dns         string
-	conn        *net.Conn
-	isClosed    bool
-	recvTimes   int64
-	recvBuf     *buffer.WBuffer // []byte
-	lock        *sync.Mutex     // 互斥锁，修改资源时锁定
-	binlog      *Binlog
-	ServiceIp   string
-	ServicePort int
+	dns          string
+	conn         *net.Conn
+	isClosed     bool
+	recvTimes    int64
+	recvBuf      *buffer.WBuffer // []byte
+	lock         *sync.Mutex     // 互斥锁，修改资源时锁定
+	binlog       *Binlog
+	ServiceIp    string
+	ServicePort  int
+	confirmCount int32
+	startConfirm bool
 }
 
 type tcpClientNode struct {
@@ -93,6 +95,8 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		binlog      : binlog,
 		ServiceIp   : config.ServiceIp,
 		ServicePort : config.Port,
+		confirmCount: 0,
+		startConfirm: false,
 	}
 
 	// 初始化缓存文件句柄

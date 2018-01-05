@@ -120,6 +120,7 @@ func (client *tcpClient) onClose()  {
 
 	if client.binlog.isNextLeader() {
 		//todo 等待int(n/2)掉线选举确认
+		client.startConfirm = true
 	} else {
 		nextDsn := client.binlog.getNextLeader()
         client.sendCloseConfirm(nextDsn)
@@ -157,6 +158,22 @@ func (client *tcpClient) onClose()  {
 	//则将当前节点设置为leader
 }
 
+func (client *tcpClient) selectLeader() {
+	client.lock.Lock()
+	defer client.lock.Unlock()
+
+	if client.startConfirm {
+		atomic.AddInt32(&client.confirmCount, 1)
+		count := atomic.LoadInt32(&client.confirmCount)
+		if count >= int32(len(client.binlog.members)/2)  {
+			//选举成功
+			client.startConfirm = false
+			atomic.StoreInt32(&client.confirmCount, 0)
+			client.binlog.StartService()
+			client.binlog.leader(true)
+		}
+	}
+}
 
 func (client *tcpClient) sendCloseConfirm(dsn string) {
 	// todo 查询当前leader serviceIp
@@ -177,7 +194,7 @@ func (client *tcpClient) sendCloseConfirm(dsn string) {
 	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
 	dataBuf.Write(buf[:size])
 	dataBuf.ReadInt32()
-	cmd := dataBuf.ReadInt16() // 2字节 command
+	cmd, err := dataBuf.ReadInt16() // 2字节 command
 	log.Debugf("close confirm: %d", cmd)
 	conn.Close()
 	if cmd != CMD_CLOSE_CONFIRM {

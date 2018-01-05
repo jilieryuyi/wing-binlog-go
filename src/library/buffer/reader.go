@@ -67,6 +67,9 @@ func (wb *WBuffer) ReadInt16() (int,error) {
 		return 0, out_of_range
 	}
 	b, err := wb.Read(2)
+	if err != nil {
+		return 0, err
+	}
 	i := int(b[0]) + int(b[1] << 8)
 	return i, err
 }
