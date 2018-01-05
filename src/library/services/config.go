@@ -125,8 +125,8 @@ type KafkaConfig struct {
 }
 
 var (
-	ErrorFileNotFound = errors.New("配置文件不存在")
-	ErrorFileParse = errors.New("配置解析错误")
+	ErrorFileNotFound = errors.New("config file not found")
+	ErrorFileParse = errors.New("config parse error")
 )
 
 const (
