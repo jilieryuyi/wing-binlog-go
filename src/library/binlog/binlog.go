@@ -182,7 +182,7 @@ func (h *Binlog) leaderChange() {
 	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 
 	for dsn, member := range h.members {
-		if !member.isLeave {
+		if !member.isLeave && dsn != currentDns {
 			conn, err := net.DialTimeout("tcp", dsn, time.Second*3)
 			if err != nil {
 				log.Errorf("connect to dsn %s error: %+v", dsn, err)
