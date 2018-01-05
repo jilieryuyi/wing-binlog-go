@@ -14,29 +14,28 @@ import (
 func NewTcpService(ctx *context.Context) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
-		Ip               : config.Tcp.Listen,
-		Port             : config.Tcp.Port,
-		clientsCount     : int32(0),
-		lock             : new(sync.Mutex),
-		groups           : make(map[string][]*tcpClientNode),
-		groupsMode       : make(map[string] int),
-		groupsFilter     : make(map[string] []string),
-		recvTimes        : 0,
-		sendTimes        : 0,
-		sendFailureTimes : 0,
-		enable           : config.Enable,
-		//isClosed        : false,
-		wg               : new(sync.WaitGroup),
-		listener         : nil,
-		ctx              : ctx,
+		Ip:               config.Listen,
+		Port:             config.Port,
+		lock:             new(sync.Mutex),
+		groups:           make(map[string] *tcpGroup),
+		recvTimes:        0,
+		sendTimes:        0,
+		sendFailureTimes: 0,
+		enable:           config.Enable,
+		wg:               new(sync.WaitGroup),
+		listener:         nil,
+		ctx:              ctx,
 	}
-	for _, v := range config.Groups {
-		flen := len(v.Filter)
-		var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-		tcp.groups[v.Name]      = con[:0]
-		tcp.groupsMode[v.Name] = v.Mode
-		tcp.groupsFilter[v.Name] = make([]string, flen)
-		tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+	for _, cgroup := range config.Groups {
+		flen := len(cgroup.Filter)
+		var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+		tcp.groups[cgroup.Name] = &tcpGroup{
+			name: cgroup.Name,
+			mode: cgroup.Mode,
+		}
+		tcp.groups[cgroup.Name].nodes = nodes[:0]
+		tcp.groups[cgroup.Name].filter  = make([]string, flen)
+		tcp.groups[cgroup.Name].filter = append(tcp.groups[cgroup.Name].filter[:0], cgroup.Filter...)
 	}
 	return tcp
 }
@@ -47,83 +46,70 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 		return false
 	}
 	log.Info("tcp服务-广播：", string(msg))
-	cc := atomic.LoadInt32(&tcp.clientsCount)
-	if cc <= 0 {
-		log.Info("tcp服务-没有连接的客户端")
-		return false
-	}
-	//if len(tcp.send_queue) >= cap(tcp.send_queue) {
-	//	log.Warn("tcp服务-发送缓冲区满")
-	//	return false
-	//}
 	table_len := int(msg[0]) + int(msg[1] << 8)
 	table     := string(msg[2:table_len+2])
-	//tcp.send_queue <-
-	//pack_msg := tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 
 	tcp.lock.Lock()
-	for group_name, clients := range tcp.groups {
+	defer tcp.lock.Unlock()
+	
+	for _, cgroup := range tcp.groups {
 		// 如果分组里面没有客户端连接，跳过
-		if len(clients) <= 0 {
+		if len(cgroup.nodes) <= 0 {
+			// if node count == 0 in each group
+			// program will left the loop from here
+			// after len(svc.groups) loops
 			continue
 		}
-		// 分组的模式
-		mode   := tcp.groupsMode[group_name]
-		filter := tcp.groupsFilter[group_name]
-		flen   := len(filter)
-		//2字节长度
-		//table_len := int(msg[0]) + int(msg[1] << 8);
-		//msg[2:table_len+2])
-		log.Info("tcp服务-数据表：", table_len, table)
-		log.Info("tcp服务-发送广播消息：", msg[table_len+2:])
-		if flen > 0 {
-			is_match := false
-			for _, f := range filter {
+		// check if the table name matches the filter
+		if len(cgroup.filter) > 0 {
+			found := false
+			for _, f := range cgroup.filter {
 				match, err := regexp.MatchString(f, table)
 				if err != nil {
 					continue
 				}
 				if match {
-					is_match = true
+					found = true
 					break
 				}
 			}
-			if !is_match {
+			if !found {
 				continue
 			}
 		}
+		mode := cgroup.mode
 		// 如果不等于权重，即广播模式
 		if mode != MODEL_WEIGHT {
-			for _, node := range clients {
-				if !node.isConnected {
+			for _, cnode := range cgroup.nodes {
+				if !cnode.isConnected {
 					continue
 				}
 				log.Info("tcp服务-发送广播消息")
-				if len(node.sendQueue) >= cap(node.sendQueue) {
-					log.Warnf("tcp服务-发送缓冲区满：%s", (*node.conn).RemoteAddr().String())
+				if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+					log.Warnf("tcp服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
 					continue
 				}
-				node.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+				cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
 			}
 		} else {
 			// 负载均衡模式
 			// todo 根据已经send_times的次数负载均衡
-			clen := len(clients)
-			target := clients[0]
+			target := cgroup.nodes[0]
 			//将发送次数/权重 作为负载基数，每次选择最小的发送
 			js := float64(atomic.LoadInt64(&target.sendTimes))/float64(target.weight)
+			clen := len(cgroup.nodes)
 			for i := 1; i < clen; i++ {
-				stimes := atomic.LoadInt64(&clients[i].sendTimes)
+				stimes := atomic.LoadInt64(&cgroup.nodes[i].sendTimes)
 				//conn.send_queue <- msg
 				if stimes == 0 {
 					//优先发送没有发过的
-					target = clients[i]
+					target = cgroup.nodes[i]
 					break
 				}
-				njs := float64(stimes)/float64(clients[i].weight)
+				njs := float64(stimes)/float64(cgroup.nodes[i].weight)
 				if njs < js {
 					js = njs
-					target = clients[i]
+					target = cgroup.nodes[i]
 				}
 			}
 			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
@@ -134,7 +120,6 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 			}
 		}
 	}
-	tcp.lock.Unlock()
 	return true
 }
 
@@ -156,7 +141,6 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 
 // 掉线回调
 func (tcp *TcpService) onClose(node *tcpClientNode) {
-	found := false
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
@@ -165,18 +149,14 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 
 	if node.group != "" {
 		// remove node if exists
-		for index, cnode := range tcp.groups[node.group] {
-			if cnode.conn == node.conn {
-				tcp.groups[node.group] = append(tcp.groups[node.group][:index], tcp.groups[node.group][index+1:]...)
-				found = true
-				break
+		if group, found := tcp.groups[node.group]; found {
+			for index, cnode := range group.nodes {
+				if cnode.conn == node.conn {
+					group.nodes = append(group.nodes[:index], group.nodes[index+1:]...)
+					break
+				}
 			}
 		}
-	}
-
-	if found {
-		atomic.AddInt32(&tcp.clientsCount, int32(-1))
-		log.Info("tcp服务-当前连输的客户端：", len(tcp.groups[node.group]), tcp.groups[node.group])
 	}
 }
 
@@ -216,17 +196,17 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 func (tcp *TcpService) onConnect(conn net.Conn) {
 	log.Info("tcp服务-新的连接：",conn.RemoteAddr().String())
 	cnode := &tcpClientNode {
-		conn             : &conn,
-		isConnected      : true,
-		sendQueue        : make(chan []byte, TCP_MAX_SEND_QUEUE),
-		sendFailureTimes : 0,
-		weight           : 0,
-		mode             : MODEL_BROADCAST,
-		connectTime      : time.Now().Unix(),
-		sendTimes        : int64(0),
-		recvBuf          : make([]byte, TCP_RECV_DEFAULT_SIZE),
-		recvBytes        : 0,
-		group            : "",
+		conn:             &conn,
+		isConnected:      true,
+		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
+		sendFailureTimes: 0,
+		weight:           0,
+		mode:             MODEL_BROADCAST,
+		connectTime:      time.Now().Unix(),
+		sendTimes:        int64(0),
+		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
+		recvBytes:        0,
+		group:            "",
 	}
 	go tcp.clientSendService(cnode)
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
@@ -296,42 +276,42 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			group := string(node.recvBuf[10:clen + 4])
+			name := string(node.recvBuf[10:clen + 4])
 			tcp.lock.Lock()
-			if _, ok := tcp.groups[group]; !ok {
+			group, found := tcp.groups[name]
+			if !found {
 				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp服务-组不存在：%s", group))
 				tcp.lock.Unlock()
 				return
 			}
 			(*node.conn).SetReadDeadline(time.Time{})
 			node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
-			node.group  = group
-			node.mode   = tcp.groupsMode[group]
+			node.group  = group.name
+			node.mode   = group.mode
 			node.weight = weight
-			tcp.groups[group] = append(tcp.groups[group], node)
+			group.nodes = append(group.nodes, node)
 			if node.mode == MODEL_WEIGHT {
 				//weight 合理性格式化，保证所有的weight的和是100
 				all_weight := 0
-				for _, _conn := range tcp.groups[group] {
-					w := _conn.weight
+				for _, cnode := range group.nodes {
+					w := cnode.weight
 					if w <= 0 {
 						w = 100
 					}
 					all_weight += w
 				}
 
-				gl := len(tcp.groups[group])
+				gl := len(group.nodes)
 				yg := 0
-				for k, _conn := range tcp.groups[group] {
-					if k == gl - 1 {
-						_conn.weight = 100 - yg
+				for index, cnode := range group.nodes {
+					if index == gl - 1 {
+						cnode.weight = 100 - yg
 					} else {
-						_conn.weight = int(_conn.weight * 100 / all_weight)
-						yg += _conn.weight
+						cnode.weight = int(cnode.weight * 100 / all_weight)
+						yg += cnode.weight
 					}
 				}
 			}
-			atomic.AddInt32(&tcp.clientsCount, int32(1))
 			tcp.lock.Unlock()
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
@@ -376,24 +356,29 @@ func (tcp *TcpService) Start() {
 }
 
 func (tcp *TcpService) Close() {
-	log.Debug("tcp服务退出...")
-	log.Debug("tcp服务等待缓冲区数据发送完毕")
-	cc := atomic.LoadInt32(&tcp.clientsCount)
-	if cc > 0 {
-		tcp.wg.Wait()
-	}
+	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
+	defer tcp.lock.Unlock()
+
+	for _, cgroup := range tcp.groups {
+		if len(cgroup.nodes) > 0 {
+			tcp.wg.Wait()
+			break
+		}
+	}
+
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	for _, v := range tcp.groups {
-		for _, client := range v {
-			(*client.conn).Close()
-			client.isConnected = false
+	for _, cgroup := range tcp.groups {
+		for _, cnode := range cgroup.nodes {
+			close(cnode.sendQueue)
+			(*cnode.conn).Close()
+			cnode.isConnected = false
 		}
 	}
-	tcp.lock.Unlock()
-	log.Debug("tcp服务退出...end")
+
+	log.Debugf("tcp service closed.")
 }
 
 // 重新加载服务
@@ -403,85 +388,95 @@ func (tcp *TcpService) Reload() {
 	log.Debugf("新配置：%+v", config)
 	tcp.enable = config.Enable
 	restart := false
-	if tcp.Ip != config.Tcp.Listen || tcp.Port != config.Tcp.Port {
-		log.Debugf("tcp服务，更新ip或服务端口，需要重启tcp服务，旧：%s, 新：%s",
-			fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port),
-			fmt.Sprintf("%s:%d", config.Tcp.Listen, config.Tcp.Port))
-		tcp.Ip = config.Tcp.Listen
-		tcp.Port = config.Tcp.Port
-		restart              = true
-		tcp.clientsCount     = 0
-		tcp.recvTimes        = 0
-		tcp.sendTimes        = 0
+
+	if tcp.Ip != config.Listen || tcp.Port != config.Port {
+		log.Debugf("tcp service need to be restarted since ip address or/and port changed from %s:%d to %s:%d",
+			tcp.Ip,
+			tcp.Port,
+			config.Listen,
+			config.Port)
+		restart = true
+		tcp.Ip = config.Listen
+		tcp.Port = config.Port
+		tcp.recvTimes = 0
+		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
 
-		//如果端口和监听ip发生变化，则需要清理所有的客户端连接
-		for k, v := range tcp.groups {
-			for _, conn := range v {
-				log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
-				(*conn.conn).Close()
+		for name, cgroup := range tcp.groups {
+			for _, cnode := range cgroup.nodes {
+				log.Debugf("closing service：%s", (*cnode.conn).RemoteAddr().String())
+				cnode.isConnected = false
+				close(cnode.sendQueue)
+				(*cnode.conn).Close()
 			}
-			log.Debugf("tcp服务删除分组：%s", k)
-			delete(tcp.groups, k)
+			log.Debugf("removing groups：%s", name)
+			delete(tcp.groups, name)
 		}
-		for k, _ := range tcp.groupsMode {
-			log.Debugf("tcp服务删除分组模式：%s", k)
-			delete(tcp.groupsMode, k)
-		}
-		for k, _ := range tcp.groupsFilter {
-			log.Debugf("tcp服务删除分组过滤器：%s", k)
-			delete(tcp.groupsFilter, k)
-		}
-
-		for _, v := range config.Groups {
-			flen := len(v.Filter)
-			var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-			tcp.groups[v.Name]      = con[:0]
-			tcp.groupsMode[v.Name] = v.Mode
-			tcp.groupsFilter[v.Name] = make([]string, flen)
-			tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+		for _, ngroup := range config.Groups { // new group
+			flen := len(ngroup.Filter)
+			var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+			tcp.groups[ngroup.Name] = &tcpGroup{
+				name:  ngroup.Name,
+				mode:  ngroup.Mode,
+			}
+			tcp.groups[ngroup.Name].nodes = nodes[:0]
+			tcp.groups[ngroup.Name].filter  = make([]string, flen)
+			tcp.groups[ngroup.Name].filter = append(tcp.groups[ngroup.Name].filter[:0], ngroup.Filter...)
 		}
 	} else {
-		//如果监听ip和端口没发生变化，则需要diff分组
-		//检测是否发生删除和新增分组
-		for _, v := range config.Groups {
-
-			in_array := false
-			for k, _ := range tcp.groups {
-				if k == v.Name {
-					in_array = true
+		// 2-direction group comparision
+		for name, cgroup := range tcp.groups { // current group
+			found := false
+			for _, ngroup := range config.Groups { // new group
+				if name == ngroup.Name {
+					found = true
 					break
 				}
 			}
-
-			// 新增的分组
-			if !in_array {
-				log.Debugf("tcp服务新增分组：%s", v.Name)
-				flen := len(v.Filter)
-				var con [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
-				tcp.groups[v.Name] = con[:0]
-				tcp.groupsMode[v.Name] = v.Mode
-				tcp.groupsFilter[v.Name] = make([]string, flen)
-				tcp.groupsFilter[v.Name] = append(tcp.groupsFilter[v.Name][:0], v.Filter...)
+			// remove group
+			if !found {
+				log.Debugf("group removed: %s", name)
+				for _, cnode := range cgroup.nodes {
+					log.Debugf("closing connection: %s", (*cnode.conn).RemoteAddr().String())
+					close(cnode.sendQueue)
+					cnode.isConnected = false
+					(*cnode.conn).Close()
+				}
+				delete(tcp.groups, name)
+			} else {
+				// replace group filters
+				group, _ := config.Groups[name]
+				flen := len(group.Filter)
+				tcp.groups[name].filter  = make([]string, flen)
+				tcp.groups[name].filter = append(tcp.groups[name].filter[:0], group.Filter...)
+				tcp.groups[name].mode = group.Mode
 			}
 		}
 
-		for k, conns := range tcp.groups {
-			in_array := false
-			for _, v := range config.Groups {
-				if k == v.Name {
-					in_array = true
+		for _, ngroup := range config.Groups { // new group
+			found := false
+			for name := range tcp.groups {
+				if name == ngroup.Name {
+					found = true
 					break
 				}
 			}
-			//被删除的分组
-			if !in_array {
-				log.Debugf("tcp服务移除的分组：%s", k)
-				for _, conn := range conns {
-					log.Debugf("tcp服务关闭连接：%s", (*conn.conn).RemoteAddr().String())
-					(*conn.conn).Close()
+
+			// add it if new group found
+			if !found {
+				log.Debugf("new group: %s", ngroup.Name)
+				flen := len(ngroup.Filter)
+				var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
+				tcp.groups[ngroup.Name] = &tcpGroup{
+					name:  ngroup.Name,
+					mode:  ngroup.Mode,
 				}
-				delete(tcp.groups, k)
+				tcp.groups[ngroup.Name].nodes = nodes[:0]
+				tcp.groups[ngroup.Name].filter  = make([]string, flen)
+				tcp.groups[ngroup.Name].filter = append(tcp.groups[ngroup.Name].filter[:0], ngroup.Filter...)
+			} else {
+				// do nothing, the existing group is already processed in 1st round comparision
+				continue
 			}
 		}
 	}

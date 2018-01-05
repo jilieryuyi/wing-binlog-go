@@ -30,8 +30,8 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 		for {
 			buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 			//清空旧数据 memset
-			for k,_:= range buf {
-				buf[k] = byte(0)
+			for i := range buf {
+				buf[i] = byte(0)
 			}
 			size, err := (*client.conn).Read(buf)
 			if err != nil {
@@ -61,9 +61,9 @@ func (client *tcpClient) connect() error {
 	client.isClosed = false
 
 	//发送一个握手消息，用来确认加入集群
-	nodeDns := fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort)
-	log.Debugf("send join: %s", nodeDns)
-	client.Send(CMD_JOIN, nodeDns)
+	dns := fmt.Sprintf("%s:%d", client.ServiceIp, client.ServicePort)
+	log.Debugf("send join: %s", dns)
+	client.Send(CMD_JOIN, dns)
 	return nil
 }
 
@@ -87,10 +87,10 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 
 	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
 	dataBuf.Write(buf[:size])
-	contentLen, _  := dataBuf.ReadInt32()
+	clen, _ := dataBuf.ReadInt32()
 	dataBuf.ReadInt16() // 2字节 command
 	index, _ := dataBuf.ReadInt16()
-	content, _     := dataBuf.Read(contentLen-4)
+	content, _ := dataBuf.Read(clen-4)
 	log.Debugf("get leader is: %s--%d", string(content), index)
 	conn.Close()
 
@@ -150,8 +150,8 @@ func (client *tcpClient) onClose()  {
 }
 
 // todo 这里应该使用新的channel服务进行发送
-func (client *tcpClient) Send(cmd int, message string) {
-	sendMsg := client.pack(cmd, message)
+func (client *tcpClient) Send(cmd int, msg string) {
+	sendMsg := client.pack(cmd, msg)
 	log.Debugf("cluster client发送消息, %d, %s", len(sendMsg), sendMsg)
 	(*client.conn).Write(sendMsg)
 }
@@ -175,16 +175,16 @@ func (client *tcpClient) pack(cmd int, msg string) []byte {
 func (client *tcpClient) onMessage(msg []byte) {
 	client.recvBuf.Write(msg)
 	for {
-		clen := client.recvBuf.Size()
-		log.Debugf("cluster client buf size %s", clen)
-		if clen < 6 {
+		size := client.recvBuf.Size()
+		log.Debugf("cluster client buf size %s", size)
+		if size < 6 {
 			return
 		}
-		contentLen, _  := client.recvBuf.ReadInt32()
+		clen, _ := client.recvBuf.ReadInt32()
 		// 2字节 command
-		cmd, _         := client.recvBuf.ReadInt16()
-		content, _     := client.recvBuf.Read(contentLen-2)
-		log.Debugf("cluster服务client收到消息content=%d, %d, %s", cmd, contentLen, content)
+		cmd, _     := client.recvBuf.ReadInt16()
+		content, _ := client.recvBuf.Read(clen-2)
+		log.Debugf("cluster服务client收到消息content=%d, %d, %s", cmd, clen, content)
 
 		switch cmd {
 			case CMD_POS:

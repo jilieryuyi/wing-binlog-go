@@ -44,7 +44,7 @@ func (client *UnixClient) Start() {
 	//go client.onMessage()
 }
 
-func (tcp *UnixClient) Pack(cmd int, msg string) []byte {
+func (client *UnixClient) Pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
 	r := make([]byte, l + 6)
