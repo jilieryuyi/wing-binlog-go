@@ -221,6 +221,10 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			r[1] = byte(index >> 8)
 			copy(r[2:], dns)
 			node.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
+		case CMD_CLOSE_CONFIRM:
+			log.Debugf("receive close confirm from: %s", (*node.conn).RemoteAddr().String())
+			server.Client.selectLeader()
+			node.sendQueue <- server.pack(CMD_CLOSE_CONFIRM, "")
 		default:
 		}
 		node.recvBuf.ResetPos()
