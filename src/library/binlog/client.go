@@ -118,35 +118,71 @@ func (client *tcpClient) onClose()  {
 	//2、如果当前节点不是next leader，则连接leader，确认选举
 	//3、如果当前是next leader，如果数量达到int(n/2)则选举成功
 
+	if client.binlog.isNextLeader() {
+		//todo 等待int(n/2)掉线选举确认
+	} else {
+		nextDsn := client.binlog.getNextLeader()
+        client.sendCloseConfirm(nextDsn)
+	}
+
+
 	//集群leader当节点<=2的时候，有一个明显的缺点，就是如果两个节点的网络断开，
 	//没办法进一步确认是否正的原leader节点已经下线，所以可能出现两个leader的情况
 	//并非100%可靠
 
-	if /*nodesCount <= 2 &&*/ client.binlog.isNextLeader() {
-		log.Debug("current is next leader")
-		//尝试重连三次
-		errTimes := 0
-		for i := 0; i < 3; i++ {
-			err := client.connect()
-			log.Debugf("try to reconnect %d times", (i+1))
-			if err == nil {
-				break
-			} else {
-				errTimes++
-			}
-		}
-		if errTimes >= 3 {
-			log.Debug("reconnect failure, set current node is leader")
-			//如果都失败，则把当前节点设置为leader
-			client.binlog.StartService()
-			client.binlog.leader(true)
-		}
-	}
+	//if client.binlog.isNextLeader() {
+	//	log.Debug("current is next leader")
+	//	//尝试重连三次
+	//	errTimes := 0
+	//	for i := 0; i < 3; i++ {
+	//		err := client.connect()
+	//		log.Debugf("try to reconnect %d times", (i+1))
+	//		if err == nil {
+	//			break
+	//		} else {
+	//			errTimes++
+	//		}
+	//	}
+	//	if errTimes >= 3 {
+	//		log.Debug("reconnect failure, set current node is leader")
+	//		//如果都失败，则把当前节点设置为leader
+	//		client.binlog.StartService()
+	//		client.binlog.leader(true)
+	//	}
+	//}
 
 	//如果当前节点数量大于2
 	//如果当前节点的索引为leader的索引的下一个
 	//等待下一个节点确认leader断线--双确认
 	//则将当前节点设置为leader
+}
+
+
+func (client *tcpClient) sendCloseConfirm(dsn string) {
+	// todo 查询当前leader serviceIp
+	conn, err := net.DialTimeout("tcp", dsn, time.Second*3)
+	if err != nil {
+		log.Errorf("connect to dsn %s error: %+v", dsn, err)
+		return
+	}
+	buf := make([]byte, 256)
+	sendMsg := client.pack(CMD_CLOSE_CONFIRM, "")
+	conn.Write(sendMsg)
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	size, err := conn.Read(buf)
+	if err != nil || size <= 0 {
+		log.Errorf("send to dsn %s error: %+v", dsn, err)
+		return
+	}
+	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
+	dataBuf.Write(buf[:size])
+	dataBuf.ReadInt32()
+	cmd := dataBuf.ReadInt16() // 2字节 command
+	log.Debugf("close confirm: %d", cmd)
+	conn.Close()
+	if cmd != CMD_CLOSE_CONFIRM {
+		log.Debugf("close confirm return error")
+	}
 }
 
 // todo 这里应该使用新的channel服务进行发送
