@@ -82,7 +82,7 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		lock : new(sync.Mutex),
 		clientsCount : 0,
 		listener : nil,
-		clients:make([]*tcpClientNode, 4),
+		clients: nil,//make([]*tcpClientNode, 4),
 		wg : new(sync.WaitGroup),
 		sendFailureTimes : int64(0),
 		ctx : ctx,
