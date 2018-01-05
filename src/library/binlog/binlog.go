@@ -168,22 +168,55 @@ func (h *Binlog) setStatus(dns string, status string) {
 
 func (h *Binlog) isNextLeader() bool {
 	//todo 判断当前节点是否为下一个leader
-	//判断逻辑：获取最小索引和当前索引，相等就是下一个leader
-	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
-	currentIndex := 0
-	minIndex     := 0
-	for dns, member := range h.members {
-		if dns == currentDns && !member.isLeader {
-			currentIndex = member.index
-			minIndex     = member.index
-		}
-	}
+	//current dsn
+	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	leaderIndex  := 0
 	for _, member := range h.members {
-		if member.index < minIndex && !member.isLeader {
-			minIndex = member.index
+		if member.isLeader {
+			leaderIndex = member.index
+			break
 		}
 	}
-	return minIndex == currentIndex && minIndex > 0
+	// next leader index
+	nextLeaderIndex := leaderIndex + 1
+	if nextLeaderIndex > len(h.members) {
+		nextLeaderIndex = 1
+	}
+	for dns, member := range h.members {
+		// if next leader index == current index and dns == currentDns
+		// so the current node is next leader
+		// return true
+		if member.index == nextLeaderIndex && dns == currentDns {
+			return true
+		}
+	}
+	return false
+}
+func (h *Binlog) getNextLeader() string {
+	//todo 判断当前节点是否为下一个leader
+	//current dsn
+	//currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	leaderIndex  := 0
+	for _, member := range h.members {
+		if member.isLeader {
+			leaderIndex = member.index
+			break
+		}
+	}
+	// next leader index
+	nextLeaderIndex := leaderIndex + 1
+	if nextLeaderIndex > len(h.members) {
+		nextLeaderIndex = 1
+	}
+	for dns, member := range h.members {
+		// if next leader index == current index and dns == currentDns
+		// so the current node is next leader
+		// return true
+		if member.index == nextLeaderIndex {
+			return dns
+		}
+	}
+	return ""
 }
 
 func (h *Binlog) ShowMembers() string {

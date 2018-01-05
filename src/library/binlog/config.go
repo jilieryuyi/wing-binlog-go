@@ -78,8 +78,7 @@ const (
 	CMD_GET_LEADER = 4
 	CMD_NEW_NODE = 5
 	CMD_KEEPALIVE = 6
-	CMD_CONNECT_FIRST = 3
-	CMD_APPEND_NODE_SURE = 4
+	CMD_CLOSE_CONFIRM = 7
 )
 
 type binlogHandler struct {
