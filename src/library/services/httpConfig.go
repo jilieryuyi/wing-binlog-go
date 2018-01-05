@@ -6,18 +6,22 @@ import (
 	"time"
 )
 
+type httpGroup struct {
+	name   string      //
+	mode   int         //
+	filter []string    //
+	nodes  []*httpNode //
+}
+
 type HttpService struct {
-	Service
-	groups [][]*httpNode      // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groupsMode []int          // 分组的模式 1，2 广播还是复载均衡
-	groupsFilter [][]string   // 分组过滤器
-	lock *sync.Mutex          // 互斥锁，修改资源时锁定
-	sendFailureTimes int64    // 发送失败次数
-	enable bool
-	timeTick time.Duration    // 故障检测的时间间隔
-	ctx *context.Context
-	wg *sync.WaitGroup
-	clientsCount int
+	Service                                //
+	groups           map[string]*httpGroup //
+	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
+	sendFailureTimes int64                 // 发送失败次数
+	enable           bool                  //
+	timeTick         time.Duration         // 故障检测的时间间隔
+	ctx              *context.Context      //
+	wg               *sync.WaitGroup       //
 }
 
 type HttpConfig struct {
@@ -41,3 +45,4 @@ type httpNode struct {
 	cacheFull bool
 	errorCheckTimes int64
 }
+
