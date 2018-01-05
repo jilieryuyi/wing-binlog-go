@@ -28,11 +28,11 @@ type tcpGroupConfig struct { // group node in toml
 	Filter []string //
 }
 
-type TcpConfig struct { // <- toml
-	Listen string                    //
-	Port   int                       //
-	Enable bool                      //
-	Groups map[string]tcpGroupConfig //
+type TcpConfig struct {
+	Listen string  `toml:"listen"`
+	Port   int     `toml:"port"`
+	Enable bool    `toml:"enable"`
+	Groups map[string]tcpGroupConfig
 }
 
 type httpNodeConfig struct {
