@@ -16,8 +16,8 @@ import (
 func NewWebSocketService(ctx *context.Context) *WebSocketService {
 	config, _ := getWebsocketConfig()
 	tcp := &WebSocketService {
-		Ip                 : config.Tcp.Listen,
-		Port               : config.Tcp.Port,
+		Ip                 : config.Listen,
+		Port               : config.Port,
 		clients_count      : int32(0),
 		lock               : new(sync.Mutex),
 		groups             : make(map[string][]*websocketClientNode),
@@ -382,11 +382,11 @@ func (tcp *WebSocketService) Reload() {
 	log.Debug("websocket服务reload...")
     tcp.enable = config.Enable
     restart := false
-	if config.Tcp.Listen != tcp.Ip || config.Tcp.Port != tcp.Port {
+	if config.Listen != tcp.Ip || config.Port != tcp.Port {
 		// 需要重启
 		restart = true
 		tcp.clients_count = 0
-	    tcp.recv_times = 0
+		tcp.recv_times = 0
 		tcp.send_times = 0
 		tcp.send_failure_times = 0
 		//如果端口和监听ip发生变化，则需要清理所有的客户端连接
@@ -461,3 +461,4 @@ func (tcp *WebSocketService) Reload() {
 		tcp.Start()
 	}
 }
+
