@@ -51,6 +51,7 @@ type member struct {
 	isLeader bool
 	index int
 	status string
+	isLeave bool
 }
 
 type positionCache struct {
@@ -79,6 +80,7 @@ const (
 	CMD_NEW_NODE = 5
 	CMD_KEEPALIVE = 6
 	CMD_CLOSE_CONFIRM = 7
+	CMD_LEADER_CHANGE = 8
 )
 
 type binlogHandler struct {

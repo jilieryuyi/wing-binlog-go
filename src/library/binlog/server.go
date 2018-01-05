@@ -225,6 +225,11 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			log.Debugf("receive close confirm from: %s", (*node.conn).RemoteAddr().String())
 			server.Client.selectLeader()
 			node.sendQueue <- server.pack(CMD_CLOSE_CONFIRM, "")
+		case CMD_LEADER_CHANGE:
+			log.Debugf("receive leader change from: %s", (*node.conn).RemoteAddr().String())
+			leaderDsn := string(content)
+			server.Client.ConnectTo(leaderDsn)
+			node.sendQueue <- server.pack(CMD_LEADER_CHANGE, "")
 		default:
 		}
 		node.recvBuf.ResetPos()

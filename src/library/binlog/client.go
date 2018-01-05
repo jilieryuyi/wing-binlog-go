@@ -121,6 +121,7 @@ func (client *tcpClient) onClose()  {
 	if client.binlog.isNextLeader() {
 		//todo 等待int(n/2)掉线选举确认
 		client.startConfirm = true
+		client.binlog.leaderDown()
 	} else {
 		nextDsn := client.binlog.getNextLeader()
         client.sendCloseConfirm(nextDsn)
@@ -171,6 +172,9 @@ func (client *tcpClient) selectLeader() {
 			atomic.StoreInt32(&client.confirmCount, 0)
 			client.binlog.StartService()
 			client.binlog.leader(true)
+
+			//todo send leader change
+			client.binlog.leaderChange()
 		}
 	}
 }

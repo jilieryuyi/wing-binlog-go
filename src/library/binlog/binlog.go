@@ -7,12 +7,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/services"
+	"library/buffer"
 	"context"
 	"sync"
 	"fmt"
 	"sync/atomic"
 	"encoding/json"
 	"time"
+	"net"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -126,6 +128,7 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 		isLeader : isLeader,
 		index    : index,
 		status   : MEMBER_STATUS_LIVE,
+		isLeave  : false,
 	}
 	return index
 }
@@ -163,6 +166,47 @@ func (h *Binlog) setStatus(dns string, status string) {
 	if member, found := h.members[dns]; found {
 		log.Debugf("set %s status: %s", dns, status)
 		member.status = status
+	}
+}
+
+func (h *Binlog) leaderDown() {
+	for _, member := range h.members {
+		if member.isLeader {
+			member.isLeave = true
+			break
+		}
+	}
+}
+
+func (h *Binlog) leaderChange() {
+	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+
+	for dsn, member := range h.members {
+		if !member.isLeave {
+			conn, err := net.DialTimeout("tcp", dsn, time.Second*3)
+			if err != nil {
+				log.Errorf("connect to dsn %s error: %+v", dsn, err)
+				return
+			}
+			buf := make([]byte, 256)
+			sendMsg := h.BinlogHandler.Cluster.pack(CMD_LEADER_CHANGE, currentDns)
+			conn.Write(sendMsg)
+			conn.SetReadDeadline(time.Now().Add(time.Second*3))
+			size, err := conn.Read(buf)
+			if err != nil || size <= 0 {
+				log.Errorf("send to dsn %s error: %+v", dsn, err)
+				return
+			}
+			dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
+			dataBuf.Write(buf[:size])
+			dataBuf.ReadInt32()
+			cmd, err := dataBuf.ReadInt16() // 2字节 command
+			log.Debugf("close confirm: %d", cmd)
+			conn.Close()
+			if cmd != CMD_LEADER_CHANGE {
+				log.Debugf("leader change return error")
+			}
+		}
 	}
 }
 
