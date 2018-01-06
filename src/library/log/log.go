@@ -1,12 +1,12 @@
 package log
 
 import (
-	log "github.com/sirupsen/logrus"
-	"library/wtime"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"library/file"
-	"os"
+	"library/wtime"
 	syslog "log"
+	"os"
 )
 
 var (
@@ -16,17 +16,18 @@ var (
 
 func init() {
 	fmt.Println("log init------------")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true})
+	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true, FullTimestamp: true})
 	ResetOutHandler()
 }
 
 var cache_log_daytime string = ""
 var cache_file *os.File = nil
+
 func ResetOutHandler() {
 	syslog.Println("=======>std.Out==", std.Out)
-	daytime  := wtime.GetDayTime2()
+	daytime := wtime.GetDayTime2()
 	if cache_log_daytime == daytime {
 		return
 	}
@@ -34,16 +35,16 @@ func ResetOutHandler() {
 		syslog.Println("close debug--------1")
 		cache_file.Close()
 	}
-	year     := wtime.GetYear()
-	month    := wtime.GetYearMonth()
-	dir      := fmt.Sprintf("%s/logs/%d/%s",file.GetCurrentPath(), year, month)
+	year := wtime.GetYear()
+	month := wtime.GetYearMonth()
+	dir := fmt.Sprintf("%s/logs/%d/%s", file.GetCurrentPath(), year, month)
 	logs_dir := &file.WPath{dir}
 	syslog.Println("try to create dir ", dir)
 	if !logs_dir.Exists() {
 		os.MkdirAll(dir, 0755)
 	}
 	syslog.Println("debug--------1")
-	log_file    := fmt.Sprintf(dir+"/stdout-%s.log", daytime)
+	log_file := fmt.Sprintf(dir+"/stdout-%s.log", daytime)
 	syslog.Println("debug--------2")
 	handle, err := os.OpenFile(log_file, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
 	syslog.Println("debug--------3")
@@ -54,7 +55,7 @@ func ResetOutHandler() {
 		syslog.Println("debug--------4")
 
 	} else {
-		syslog.Println("open log file error ",err, log_file)
+		syslog.Println("open log file error ", err, log_file)
 		cache_log_daytime = ""
 	}
 }
@@ -202,4 +203,3 @@ func Fatalln(args ...interface{}) {
 	ResetOutHandler()
 	std.Fatalln(args...)
 }
-

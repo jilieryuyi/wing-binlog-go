@@ -1,10 +1,10 @@
 package library
 
 import (
-	"testing"
-	"reflect"
-	"log"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"reflect"
+	"testing"
 )
 
 func TestPDO_NewPDO(t *testing.T) {
@@ -19,7 +19,7 @@ func TestPDO_NewPDO(t *testing.T) {
 func TestPDO_GetColumns(t *testing.T) {
 	instance := NewPDO("root", "123456", "127.0.0.1", 3306, "wordpress", "utf8")
 
-	columns, err:= instance.GetColumns("xsl", "x_fee")
+	columns, err := instance.GetColumns("xsl", "x_fee")
 
 	if err != nil {
 		t.Error("get columns error happened")

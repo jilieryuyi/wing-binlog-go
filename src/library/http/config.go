@@ -1,70 +1,70 @@
 package http
 
 import (
-	"github.com/BurntSushi/toml"
-	"library/file"
-	log "github.com/sirupsen/logrus"
 	"errors"
-	"sync"
+	"github.com/BurntSushi/toml"
 	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
+	"library/file"
 	"net/http"
+	"sync"
 )
 
 var (
 	ErrorFileNotFound = errors.New("没找到配置文件")
-	ErrorFileParse = errors.New("配置文件读取错误")
-	ErrorHttpStatus = errors.New("错误的状态码")
+	ErrorFileParse    = errors.New("配置文件读取错误")
+	ErrorHttpStatus   = errors.New("错误的状态码")
 )
 
 type tcpConfig struct {
 	Listen string
-	Port int
+	Port   int
 }
 
 type websocketConfig struct {
 	Listen string
-	Port int
+	Port   int
 }
 
-type httpServiceConfig struct{
-	Http tcpConfig
+type httpServiceConfig struct {
+	Http      tcpConfig
 	Websocket websocketConfig
 }
 
-type HttpServer struct{
-	Path string // web路径 当前路径/web
-	Ip string   // 监听ip 0.0.0.0
-	Port int    // 9989
-	ws *WebSocketService
+type HttpServer struct {
+	Path        string // web路径 当前路径/web
+	Ip          string // 监听ip 0.0.0.0
+	Port        int    // 9989
+	ws          *WebSocketService
 	httpHandler http.Handler
 }
 
 type OnLineUser struct {
-	Name string
-	Password string
+	Name         string
+	Password     string
 	LastPostTime int64
 }
 
 type websocketClientNode struct {
-	conn *websocket.Conn     // 客户端连接进来的资源句柄
-	is_connected bool        // 是否还连接着 true 表示正常 false表示已断开
-	send_queue chan []byte   // 发送channel
-	send_failure_times int64 // 发送失败次数
-	recv_bytes int           // 收到的待处理字节数量
-	connect_time int64       // 连接成功的时间戳
-	send_times int64         // 发送次数，用来计算负载均衡，如果 mode == 2
+	conn               *websocket.Conn // 客户端连接进来的资源句柄
+	is_connected       bool            // 是否还连接着 true 表示正常 false表示已断开
+	send_queue         chan []byte     // 发送channel
+	send_failure_times int64           // 发送失败次数
+	recv_bytes         int             // 收到的待处理字节数量
+	connect_time       int64           // 连接成功的时间戳
+	send_times         int64           // 发送次数，用来计算负载均衡，如果 mode == 2
 }
 
 type WebSocketService struct {
-	Ip string                             // 监听ip
-	Port int                              // 监听端口
-	recv_times int64                      // 收到消息的次数
-	send_times int64                      // 发送消息的次数
-	send_failure_times int64              // 发送失败的次数
-	send_queue chan []byte                // 发送队列-广播
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	clients_count int32                   // 成功连接（已经进入分组）的客户端数量
-	clients map[string] *websocketClientNode
+	Ip                 string      // 监听ip
+	Port               int         // 监听端口
+	recv_times         int64       // 收到消息的次数
+	send_times         int64       // 发送消息的次数
+	send_failure_times int64       // 发送失败的次数
+	send_queue         chan []byte // 发送队列-广播
+	lock               *sync.Mutex // 互斥锁，修改资源时锁定
+	clients_count      int32       // 成功连接（已经进入分组）的客户端数量
+	clients            map[string]*websocketClientNode
 }
 
 const (
@@ -90,7 +90,7 @@ const (
 
 func getServiceConfig() (*httpServiceConfig, error) {
 	var config httpServiceConfig
-	config_file := file.GetCurrentPath()+"/config/admin.toml"
+	config_file := file.GetCurrentPath() + "/config/admin.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Printf("配置文件%s不存在", config_file)
@@ -102,5 +102,3 @@ func getServiceConfig() (*httpServiceConfig, error) {
 	}
 	return &config, nil
 }
-
-

@@ -1,15 +1,16 @@
 package services
 
 import (
+	"context"
+	"errors"
+	"net"
+	"sync"
+
+	"library/file"
+
 	"github.com/BurntSushi/toml"
 	"github.com/gorilla/websocket"
-	kafka "github.com/segmentio/kafka-go"
-	"library/file"
 	log "github.com/sirupsen/logrus"
-	"errors"
-	"sync"
-	"net"
-	"context"
 )
 
 // 标准服务接口
@@ -23,15 +24,15 @@ type Service interface {
 }
 
 type tcpGroupConfig struct { // group node in toml
-	Mode int        // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
-	Name string     // = "group1"
+	Mode   int      // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
+	Name   string   // = "group1"
 	Filter []string //
 }
 
 type TcpConfig struct {
-	Listen string  `toml:"listen"`
-	Port   int     `toml:"port"`
-	Enable bool    `toml:"enable"`
+	Listen string `toml:"listen"`
+	Port   int    `toml:"port"`
+	Enable bool   `toml:"enable"`
 	Groups map[string]tcpGroupConfig
 }
 
@@ -64,8 +65,8 @@ type WebSocketService struct {
 	sendFailureTimes int64                             // 发送失败的次数
 	lock             *sync.Mutex                       // 互斥锁，修改资源时锁定
 	groups           map[string][]*websocketClientNode // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groupsMode       map[string] int                   // 分组的模式 1，2 广播还是复载均衡
-	groupsFilter     map[string] []string              // 分组的过滤器
+	groupsMode       map[string]int                    // 分组的模式 1，2 广播还是复载均衡
+	groupsFilter     map[string][]string               // 分组的过滤器
 	clientsCount     int32                             // 成功连接（已经进入分组）的客户端数量
 	enable           bool                              //
 	ctx              *context.Context                  //
@@ -73,17 +74,17 @@ type WebSocketService struct {
 }
 
 type tcpClientNode struct {
-	conn *net.Conn          // 客户端连接进来的资源句柄
-	isConnected bool        // 是否还连接着 true 表示正常 false表示已断开
-	sendQueue chan []byte   // 发送channel
-	sendFailureTimes int64  // 发送失败次数
-	mode int                // broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight int              // 权重 0 - 100
-	group string            // 所属分组
-	recvBuf []byte          // 读缓冲区
-	recvBytes int           // 收到的待处理字节数量
-	connectTime int64       // 连接成功的时间戳
-	sendTimes int64         // 发送次数，用来计算负载均衡，如果 mode == 2
+	conn             *net.Conn   // 客户端连接进来的资源句柄
+	isConnected      bool        // 是否还连接着 true 表示正常 false表示已断开
+	sendQueue        chan []byte // 发送channel
+	sendFailureTimes int64       // 发送失败次数
+	mode             int         // broadcast = 1 weight = 2 支持两种方式，广播和权重
+	weight           int         // 权重 0 - 100
+	group            string      // 所属分组
+	recvBuf          []byte      // 读缓冲区
+	recvBytes        int         // 收到的待处理字节数量
+	connectTime      int64       // 连接成功的时间戳
+	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
 }
 
 type tcpGroup struct {
@@ -95,43 +96,27 @@ type tcpGroup struct {
 
 type TcpService struct {
 	Service
-	Ip string                             // 监听ip
-	Port int                              // 监听端口
-	recvTimes int64                       // 收到消息的次数
-	sendTimes int64                       // 发送消息的次数
+	Ip               string               // 监听ip
+	Port             int                  // 监听端口
+	recvTimes        int64                // 收到消息的次数
+	sendTimes        int64                // 发送消息的次数
 	sendFailureTimes int64                // 发送失败的次数
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	groups map[string]*tcpGroup           //
-	enable bool                           //
-	ctx *context.Context                  //
-	listener *net.Listener                //
-	wg *sync.WaitGroup                    //
-}
-
-type WKafka struct {
-	Service
-	writer *kafka.Writer
-	is_closed bool
-	lock *sync.Mutex
-	send_queue chan []byte
-	enable bool
-	ctx *context.Context
-}
-
-type KafkaConfig struct {
-	Borkers []string `toml:"brokers"`
-	Topic string `toml:"topic"`
-	Enable bool `toml:"enable"`
+	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	groups           map[string]*tcpGroup //
+	enable           bool                 //
+	ctx              *context.Context     //
+	listener         *net.Listener        //
+	wg               *sync.WaitGroup      //
 }
 
 var (
 	ErrorFileNotFound = errors.New("config file not found")
-	ErrorFileParse = errors.New("config parse error")
+	ErrorFileParse    = errors.New("config parse error")
 )
 
 const (
-	MODEL_BROADCAST = 1  // 广播
-	MODEL_WEIGHT    = 2  // 权重
+	MODEL_BROADCAST = 1 // 广播
+	MODEL_WEIGHT    = 2 // 权重
 
 	CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
 	CMD_AUTH    = 2 // 认证（暂未使用）
@@ -149,21 +134,6 @@ const (
 	HTTP_CACHE_LEN         = 10000
 	HTTP_CACHE_BUFFER_SIZE = 4096
 )
-
-func getKafkaConfig() (*KafkaConfig, error) {
-	var config KafkaConfig
-	config_file := file.GetCurrentPath() + "/config/kafka.toml"
-	wfile := file.WFile{config_file}
-	if !wfile.Exists() {
-		log.Errorf("配置文件%s不存在 %s", config_file)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(config_file, &config); err != nil {
-		log.Errorf("配置文件解析错误：%+v", err)
-		return nil, ErrorFileParse
-	}
-	return &config, nil
-}
 
 func getTcpConfig() (*TcpConfig, error) {
 	var tcp_config TcpConfig
@@ -212,4 +182,3 @@ func getWebsocketConfig() (*TcpConfig, error) {
 	}
 	return &config, nil
 }
-

@@ -1,13 +1,15 @@
 package data
 
 import (
-	"library/file"
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"library/file"
 	//log "library/log"
 	log "github.com/sirupsen/logrus"
 )
+
 var user_data_path string
+
 func init() {
 	// 默认的数据目录
 	data_path := file.GetCurrentPath() + "/data"
@@ -17,13 +19,13 @@ func init() {
 	wpath.Mkdir()
 
 	// db文件
-	user_data_path = data_path+"/wing.db"
+	user_data_path = data_path + "/wing.db"
 	wfile := &file.WFile{user_data_path}
 
 	// 如果不存在，尝试创建
 	if !wfile.Exists() {
 		create := "CREATE TABLE `userinfo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT,`username` VARCHAR(64) NULL,`password` VARCHAR(64) NULL,`created` TIMESTAMP default (datetime('now', 'localtime')));"
-		db, err := sql.Open("sqlite3", data_path + "/wing.db")
+		db, err := sql.Open("sqlite3", data_path+"/wing.db")
 		defer db.Close()
 		if err != nil {
 			log.Errorf("sqlite3 open error %v", err)
@@ -40,8 +42,8 @@ func init() {
 	}
 }
 
-type User struct{
-	Name string
+type User struct {
+	Name     string
 	Password string
 }
 
@@ -94,7 +96,7 @@ func (user *User) Get() bool {
 	defer db.Close()
 
 	sql_str := "SELECT id, username, password, strftime('%Y-%m-%d %H:%M:%S',created) as created FROM userinfo WHERE username = ? AND password = ?"
-	stmt, err:= db.Prepare(sql_str)
+	stmt, err := db.Prepare(sql_str)
 	if err != nil {
 		log.Println(err)
 		return false
@@ -104,10 +106,10 @@ func (user *User) Get() bool {
 
 	res := stmt.QueryRow(user.Name, user.Password)
 	var (
-		id int64
+		id       int64
 		username string
 		password string
-		daytime string
+		daytime  string
 	)
 
 	err = res.Scan(&id, &username, &password, &daytime)
@@ -155,7 +157,6 @@ func (user *User) Update(id int64) bool {
 	log.Println(num)
 	return num > 0
 }
-
 
 // 删除用户
 func (user *User) Delete() bool {

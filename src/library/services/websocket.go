@@ -1,28 +1,28 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"sync"
-	"time"
-	"sync/atomic"
 	"regexp"
-	"context"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 func NewWebSocketService(ctx *context.Context) *WebSocketService {
 	config, _ := getWebsocketConfig()
-	tcp := &WebSocketService {
+	tcp := &WebSocketService{
 		Ip:               config.Listen,
 		Port:             config.Port,
 		clientsCount:     int32(0),
 		lock:             new(sync.Mutex),
 		groups:           make(map[string][]*websocketClientNode),
-		groupsMode:       make(map[string] int),
-		groupsFilter:     make(map[string] []string),
+		groupsMode:       make(map[string]int),
+		groupsFilter:     make(map[string][]string),
 		recvTimes:        0,
 		sendTimes:        0,
 		sendFailureTimes: 0,
@@ -56,8 +56,8 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 	//	log.Debugf("websocket服务-发送缓冲区满...")
 	//	return false
 	//}
-	table_len := int(msg[0]) + int(msg[1] << 8)
-	table     := string(msg[2:table_len+2])
+	table_len := int(msg[0]) + int(msg[1]<<8)
+	table := string(msg[2 : table_len+2])
 
 	//tcp.send_queue <- tcp.pack2(CMD_EVENT, msg[table_len+2:], msg[:table_len+2])
 
@@ -68,9 +68,9 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 			continue
 		}
 		// 分组的模式
-		mode   := tcp.groupsMode[group_name]
+		mode := tcp.groupsMode[group_name]
 		filter := tcp.groupsFilter[group_name]
-		flen   := len(filter)
+		flen := len(filter)
 		//2字节长度
 		log.Debugf("websocket服务-数据表：%s", table)
 		log.Debugf("websocket服务：%v", filter)
@@ -101,7 +101,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 					log.Warnf("websocket服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
 					continue
 				}
-				cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))//msg[table_len+2:]
+				cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:])) //msg[table_len+2:]
 			}
 		} else {
 			// 负载均衡模式
@@ -109,7 +109,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 			cc := len(cgroup)
 			target := cgroup[0]
 			//将发送次数/权重 作为负载基数，每次选择最小的发送
-			js := float64(atomic.LoadInt64(&target.sendTimes))/float64(target.weight)
+			js := float64(atomic.LoadInt64(&target.sendTimes)) / float64(target.weight)
 
 			for i := 1; i < cc; i++ {
 				stimes := atomic.LoadInt64(&cgroup[i].sendTimes)
@@ -118,7 +118,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 					target = cgroup[i]
 					break
 				}
-				njs := float64(stimes)/float64(cgroup[i].weight)
+				njs := float64(stimes) / float64(cgroup[i].weight)
 				if njs < js {
 					js = njs
 					target = cgroup[i]
@@ -137,12 +137,11 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 	return true
 }
 
-
 // 打包tcp响应包 格式为 [包长度-2字节，小端序][指令-2字节][内容]
 func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 2)
+	r := make([]byte, l+2)
 	r[0] = byte(cmd)
 	r[1] = byte(cmd >> 8)
 	copy(r[2:], m)
@@ -188,7 +187,7 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 				log.Warnf("websocket服务-发送消息channel通道关闭")
 				return
 			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			err := (*node.conn).WriteMessage(1, msg)
 			atomic.AddInt64(&node.sendTimes, int64(1))
 			if err != nil {
@@ -196,7 +195,7 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
 				log.Println("websocket服务-发送失败次数：", tcp.sendFailureTimes, node.conn.RemoteAddr().String(), node.sendFailureTimes)
 			}
-		case <- (*tcp.ctx).Done():
+		case <-(*tcp.ctx).Done():
 			if len(node.sendQueue) <= 0 {
 				log.Warnf("websocket服务-clientSendService退出")
 				return
@@ -209,7 +208,7 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 
 func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 	log.Infof("websocket服务-新的连接：", conn.RemoteAddr().String())
-	cnode := &websocketClientNode {
+	cnode := &websocketClientNode{
 		conn:             conn,
 		isConnected:      true,
 		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
@@ -223,7 +222,7 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 	}
 	go tcp.clientSendService(cnode)
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -256,7 +255,7 @@ func (tcp *WebSocketService) onMessage(node *websocketClientNode, msg []byte, si
 		return
 	}
 	//2字节 command
-	cmd := int(msg[0]) + int(msg[1] << 8)
+	cmd := int(msg[0]) + int(msg[1]<<8)
 	log.Debugf("websocket服务-content：%v", msg)
 	log.Debugf("websocket服务-cmd：%d", cmd)
 	switch cmd {
@@ -267,9 +266,9 @@ func (tcp *WebSocketService) onMessage(node *websocketClientNode, msg []byte, si
 		}
 		//4字节 weight
 		weight := int(msg[2]) +
-			int(msg[3] << 8) +
-			int(msg[4] << 16) +
-			int(msg[5] << 32)
+			int(msg[3]<<8) +
+			int(msg[4]<<16) +
+			int(msg[5]<<32)
 		if weight < 0 || weight > 100 {
 			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("websocket服务-不支持的权重值：%d，请设置为0-100之间", weight))
 			return
@@ -285,8 +284,8 @@ func (tcp *WebSocketService) onMessage(node *websocketClientNode, msg []byte, si
 		}
 		(*node.conn).SetReadDeadline(time.Time{})
 		node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
-		node.group  = group
-		node.mode   = tcp.groupsMode[group]
+		node.group = group
+		node.mode = tcp.groupsMode[group]
 		node.weight = weight
 		tcp.groups[group] = append(tcp.groups[group], node)
 		if node.mode == MODEL_WEIGHT {
@@ -302,7 +301,7 @@ func (tcp *WebSocketService) onMessage(node *websocketClientNode, msg []byte, si
 			gl := len(tcp.groups[group])
 			yg := 0
 			for k, cnode := range tcp.groups[group] {
-				if k == gl - 1 {
+				if k == gl-1 {
 					cnode.weight = 100 - yg
 				} else {
 					cnode.weight = int(cnode.weight * 100 / all_weight)
@@ -329,9 +328,9 @@ func (tcp *WebSocketService) Start() {
 		m := martini.Classic()
 		m.Get("/", func(res http.ResponseWriter, req *http.Request) {
 			select {
-				case <- (*tcp.ctx).Done():
-					return
-				default:
+			case <-(*tcp.ctx).Done():
+				return
+			default:
 			}
 			// res and req are injected by Martini
 			u := websocket.Upgrader{ReadBufferSize: TCP_DEFAULT_READ_BUFFER_SIZE,
@@ -355,7 +354,7 @@ func (tcp *WebSocketService) Start() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		log.Infof("websocket服务-监听: %s", dns)
 		m.RunOnAddr(dns)
-	} ()
+	}()
 }
 
 func (tcp *WebSocketService) Close() {
@@ -398,11 +397,11 @@ func (tcp *WebSocketService) Reload() {
 			log.Debugf("websocket服务删除分组：%s", k)
 			delete(tcp.groups, k)
 		}
-		for k, _ := range tcp.groupsMode {
+		for k := range tcp.groupsMode {
 			log.Debugf("websocket服务删除分组模式：%s", k)
 			delete(tcp.groupsMode, k)
 		}
-		for k, _ := range tcp.groupsFilter {
+		for k := range tcp.groupsFilter {
 			log.Debugf("websocket服务删除分组过滤器：%s", k)
 			delete(tcp.groupsFilter, k)
 		}
@@ -419,7 +418,7 @@ func (tcp *WebSocketService) Reload() {
 		//检测是否发生删除和新增分组
 		for _, v := range config.Groups {
 			in_array := false
-			for k, _ := range tcp.groups {
+			for k := range tcp.groups {
 				if k == v.Name {
 					in_array = true
 					break
@@ -461,4 +460,3 @@ func (tcp *WebSocketService) Reload() {
 		tcp.Start()
 	}
 }
-
