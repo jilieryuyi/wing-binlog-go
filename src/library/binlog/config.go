@@ -59,8 +59,8 @@ type positionCache struct {
 }
 
 const (
-	MEMBER_STATUS_LIVE  = "live"
-	MEMBER_STATUS_LEAVE = "leave"
+	MEMBER_STATUS_LIVE  = "online"
+	MEMBER_STATUS_LEAVE = "offline"
 
 	MAX_CHAN_FOR_SAVE_POSITION = 128
 	defaultBufSize = 4096
