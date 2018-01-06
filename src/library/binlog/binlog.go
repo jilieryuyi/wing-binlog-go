@@ -126,7 +126,16 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if index <= 0 {
-		index = len(h.members) + 1
+		if len(h.members) == 0 {
+			index = 1
+		} else {
+			for _, member := range h.members {
+				if index <= 0 || index < member.index {
+					index = member.index
+				}
+			}
+			index++
+		}
 	}
 	h.members[dns] = &member{
 		isLeader : isLeader,
