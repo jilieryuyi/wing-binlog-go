@@ -1,11 +1,12 @@
 package binlog
 
 import (
+	"fmt"
 	"net"
 	"sync/atomic"
-	log "github.com/sirupsen/logrus"
 	"time"
-	"fmt"
+
+	log "github.com/sirupsen/logrus"
 	"library/buffer"
 )
 
@@ -25,7 +26,7 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 		return false
 	}
 
-	go func(){
+	go func() {
 		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
 			buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
@@ -36,10 +37,10 @@ func (client *tcpClient) ConnectTo(dns string) bool {
 			size, err := (*client.conn).Read(buf)
 			if err != nil {
 				log.Errorf("%s 连接发生错误: %s", (*client.conn).RemoteAddr().String(), err)
-				client.onClose();
+				client.onClose()
 				return
 			}
-			log.Debugf("cluster client 收到消息 %d 字节：%d %s",  size, buf[:size],  string(buf[:size]))
+			log.Debugf("cluster client 收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
 			atomic.AddInt64(&client.recvTimes, int64(1))
 			client.onMessage(buf[:size])
 		}
@@ -78,7 +79,7 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	sendMsg := client.pack(CMD_GET_LEADER, "")
 	conn.Write(sendMsg)
 
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	size, err := conn.Read(buf)
 	if err != nil || size <= 0 {
 		log.Errorf("get leader service ip error: %+v", err)
@@ -91,14 +92,14 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 	clen, _ := dataBuf.ReadInt32()
 	dataBuf.ReadInt16() // 2字节 command
 	index, _ := dataBuf.ReadInt16()
-	content, _ := dataBuf.Read(clen-4)
+	content, _ := dataBuf.Read(clen - 4)
 	log.Debugf("get leader is: %s--%d", string(content), index)
 	conn.Close()
 
 	return string(content), index
 }
 
-func (client *tcpClient) onClose()  {
+func (client *tcpClient) onClose() {
 	client.lock.Lock()
 	defer client.lock.Unlock()
 
@@ -129,7 +130,7 @@ func (client *tcpClient) onClose()  {
 			errTimes := 0
 			for i := 0; i < 3; i++ {
 				err := client.connect()
-				log.Debugf("try to reconnect %d times", (i+1))
+				log.Debugf("try to reconnect %d times", (i + 1))
 				if err == nil {
 					break
 				} else {
@@ -146,9 +147,8 @@ func (client *tcpClient) onClose()  {
 	} else {
 		log.Debugf("current node is not next leader")
 		nextDsn := client.binlog.getNextLeader()
-        client.sendCloseConfirm(nextDsn)
+		client.sendCloseConfirm(nextDsn)
 	}
-
 
 	//集群leader当节点<=2的时候，有一个明显的缺点，就是如果两个节点的网络断开，
 	//没办法进一步确认是否正的原leader节点已经下线，所以可能出现两个leader的情况
@@ -188,7 +188,7 @@ func (client *tcpClient) selectLeader() {
 	if client.startConfirm {
 		atomic.AddInt32(&client.confirmCount, 1)
 		count := atomic.LoadInt32(&client.confirmCount)
-		if count >= int32(len(client.binlog.members)/2)  {
+		if count >= int32(len(client.binlog.members)/2) {
 			//选举成功
 			client.startConfirm = false
 			atomic.StoreInt32(&client.confirmCount, 0)
@@ -211,7 +211,7 @@ func (client *tcpClient) sendCloseConfirm(dsn string) {
 	buf := make([]byte, 256)
 	sendMsg := client.pack(CMD_CLOSE_CONFIRM, "")
 	conn.Write(sendMsg)
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	size, err := conn.Read(buf)
 	if err != nil || size <= 0 {
 		log.Errorf("send to dsn %s error: %+v", dsn, err)
@@ -238,7 +238,7 @@ func (client *tcpClient) Send(cmd int, msg string) {
 func (client *tcpClient) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 6)
+	r := make([]byte, l+6)
 	cl := l + 2
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -261,32 +261,31 @@ func (client *tcpClient) onMessage(msg []byte) {
 		}
 		clen, _ := client.recvBuf.ReadInt32()
 		// 2字节 command
-		cmd, _     := client.recvBuf.ReadInt16()
-		content, _ := client.recvBuf.Read(clen-2)
+		cmd, _ := client.recvBuf.ReadInt16()
+		content, _ := client.recvBuf.Read(clen - 2)
 		log.Debugf("cluster服务client收到消息content=%d, %d, %s", cmd, clen, content)
 
 		switch cmd {
-			case CMD_POS:
-				log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
-				client.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
-				client.binlog.BinlogHandler.setCacheInfo(string(content))
-			case CMD_JOIN:
-				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
-				//这里是follower节点，所以后续要停止数据采集操作
-				client.binlog.StopService(false)
-				client.binlog.leader(false)
-		    case CMD_NEW_NODE:
-				//index := len(client.binlog.members) + 1
-				// leader分配的索引
-				index := int(content[0]) + int(content[1] << 8)
-				dns := string(content[2:])
-				client.binlog.setMember(dns, false, index)
-			case CMD_KEEPALIVE:
-				// keep alive
-				log.Debugf("keep alive")
-			default:
+		case CMD_POS:
+			log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
+			client.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
+			client.binlog.BinlogHandler.setCacheInfo(string(content))
+		case CMD_JOIN:
+			log.Debugf("cluster服务-client收到握手回复，加入群集成功")
+			//这里是follower节点，所以后续要停止数据采集操作
+			client.binlog.StopService(false)
+			client.binlog.leader(false)
+		case CMD_NEW_NODE:
+			//index := len(client.binlog.members) + 1
+			// leader分配的索引
+			index := int(content[0]) + int(content[1]<<8)
+			dns := string(content[2:])
+			client.binlog.setMember(dns, false, index)
+		case CMD_KEEPALIVE:
+			// keep alive
+			log.Debugf("keep alive")
+		default:
 		}
 		client.recvBuf.ResetPos()
 	}
 }
-

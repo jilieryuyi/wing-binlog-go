@@ -1,11 +1,11 @@
 package file
 
 import (
+	wstr "library/string"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	wstr "library/string"
 )
 
 func GetCurrentPath() string {
@@ -15,7 +15,6 @@ func GetCurrentPath() string {
 	}
 	return strings.Replace(dir, "\\", "/", -1)
 }
-
 
 var CurrentPath = GetCurrentPath()
 

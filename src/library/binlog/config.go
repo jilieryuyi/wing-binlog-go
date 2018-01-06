@@ -1,23 +1,25 @@
 package binlog
 
 import (
-	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
-	"errors"
-	"library/file"
-	"library/services"
-	"github.com/siddontang/go-mysql/canal"
-	"github.com/siddontang/go-mysql/mysql"
-	"time"
-	"unicode/utf8"
 	"context"
+	"errors"
 	"os"
 	"sync"
+	"time"
+	"unicode/utf8"
+
+	"library/file"
+	"library/services"
+
+	"github.com/BurntSushi/toml"
+	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
 	ErrorFileNotFound = errors.New("文件不存在")
-	ErrorFileParse = errors.New("配置解析错误")
+	ErrorFileParse    = errors.New("配置解析错误")
 )
 
 type AppConfig struct {
@@ -32,29 +34,29 @@ type AppConfig struct {
 	ReadTimeout     time.Duration `toml:"read_timeout"`
 
 	BinFile string `toml:"bin_file"`
-	BinPos uint32  `toml:"bin_pos"`
+	BinPos  uint32 `toml:"bin_pos"`
 }
 
 type Binlog struct {
-	Config *AppConfig
-	handler *canal.Canal
-	isClosed bool
+	Config        *AppConfig
+	handler       *canal.Canal
+	isClosed      bool
 	BinlogHandler *binlogHandler
-	ctx *context.Context
-	wg *sync.WaitGroup
-	lock *sync.Mutex
-	isLeader bool
-	members map[string]*member
+	ctx           *context.Context
+	wg            *sync.WaitGroup
+	lock          *sync.Mutex
+	isLeader      bool
+	members       map[string]*member
 }
 
 type member struct {
 	isLeader bool
-	index int
-	status string
+	index    int
+	status   string
 }
 
 type positionCache struct {
-	pos mysql.Position
+	pos   mysql.Position
 	index int64
 }
 
@@ -63,8 +65,8 @@ const (
 	MEMBER_STATUS_LEAVE = "offline"
 
 	MAX_CHAN_FOR_SAVE_POSITION = 128
-	defaultBufSize = 4096
-	DEFAULT_FLOAT_PREC = 6
+	defaultBufSize             = 4096
+	DEFAULT_FLOAT_PREC         = 6
 
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
@@ -74,11 +76,11 @@ const (
 	CLUSTER_NODE_DEFAULT_SIZE     = 4
 
 	CMD_APPEND_NODE   = 1
-	CMD_POS    = 2
-	CMD_JOIN   = 3
-	CMD_GET_LEADER = 4
-	CMD_NEW_NODE = 5
-	CMD_KEEPALIVE = 6
+	CMD_POS           = 2
+	CMD_JOIN          = 3
+	CMD_GET_LEADER    = 4
+	CMD_NEW_NODE      = 5
+	CMD_KEEPALIVE     = 6
 	CMD_CLOSE_CONFIRM = 7
 	CMD_LEADER_CHANGE = 8
 )
@@ -86,16 +88,16 @@ const (
 type binlogHandler struct {
 	EventIndex int64
 	canal.DummyEventHandler
-	buf               []byte
-	services map[string] services.Service
+	buf           []byte
+	services      map[string]services.Service
 	servicesCount int
-	cacheHandler *os.File
-	lock *sync.Mutex                      // 互斥锁，修改资源时锁定
-	isClosed bool
-	ctx *context.Context
-	Cluster *TcpServer
-	lastPos uint32
-	lastBinFile string
+	cacheHandler  *os.File
+	lock          *sync.Mutex // 互斥锁，修改资源时锁定
+	isClosed      bool
+	ctx           *context.Context
+	Cluster       *TcpServer
+	lastPos       uint32
+	lastBinFile   string
 }
 
 // 获取mysql配置
@@ -213,4 +215,3 @@ var htmlSafeSet = [utf8.RuneSelf]bool{
 	'\u007f': true,
 }
 var hex = "0123456789abcdef"
-

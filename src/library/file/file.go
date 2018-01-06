@@ -6,8 +6,8 @@ import (
 	// "log"
 	//"path/filepath"
 	//"io"
-	"time"
 	"log"
+	"time"
 )
 
 type WFile struct {
@@ -107,7 +107,7 @@ func (file *WFile) Read(offset int64, length int64) string {
 		}
 		//log.Printf("new offset: %d => %d" , nf, offset)
 	} else {
-		if offset < 0 - nf1 {
+		if offset < 0-nf1 {
 			offset = 0 - nf1
 		}
 		_, err := handle.Seek(offset, os.SEEK_END)
@@ -169,7 +169,7 @@ func (file *WFile) Length() int64 {
 
 }
 
-func (file *WFile) Delete() bool  {
+func (file *WFile) Delete() bool {
 	err := os.Remove(file.File_path)
 	return err == nil
 }
@@ -179,14 +179,14 @@ func (file *WFile) Write(data string, append bool) int {
 	dir = WPath{dir.GetParent()}
 	dir.Mkdir()
 
-	flag := os.O_WRONLY|os.O_CREATE|os.O_SYNC
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC
 	if append {
 		flag |= os.O_APPEND
 	} else {
 		flag |= os.O_TRUNC
 	}
 
-	handle, err := os.OpenFile(file.File_path, flag , 0755)
+	handle, err := os.OpenFile(file.File_path, flag, 0755)
 	if err != nil {
 		return 0
 	}
@@ -209,7 +209,7 @@ func (file *WFile) Write(data string, append bool) int {
 			break
 		}
 
-		wdata = wdata[n:dlen-n]
+		wdata = wdata[n : dlen-n]
 		m, err := handle.Write(wdata)
 		if err != nil {
 			break

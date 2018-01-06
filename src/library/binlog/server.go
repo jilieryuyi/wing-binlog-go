@@ -3,11 +3,13 @@ package binlog
 import (
 	"fmt"
 	"net"
-	log "github.com/sirupsen/logrus"
-	"library/buffer"
-	"time"
 	"strings"
 	"sync/atomic"
+	"time"
+
+	"library/buffer"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func (server *TcpServer) Start() {
@@ -25,9 +27,9 @@ func (server *TcpServer) Start() {
 		for {
 			conn, err := listen.Accept()
 			select {
-				case <-(*server.ctx).Done():
-					return
-				default:
+			case <-(*server.ctx).Done():
+				return
+			default:
 			}
 			if err != nil {
 				log.Errorf("cluster服务accept错误：%+v", err)
@@ -35,7 +37,7 @@ func (server *TcpServer) Start() {
 			}
 			go server.onConnect(&conn)
 		}
-	} ()
+	}()
 }
 
 // 同步读取binlog的游标信息（当前读取到哪里了）
@@ -47,7 +49,7 @@ func (server *TcpServer) SendClientPos(node *tcpClientNode, data string) {
 }
 
 // 广播
-func (server *TcpServer) send(cmd int, msg string){
+func (server *TcpServer) send(cmd int, msg string) {
 	log.Debugf("cluster server sending broadcast: %s", msg)
 	server.lock.Lock()
 	defer server.lock.Unlock()
@@ -64,7 +66,7 @@ func (server *TcpServer) send(cmd int, msg string){
 func (tcp *TcpServer) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 6)
+	r := make([]byte, l+6)
 	cl := l + 2
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -93,7 +95,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			size, err := (*node.conn).Write(msg)
 			atomic.AddInt64(&node.sendTimes, int64(1))
-			if (size <= 0 || err != nil) {
+			if size <= 0 || err != nil {
 				atomic.AddInt64(&server.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
 				log.Warn("cluster服务-失败次数：", (*node.conn).RemoteAddr().String(),
@@ -110,7 +112,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 
 func (server *TcpServer) onConnect(conn *net.Conn) {
 	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
-	cnode := &tcpClientNode {
+	cnode := &tcpClientNode{
 		conn:             conn,
 		isConnected:      true,
 		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
@@ -127,7 +129,7 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 	server.lock.Unlock()
 
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
-	(*conn).SetReadDeadline(time.Now().Add(time.Second*3))
+	(*conn).SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
 		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
 		//清空旧数据 memset
@@ -180,9 +182,9 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 		if size < 6 {
 			return
 		}
-		clen, _    := node.recvBuf.ReadInt32()
-		cmd, _     := node.recvBuf.ReadInt16() // 2字节 command
-		content, _ := node.recvBuf.Read(clen-2)
+		clen, _ := node.recvBuf.ReadInt32()
+		cmd, _ := node.recvBuf.ReadInt16() // 2字节 command
+		content, _ := node.recvBuf.Read(clen - 2)
 		log.Debugf("cluster服务收到消息，cmd=%d, %d, %s", cmd, clen, string(content))
 
 		switch cmd {
@@ -207,7 +209,7 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			index := server.binlog.setMember(node.ServiceDns, false, 0)
 			// todo: 将新增的节点广播给所有的节点，然后节点的members新增一个
 
-			r := make([]byte, len(node.ServiceDns) + 2)
+			r := make([]byte, len(node.ServiceDns)+2)
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
 			copy(r[2:], node.ServiceDns)
@@ -217,7 +219,7 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			//todo: get leader ip and response
 			dns, index := server.binlog.getLeader()
 			log.Debugf("cmd get leader is: %d, %s", index, dns)
-			r := make([]byte, len(dns) + 2)
+			r := make([]byte, len(dns)+2)
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
 			copy(r[2:], dns)
@@ -261,4 +263,3 @@ func (server *TcpServer) Close() {
 	}
 	server.cacheHandler.Close()
 }
-

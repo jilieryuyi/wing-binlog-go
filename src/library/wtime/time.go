@@ -1,8 +1,8 @@
 package wtime
 
 import (
-	"time"
 	"fmt"
+	"time"
 )
 
 func GetDayTime() string {

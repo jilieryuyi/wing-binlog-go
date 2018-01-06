@@ -2,31 +2,31 @@ package library
 
 import (
 	"database/sql"
-	"os"
-	"log"
-	"reflect"
 	"fmt"
-	"time"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"os"
+	"reflect"
 	"strconv"
+	"time"
 )
 
 type PDO struct {
-	User         string
-	Password     string
-	Host         string
-	Port         int
-	DbName       string
-	Charset      string
+	User     string
+	Password string
+	Host     string
+	Port     int
+	DbName   string
+	Charset  string
 
 	db_handler    *sql.DB
 	is_connected  bool
-	columns_cache map[string] cloumns_cache_st
+	columns_cache map[string]cloumns_cache_st
 }
 
 type cloumns_cache_st struct {
 	time int64
-	col []Column
+	col  []Column
 }
 
 type Column struct {
@@ -53,12 +53,12 @@ type Column struct {
 	GENERATION_EXPRESSION    string
 }
 
-func NewPDO(user    string, password string,
-			host    string, port     int,
-			db_name string, charset  string) *PDO {
+func NewPDO(user string, password string,
+	host string, port int,
+	db_name string, charset string) *PDO {
 
 	dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", user, password, host, port, db_name, charset)
-	db, err := sql.Open("mysql",dns)
+	db, err := sql.Open("mysql", dns)
 
 	if err != nil {
 		log.Println(err)
@@ -66,7 +66,7 @@ func NewPDO(user    string, password string,
 	}
 
 	instance := &PDO{user, password, host, port,
-		db_name, charset, db, true, make(map[string] cloumns_cache_st)}
+		db_name, charset, db, true, make(map[string]cloumns_cache_st)}
 	return instance
 }
 
@@ -78,7 +78,6 @@ func (pdo *PDO) Close() {
 	pdo.is_connected = false
 }
 
-
 func (pdo *PDO) connect() {
 	if pdo.is_connected {
 		return
@@ -87,7 +86,7 @@ func (pdo *PDO) connect() {
 	pdo.Close()
 
 	dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", pdo.User, pdo.Password, pdo.Host, pdo.Port, pdo.DbName, pdo.Charset)
-	db, err := sql.Open("mysql",dns)
+	db, err := sql.Open("mysql", dns)
 
 	if err != nil {
 		log.Println(err)
@@ -108,7 +107,7 @@ func (pdo *PDO) getColumnsCache(key string) []Column {
 	col, ok := pdo.columns_cache[key]
 	if ok {
 		//缓存60秒
-		t := time.Now().Unix() - col.time//< 60
+		t := time.Now().Unix() - col.time //< 60
 		log.Printf("cache time: %d", t)
 		if t < 60 {
 			return col.col
@@ -119,7 +118,7 @@ func (pdo *PDO) getColumnsCache(key string) []Column {
 
 //获取表所有的字段
 //返回Column类型的数组和err，如果有错误发生err则不为nil
-func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)  {
+func (pdo *PDO) GetColumns(db_name string, table_name string) ([]Column, error) {
 	//使用缓存，避免频繁查询
 	cache := pdo.getColumnsCache(db_name + "." + table_name)
 	if cache != nil {
@@ -132,7 +131,7 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
 
 	sql_str := "SELECT * FROM information_schema.columns WHERE table_schema = '" + db_name +
 		"' AND table_name = '" + table_name + "'"
-	rows, err:= pdo.db_handler.Query(sql_str)
+	rows, err := pdo.db_handler.Query(sql_str)
 	if err != nil {
 		//查询出错直接close
 		pdo.Close()
@@ -147,8 +146,8 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
 		return nil, err
 	}
 
-	scan_args  := make([]interface{}, len(columns))
-	values     := make([]interface{}, len(columns))
+	scan_args := make([]interface{}, len(columns))
+	values := make([]interface{}, len(columns))
 	for i := range values {
 		scan_args[i] = &values[i]
 	}
@@ -161,7 +160,7 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
 		}
 
 		column := Column{}
-		column_v := reflect.ValueOf(&column).Elem()//reflect.Indirect()//reflect.ValueOf(column)
+		column_v := reflect.ValueOf(&column).Elem() //reflect.Indirect()//reflect.ValueOf(column)
 		for i, col := range values {
 			//log.Println(i, columns[i], col)
 			field := column_v.FieldByName(columns[i])
@@ -205,7 +204,7 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
 				}
 
 			default:
-				log.Println("unknow type: " + field_type, col)
+				log.Println("unknow type: "+field_type, col)
 			}
 
 		}
@@ -217,8 +216,6 @@ func (pdo *PDO) GetColumns(db_name string, table_name string ) ([]Column, error)
 		log.Println(err)
 	}
 
-	pdo.setColumnsCache(db_name + "." + table_name, columns_res)
+	pdo.setColumnsCache(db_name+"."+table_name, columns_res)
 	return columns_res, err
 }
-
-

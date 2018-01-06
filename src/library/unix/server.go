@@ -1,20 +1,20 @@
 package unix
 
 import (
-	"net"
-	log "github.com/sirupsen/logrus"
-	"library/file"
-	"library/binlog"
-	"os"
-	"context"
 	"bytes"
+	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
+	"library/binlog"
+	"library/file"
+	"net"
+	"os"
 )
 
 func NewUnixServer() *UnixServer {
 	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
 	server := &UnixServer{
-		addr : addr,
+		addr: addr,
 	}
 	return server
 }
@@ -34,11 +34,11 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		data := buf[0:nr]
 
 		length := int(data[0]) +
-			int(data[1] << 8) +
-			int(data[2] << 16) +
-			int(data[3] << 32)
-		cmd := 	int(data[4]) +
-			int(data[5] << 8)
+			int(data[1]<<8) +
+			int(data[2]<<16) +
+			int(data[3]<<32)
+		cmd := int(data[4]) +
+			int(data[5]<<8)
 
 		content := bytes.ToLower(data[6:])
 
@@ -52,10 +52,11 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			server.binlog.Close()
 			fmt.Println("服务退出...")
 			os.Exit(0)
-		case CMD_RELOAD: {
-			log.Debugf("收到重新加载指令：%s", string(content))
-			server.binlog.Reload(string(content))
-		}
+		case CMD_RELOAD:
+			{
+				log.Debugf("收到重新加载指令：%s", string(content))
+				server.binlog.Reload(string(content))
+			}
 		case CMD_JOINTO:
 			log.Debugf("收到加入群集指令：%s", string(content))
 			server.binlog.BinlogHandler.Cluster.Client.ConnectTo(string(content))
@@ -106,4 +107,3 @@ func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFun
 		}
 	}()
 }
-

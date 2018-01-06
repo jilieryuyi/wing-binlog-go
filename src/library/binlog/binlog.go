@@ -1,26 +1,28 @@
 package binlog
 
 import (
-	"github.com/siddontang/go-mysql/canal"
-	"github.com/siddontang/go-mysql/mysql"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net"
 	"os"
-	log "github.com/sirupsen/logrus"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"library/buffer"
 	"library/file"
 	"library/services"
-	"library/buffer"
-	"context"
-	"sync"
-	"fmt"
-	"sync/atomic"
-	"encoding/json"
-	"time"
-	"net"
+
+	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	log "github.com/sirupsen/logrus"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
 	config, _ := GetMysqlConfig()
 	var (
-		b [defaultBufSize]byte
+		b   [defaultBufSize]byte
 		err error
 	)
 	binlog := &Binlog{
@@ -76,19 +78,19 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
 	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
 
-	mysqlBinlogCacheFile := file.CurrentPath +"/cache/mysql_binlog_position.pos"
+	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
 	dir := file.WPath{mysqlBinlogCacheFile}
-	dir  = file.WPath{dir.GetParent()}
+	dir = file.WPath{dir.GetParent()}
 	dir.Mkdir()
-	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC// | os.O_TRUNC
-	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag , 0755)
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
 	if err != nil {
 		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
 	return binlog
 }
 
-func newCanal() (*canal.Canal) {
+func newCanal() *canal.Canal {
 	cfg, err := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
@@ -102,7 +104,7 @@ func newCanal() (*canal.Canal) {
 
 // recover, try to rejoin to the cluster
 func (h *Binlog) recover() {
-	wfile := file.WFile{file.CurrentPath +"/cache/nodes.list"}
+	wfile := file.WFile{file.CurrentPath + "/cache/nodes.list"}
 	str := wfile.ReadAll()
 	if str == "" {
 		log.Debug("recover empty")
@@ -146,10 +148,10 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 }
 
 // get leader dns
-func (h *Binlog) getLeader() (string, int)  {
+func (h *Binlog) getLeader() (string, int) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	for dns, member := range h.members  {
+	for dns, member := range h.members {
 		log.Debugf("getLeader: %s, %+v", dns, *member)
 		if member.isLeader {
 			return dns, member.index
@@ -212,7 +214,7 @@ func (h *Binlog) leaderChange() {
 			buf := make([]byte, 256)
 			sendMsg := h.BinlogHandler.Cluster.pack(CMD_LEADER_CHANGE, currentDns)
 			conn.Write(sendMsg)
-			conn.SetReadDeadline(time.Now().Add(time.Second*3))
+			conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 			size, err := conn.Read(buf)
 			if err != nil || size <= 0 {
 				log.Errorf("send to dns %s error: %+v", dns, err)
@@ -237,8 +239,8 @@ func (h *Binlog) isNextLeader() bool {
 	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	log.Debugf("current dns: %s", currentDns)
 	leaderIndex := 0
-	minIndex    := 0
-	maxIndex    := 0
+	minIndex := 0
+	maxIndex := 0
 	for _, member := range h.members {
 		if minIndex == 0 || member.index < minIndex {
 			minIndex = member.index
@@ -324,7 +326,7 @@ func (h *Binlog) ShowMembers() string {
 
 func (h *Binlog) Close() {
 	log.Warn("binlog service exit")
-	if h.isClosed  {
+	if h.isClosed {
 		return
 	}
 	h.lock.Lock()
@@ -396,7 +398,7 @@ func (h *Binlog) Start() {
 	}
 	h.StartService()
 	go func() {
-		time.Sleep(time.Microsecond*10)
+		time.Sleep(time.Microsecond * 10)
 		h.recover()
 	}()
 }
@@ -406,7 +408,6 @@ func (h *Binlog) Reload(service string) {
 		tcp       = "tcp"
 		websocket = "websocket"
 		http      = "http"
-		kafka     = "kafka"
 		all       = "all"
 	)
 	switch service {
@@ -419,8 +420,6 @@ func (h *Binlog) Reload(service string) {
 	case http:
 		log.Debugf("http service reload")
 		h.BinlogHandler.services["http"].Reload()
-	case kafka:
-		log.Debugf("kafka service reload")
 	case all:
 		log.Debugf("all service reload")
 		h.BinlogHandler.services["tcp"].Reload()
@@ -428,4 +427,3 @@ func (h *Binlog) Reload(service string) {
 		h.BinlogHandler.services["http"].Reload()
 	}
 }
-
