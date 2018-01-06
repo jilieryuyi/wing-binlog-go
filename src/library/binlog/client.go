@@ -286,6 +286,7 @@ func (client *tcpClient) onMessage(msg []byte) {
 				isLeader := int(content[2]) + int(content[3] << 8)
 				dns := string(content[4:])
 				il := isLeader == 1
+				log.Debugf("CMD_NODE_SYNC: %s==%d,%d,%s", string(msg), index, isLeader, dns)
 				client.binlog.setMember(dns, il, index)
 			case CMD_KEEPALIVE:
 				// keep alive
