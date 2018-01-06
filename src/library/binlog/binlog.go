@@ -109,7 +109,11 @@ func (h *Binlog) recover() {
 		return
 	}
 	var nodes []interface{}
-	json.Unmarshal([]byte(str), &nodes)
+	err := json.Unmarshal([]byte(str), &nodes)
+	if err != nil {
+		log.Debugf("recover error with: %+v", err)
+		return
+	}
 	log.Debugf("recover: %+v", nodes)
 	dns := nodes[0].(string)
 	log.Debugf("recover: %s", dns)
