@@ -183,8 +183,10 @@ func (h *Binlog) setStatus(dns string, status string) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if member, found := h.members[dns]; found {
-		log.Debugf("set %s status: %s", dns, status)
-		member.status = status
+		if member.status != status {
+			log.Debugf("change %s status from %s to %s.", dns, member.status, status)
+			member.status = status
+		}
 	}
 }
 
