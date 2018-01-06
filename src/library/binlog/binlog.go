@@ -271,7 +271,16 @@ func (h *Binlog) getNextLeader() string {
 	//current dsn
 	//currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	leaderIndex  := 0
+	minIndex := 0
+	maxIndex := 0
 	for _, member := range h.members {
+		if minIndex == 0 || member.index < minIndex {
+			minIndex = member.index
+		}
+
+		if maxIndex == 0 || member.index > maxIndex {
+			maxIndex = member.index
+		}
 		if member.isLeader {
 			leaderIndex = member.index
 			break
@@ -279,8 +288,8 @@ func (h *Binlog) getNextLeader() string {
 	}
 	// next leader index
 	nextLeaderIndex := leaderIndex + 1
-	if nextLeaderIndex > len(h.members) {
-		nextLeaderIndex = 1
+	if nextLeaderIndex > maxIndex {
+		nextLeaderIndex = minIndex
 	}
 	for dns, member := range h.members {
 		// if next leader index == current index and dns == currentDns
