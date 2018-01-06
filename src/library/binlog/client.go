@@ -85,6 +85,7 @@ func (client *tcpClient) getLeaderDns(dns string) (string, int) {
 		return "", 0
 	}
 
+	log.Debugf("get leader return: %d=>%s", size, string(buf[:size]))
 	dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
 	dataBuf.Write(buf[:size])
 	clen, _ := dataBuf.ReadInt32()
