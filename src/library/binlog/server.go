@@ -216,6 +216,7 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 		case CMD_GET_LEADER:
 			//todo: get leader ip and response
 			dns, index := server.binlog.getLeader()
+			log.Debugf("cmd get leader is: %d, %s", index, dns)
 			r := make([]byte, len(dns) + 2)
 			r[0] = byte(index)
 			r[1] = byte(index >> 8)
