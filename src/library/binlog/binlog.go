@@ -158,8 +158,10 @@ func (h *Binlog) leader(isLeader bool) {
 	h.isLeader = isLeader
 	dns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 
-	for _, member := range h.members {
-		member.isLeader = false
+	if isLeader {
+		for _, member := range h.members {
+			member.isLeader = false
+		}
 	}
 
 	if member, found := h.members[dns]; found {
