@@ -227,7 +227,7 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 					res[2] = byte(isleader)
 					res[3] = byte(isleader >> 8)
 					copy(res[4:], dns)
-					server.send(CMD_NODE_SYNC, string(r))
+					server.send(CMD_NODE_SYNC, string(res))
 				}
 			}
 
