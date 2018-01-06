@@ -36,7 +36,7 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		length := int(data[0]) +
 			int(data[1] << 8) +
 			int(data[2] << 16) +
-			int(data[3] << 32)
+			int(data[3] << 24)
 		cmd := 	int(data[4]) +
 			int(data[5] << 8)
 
