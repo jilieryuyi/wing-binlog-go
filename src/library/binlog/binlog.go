@@ -141,7 +141,6 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 		isLeader: isLeader,
 		index:    index,
 		status:   MEMBER_STATUS_LIVE,
-		isLeave:  false,
 	}
 	return index
 }
@@ -193,7 +192,6 @@ func (h *Binlog) setStatus(dns string, status string) {
 func (h *Binlog) leaderDown() {
 	for _, member := range h.members {
 		if member.isLeader {
-			member.isLeave = true
 			member.isLeader = false
 			member.status = MEMBER_STATUS_LEAVE
 			break
@@ -205,7 +203,7 @@ func (h *Binlog) leaderChange() {
 	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 
 	for dns, member := range h.members {
-		if !member.isLeave && dns != currentDns {
+		if member.status != MEMBER_STATUS_LEAVE && dns != currentDns {
 			conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 			if err != nil {
 				log.Errorf("connect to dns %s error: %+v", dns, err)

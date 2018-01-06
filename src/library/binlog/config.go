@@ -51,7 +51,6 @@ type member struct {
 	isLeader bool
 	index int
 	status string
-	isLeave bool
 }
 
 type positionCache struct {
@@ -60,8 +59,9 @@ type positionCache struct {
 }
 
 const (
-	MEMBER_STATUS_LIVE = "live"
+	MEMBER_STATUS_LIVE  = "live"
 	MEMBER_STATUS_LEAVE = "leave"
+
 	MAX_CHAN_FOR_SAVE_POSITION = 128
 	defaultBufSize = 4096
 	DEFAULT_FLOAT_PREC = 6
