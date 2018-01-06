@@ -124,6 +124,25 @@ func (client *tcpClient) onClose()  {
 		//todo 等待int(n/2)掉线选举确认
 		client.startConfirm = true
 		client.binlog.leaderDown()
+
+		if len(client.binlog.members) <= 2 {
+			errTimes := 0
+			for i := 0; i < 3; i++ {
+				err := client.connect()
+				log.Debugf("try to reconnect %d times", (i+1))
+				if err == nil {
+					break
+				} else {
+					errTimes++
+				}
+			}
+			if errTimes >= 3 {
+				log.Debug("reconnect failure, set current node is leader")
+				//如果都失败，则把当前节点设置为leader
+				client.binlog.StartService()
+				client.binlog.leader(true)
+			}
+		}
 	} else {
 		log.Debugf("current node is not next leader")
 		nextDsn := client.binlog.getNextLeader()
