@@ -138,6 +138,7 @@ func (h *Binlog) getLeader() (string, int)  {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	for dns, member := range h.members  {
+		log.Debugf("getLeader: %s, %+v", dns, *member)
 		if member.isLeader {
 			return dns, member.index
 		}
