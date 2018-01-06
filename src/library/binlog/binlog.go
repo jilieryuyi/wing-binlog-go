@@ -405,25 +405,20 @@ func (h *Binlog) Start() {
 
 func (h *Binlog) Reload(service string) {
 	var (
-		tcp       = "tcp"
-		websocket = "websocket"
-		http      = "http"
-		all       = "all"
+		tcp  = "tcp"
+		http = "http"
+		all  = "all"
 	)
 	switch service {
 	case tcp:
 		log.Debugf("tcp service reload")
 		h.BinlogHandler.services["tcp"].Reload()
-	case websocket:
-		log.Debugf("websocket service reload")
-		h.BinlogHandler.services["websocket"].Reload()
 	case http:
 		log.Debugf("http service reload")
 		h.BinlogHandler.services["http"].Reload()
 	case all:
 		log.Debugf("all service reload")
 		h.BinlogHandler.services["tcp"].Reload()
-		h.BinlogHandler.services["websocket"].Reload()
 		h.BinlogHandler.services["http"].Reload()
 	}
 }
