@@ -6,7 +6,6 @@ import (
 	"library/http"
 	"regexp"
 	"runtime"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,7 +32,6 @@ func NewHttpService(ctx *context.Context) *HttpService {
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
-			mode: cgroup.Mode,
 		}
 		group.filter = make([]string, len(cgroup.Filter))
 		group.filter = append(group.filter[:0], cgroup.Filter...)
@@ -41,10 +39,8 @@ func NewHttpService(ctx *context.Context) *HttpService {
 		nc := len(cgroup.Nodes)
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
-			w, _ := strconv.Atoi(cgroup.Nodes[i][1])
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i][0],
-				weight:           w,
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
@@ -253,43 +249,13 @@ func (client *HttpService) SendAll(msg []byte) bool {
 				continue
 			}
 		}
-		mode := cgroup.mode
-		// 如果不等于权重，即广播模式
-		if mode != MODEL_WEIGHT {
-			for _, cnode := range cgroup.nodes {
-				log.Debug("http send broadcast: %s=>%s", cnode.url, string(msg[tableLen+2:]))
-				if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-					log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(msg[tableLen+2:]))
-					continue
-				}
-				cnode.sendQueue <- string(msg[tableLen+2:])
+		for _, cnode := range cgroup.nodes {
+			log.Debug("http send broadcast: %s=>%s", cnode.url, string(msg[tableLen+2:]))
+			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(msg[tableLen+2:]))
+				continue
 			}
-		} else {
-			// 负载均衡模式
-			// todo 根据已经sendTimes的次数负载均衡
-			clen := len(cgroup.nodes)
-			target := cgroup.nodes[0]
-			//将发送次数/权重 作为负载基数，每次选择最小的发送
-			js := float64(atomic.LoadInt64(&target.sendTimes)) / float64(target.weight)
-			for i := 1; i < clen; i++ {
-				stimes := atomic.LoadInt64(&cgroup.nodes[i].sendTimes)
-				if stimes == 0 {
-					//优先发送没有发过的
-					target = cgroup.nodes[i]
-					break
-				}
-				njs := float64(stimes) / float64(cgroup.nodes[i].weight)
-				if njs < js {
-					js = njs
-					target = cgroup.nodes[i]
-				}
-			}
-			if len(target.sendQueue) < cap(target.sendQueue) {
-				log.Debug("http send load balance msg: %s=>%s", target.url, string(msg[tableLen+2:]))
-				target.sendQueue <- string(msg[tableLen+2:])
-			} else {
-				log.Warnf("http send buffer full(balance): %s, %s", target.url, string(msg[tableLen+2:]))
-			}
+			cnode.sendQueue <- string(msg[tableLen+2:])
 		}
 	}
 
@@ -318,7 +284,6 @@ func (client *HttpService) Reload() {
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
-			mode: cgroup.Mode,
 		}
 		group.filter = make([]string, len(cgroup.Filter))
 		group.filter = append(group.filter[:0], cgroup.Filter...)
@@ -326,10 +291,8 @@ func (client *HttpService) Reload() {
 		nc := len(cgroup.Nodes)
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
-			w, _ := strconv.Atoi(cgroup.Nodes[i][1])
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i][0],
-				weight:           w,
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),

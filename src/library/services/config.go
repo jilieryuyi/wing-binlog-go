@@ -23,7 +23,6 @@ type Service interface {
 }
 
 type tcpGroupConfig struct { // group node in toml
-	Mode   int      // "1 broadcast" ##(广播)broadcast or  2 (权重)weight
 	Name   string   // = "group1"
 	Filter []string //
 }
@@ -37,7 +36,6 @@ type TcpConfig struct {
 
 type httpNodeConfig struct {
 	Name   string
-	Mode   int
 	Nodes  [][]string
 	Filter []string
 }
@@ -47,8 +45,6 @@ type tcpClientNode struct {
 	isConnected      bool        // 是否还连接着 true 表示正常 false表示已断开
 	sendQueue        chan []byte // 发送channel
 	sendFailureTimes int64       // 发送失败次数
-	mode             int         // broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight           int         // 权重 0 - 100
 	group            string      // 所属分组
 	recvBuf          []byte      // 读缓冲区
 	recvBytes        int         // 收到的待处理字节数量
@@ -58,7 +54,6 @@ type tcpClientNode struct {
 
 type tcpGroup struct {
 	name   string           //
-	mode   int              //
 	filter []string         //
 	nodes  []*tcpClientNode //
 }
@@ -84,9 +79,6 @@ var (
 )
 
 const (
-	MODEL_BROADCAST = 1 // 广播
-	MODEL_WEIGHT    = 2 // 权重
-
 	CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
 	CMD_AUTH    = 2 // 认证（暂未使用）
 	CMD_OK      = 3 // 正常响应
@@ -133,21 +125,6 @@ func getHttpConfig() (*HttpConfig, error) {
 	}
 	if config.TimeTick <= 0 {
 		config.TimeTick = 1
-	}
-	return &config, nil
-}
-
-func getWebsocketConfig() (*TcpConfig, error) {
-	var config TcpConfig
-	config_file := file.GetCurrentPath() + "/config/websocket.toml"
-	wfile := file.WFile{config_file}
-	if !wfile.Exists() {
-		log.Warnf("配置文件%s不存在 %s", config_file)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(config_file, &config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
 	}
 	return &config, nil
 }
