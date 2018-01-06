@@ -213,6 +213,9 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			copy(r[2:], node.ServiceDns)
 
 			server.send(CMD_NEW_NODE, string(r))
+
+			//todo 这里还需要做一件事情就是把node列表同步过去
+
 		case CMD_GET_LEADER:
 			//todo: get leader ip and response
 			dns, index := server.binlog.getLeader()
