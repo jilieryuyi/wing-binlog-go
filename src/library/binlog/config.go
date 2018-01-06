@@ -81,6 +81,7 @@ const (
 	CMD_KEEPALIVE = 6
 	CMD_CLOSE_CONFIRM = 7
 	CMD_LEADER_CHANGE = 8
+	CMD_NODE_SYNC = 9
 )
 
 type binlogHandler struct {

@@ -281,6 +281,12 @@ func (client *tcpClient) onMessage(msg []byte) {
 				index := int(content[0]) + int(content[1] << 8)
 				dns := string(content[2:])
 				client.binlog.setMember(dns, false, index)
+		    case CMD_NODE_SYNC:
+				index := int(content[0]) + int(content[1] << 8)
+				isLeader := int(content[2]) + int(content[3] << 8)
+				dns := string(content[4:])
+				il := isLeader == 1
+				client.binlog.setMember(dns, il, index)
 			case CMD_KEEPALIVE:
 				// keep alive
 				log.Debugf("keep alive")
