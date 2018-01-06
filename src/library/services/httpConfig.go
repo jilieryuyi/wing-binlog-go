@@ -8,7 +8,6 @@ import (
 
 type httpGroup struct {
 	name   string      //
-	mode   int         //
 	filter []string    //
 	nodes  []*httpNode //
 }
@@ -33,7 +32,6 @@ type HttpConfig struct {
 type httpNode struct {
 	url              string      // url
 	sendQueue        chan string // 发送channel
-	weight           int         // 权重 0 - 100
 	sendTimes        int64       // 发送次数
 	sendFailureTimes int64       // 发送失败次数
 	isDown           bool        // 是否因为故障下线的节点

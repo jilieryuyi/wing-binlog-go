@@ -31,7 +31,6 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
 		tcp.groups[cgroup.Name] = &tcpGroup{
 			name: cgroup.Name,
-			mode: cgroup.Mode,
 		}
 		tcp.groups[cgroup.Name].nodes = nodes[:0]
 		tcp.groups[cgroup.Name].filter = make([]string, flen)
@@ -77,47 +76,16 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 				continue
 			}
 		}
-		mode := cgroup.mode
-		// 如果不等于权重，即广播模式
-		if mode != MODEL_WEIGHT {
-			for _, cnode := range cgroup.nodes {
-				if !cnode.isConnected {
-					continue
-				}
-				log.Info("tcp服务-发送广播消息")
-				if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-					log.Warnf("tcp服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
-					continue
-				}
-				cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:])) //msg[table_len+2:]
+		for _, cnode := range cgroup.nodes {
+			if !cnode.isConnected {
+				continue
 			}
-		} else {
-			// 负载均衡模式
-			// todo 根据已经send_times的次数负载均衡
-			target := cgroup.nodes[0]
-			//将发送次数/权重 作为负载基数，每次选择最小的发送
-			js := float64(atomic.LoadInt64(&target.sendTimes)) / float64(target.weight)
-			clen := len(cgroup.nodes)
-			for i := 1; i < clen; i++ {
-				stimes := atomic.LoadInt64(&cgroup.nodes[i].sendTimes)
-				//conn.send_queue <- msg
-				if stimes == 0 {
-					//优先发送没有发过的
-					target = cgroup.nodes[i]
-					break
-				}
-				njs := float64(stimes) / float64(cgroup.nodes[i].weight)
-				if njs < js {
-					js = njs
-					target = cgroup.nodes[i]
-				}
+			log.Info("tcp服务-发送广播消息")
+			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+				log.Warnf("tcp服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
+				continue
 			}
-			log.Info("tcp服务-发送权重消息，", (*target.conn).RemoteAddr().String())
-			if len(target.sendQueue) >= cap(target.sendQueue) {
-				log.Warnf("tcp服务-发送缓冲区满：%s", (*target.conn).RemoteAddr().String())
-			} else {
-				target.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:]))
-			}
+			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:])) //msg[table_len+2:]
 		}
 	}
 	return true
@@ -200,8 +168,6 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		isConnected:      true,
 		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes: 0,
-		weight:           0,
-		mode:             MODEL_BROADCAST,
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
 		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
@@ -267,14 +233,10 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 				return
 			}
 			//4字节 weight
-			weight := int(node.recvBuf[6]) +
-				int(node.recvBuf[7]<<8) +
-				int(node.recvBuf[8]<<16) +
-				int(node.recvBuf[9]<<32)
-			if weight < 0 || weight > 100 {
-				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
-				return
-			}
+			// weight := int(node.recvBuf[6]) +
+			// 	int(node.recvBuf[7]<<8) +
+			// 	int(node.recvBuf[8]<<16) +
+			// 	int(node.recvBuf[9]<<32)
 			//内容长度+4字节的前缀（存放内容长度的数值）
 			name := string(node.recvBuf[10 : clen+4])
 			tcp.lock.Lock()
@@ -287,31 +249,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			(*node.conn).SetReadDeadline(time.Time{})
 			node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
 			node.group = group.name
-			node.mode = group.mode
-			node.weight = weight
 			group.nodes = append(group.nodes, node)
-			if node.mode == MODEL_WEIGHT {
-				//weight 合理性格式化，保证所有的weight的和是100
-				all_weight := 0
-				for _, cnode := range group.nodes {
-					w := cnode.weight
-					if w <= 0 {
-						w = 100
-					}
-					all_weight += w
-				}
-
-				gl := len(group.nodes)
-				yg := 0
-				for index, cnode := range group.nodes {
-					if index == gl-1 {
-						cnode.weight = 100 - yg
-					} else {
-						cnode.weight = int(cnode.weight * 100 / all_weight)
-						yg += cnode.weight
-					}
-				}
-			}
 			tcp.lock.Unlock()
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
@@ -417,7 +355,6 @@ func (tcp *TcpService) Reload() {
 			var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
 			tcp.groups[ngroup.Name] = &tcpGroup{
 				name: ngroup.Name,
-				mode: ngroup.Mode,
 			}
 			tcp.groups[ngroup.Name].nodes = nodes[:0]
 			tcp.groups[ngroup.Name].filter = make([]string, flen)
@@ -449,7 +386,6 @@ func (tcp *TcpService) Reload() {
 				flen := len(group.Filter)
 				tcp.groups[name].filter = make([]string, flen)
 				tcp.groups[name].filter = append(tcp.groups[name].filter[:0], group.Filter...)
-				tcp.groups[name].mode = group.Mode
 			}
 		}
 
@@ -469,7 +405,6 @@ func (tcp *TcpService) Reload() {
 				var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
 				tcp.groups[ngroup.Name] = &tcpGroup{
 					name: ngroup.Name,
-					mode: ngroup.Mode,
 				}
 				tcp.groups[ngroup.Name].nodes = nodes[:0]
 				tcp.groups[ngroup.Name].filter = make([]string, flen)
