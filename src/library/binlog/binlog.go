@@ -234,6 +234,7 @@ func (h *Binlog) isNextLeader() bool {
 		// so the current node is next leader
 		// return true
 		if member.index == nextLeaderIndex && dns == currentDns {
+			log.Debugf("next leader is: %s", dns)
 			return true
 		}
 	}
