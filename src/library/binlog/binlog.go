@@ -184,6 +184,7 @@ func (h *Binlog) leaderDown() {
 		if member.isLeader {
 			member.isLeave = true
 			member.isLeader = false
+			member.status = MEMBER_STATUS_LEAVE
 			break
 		}
 	}
