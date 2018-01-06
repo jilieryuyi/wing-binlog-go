@@ -9,7 +9,6 @@ import (
 	"library/file"
 
 	"github.com/BurntSushi/toml"
-	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,36 +40,6 @@ type httpNodeConfig struct {
 	Mode   int
 	Nodes  [][]string
 	Filter []string
-}
-
-type websocketClientNode struct {
-	conn             *websocket.Conn // 客户端连接进来的资源句柄
-	isConnected      bool            // 是否还连接着 true 表示正常 false表示已断开
-	sendQueue        chan []byte     // 发送channel
-	sendFailureTimes int64           // 发送失败次数
-	mode             int             // broadcast = 1 weight = 2 支持两种方式，广播和权重
-	weight           int             // 权重 0 - 100
-	group            string          // 所属分组
-	recvBytes        int             // 收到的待处理字节数量
-	connectTime      int64           // 连接成功的时间戳
-	sendTimes        int64           // 发送次数，用来计算负载均衡，如果 mode == 2
-}
-
-type WebSocketService struct {
-	Service
-	Ip               string                            // 监听ip
-	Port             int                               // 监听端口
-	recvTimes        int64                             // 收到消息的次数
-	sendTimes        int64                             // 发送消息的次数
-	sendFailureTimes int64                             // 发送失败的次数
-	lock             *sync.Mutex                       // 互斥锁，修改资源时锁定
-	groups           map[string][]*websocketClientNode // 客户端分组，现在支持两种分组，广播组合负载均衡组
-	groupsMode       map[string]int                    // 分组的模式 1，2 广播还是复载均衡
-	groupsFilter     map[string][]string               // 分组的过滤器
-	clientsCount     int32                             // 成功连接（已经进入分组）的客户端数量
-	enable           bool                              //
-	ctx              *context.Context                  //
-	wg               *sync.WaitGroup                   //
 }
 
 type tcpClientNode struct {

@@ -164,14 +164,12 @@ func main() {
 
 	// 各种通信服务
 	tcp_service := services.NewTcpService(&ctx)
-	websocket_service := services.NewWebSocketService(&ctx)
 	http_service := services.NewHttpService(&ctx)
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
-	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
 	blog.Start()
 
