@@ -24,23 +24,23 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		err error
 	)
 	binlog := &Binlog{
-		Config   : config,
-		wg       : new(sync.WaitGroup),
-		lock     : new(sync.Mutex),
-		ctx      : ctx,
-		isLeader : true,
-		members  : make(map[string]*member),
+		Config:   config,
+		wg:       new(sync.WaitGroup),
+		lock:     new(sync.Mutex),
+		ctx:      ctx,
+		isLeader: true,
+		members:  make(map[string]*member),
 	}
 	cluster := NewCluster(ctx, binlog)
 	cluster.Start()
 	binlog.setMember(fmt.Sprintf("%s:%d", cluster.ServiceIp, cluster.port), true, 0)
 
 	binlog.BinlogHandler = &binlogHandler{
-		services      : make(map[string]services.Service),
-		servicesCount : 0,
-		lock          : new(sync.Mutex),
-		Cluster       : cluster,
-		ctx           : ctx,
+		services:      make(map[string]services.Service),
+		servicesCount: 0,
+		lock:          new(sync.Mutex),
+		Cluster:       cluster,
+		ctx:           ctx,
 	}
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 
@@ -138,10 +138,10 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 		}
 	}
 	h.members[dns] = &member{
-		isLeader : isLeader,
-		index    : index,
-		status   : MEMBER_STATUS_LIVE,
-		isLeave  : false,
+		isLeader: isLeader,
+		index:    index,
+		status:   MEMBER_STATUS_LIVE,
+		isLeave:  false,
 	}
 	return index
 }
@@ -183,8 +183,10 @@ func (h *Binlog) setStatus(dns string, status string) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if member, found := h.members[dns]; found {
-		log.Debugf("set %s status: %s", dns, status)
-		member.status = status
+		if member.status != status {
+			log.Debugf("change %s status from %s to %s.", dns, member.status, status)
+			member.status = status
+		}
 	}
 }
 
@@ -200,13 +202,13 @@ func (h *Binlog) leaderDown() {
 }
 
 func (h *Binlog) leaderChange() {
-	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 
-	for dsn, member := range h.members {
-		if !member.isLeave && dsn != currentDns {
-			conn, err := net.DialTimeout("tcp", dsn, time.Second*3)
+	for dns, member := range h.members {
+		if !member.isLeave && dns != currentDns {
+			conn, err := net.DialTimeout("tcp", dns, time.Second*3)
 			if err != nil {
-				log.Errorf("connect to dsn %s error: %+v", dsn, err)
+				log.Errorf("connect to dns %s error: %+v", dns, err)
 				return
 			}
 			buf := make([]byte, 256)
@@ -215,7 +217,7 @@ func (h *Binlog) leaderChange() {
 			conn.SetReadDeadline(time.Now().Add(time.Second*3))
 			size, err := conn.Read(buf)
 			if err != nil || size <= 0 {
-				log.Errorf("send to dsn %s error: %+v", dsn, err)
+				log.Errorf("send to dns %s error: %+v", dns, err)
 				return
 			}
 			dataBuf := buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE)
@@ -233,8 +235,8 @@ func (h *Binlog) leaderChange() {
 
 func (h *Binlog) isNextLeader() bool {
 	//todo 判断当前节点是否为下一个leader
-	//current dsn
-	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	//current dns
+	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	log.Debugf("current dns: %s", currentDns)
 	leaderIndex := 0
 	minIndex    := 0
@@ -271,9 +273,9 @@ func (h *Binlog) isNextLeader() bool {
 }
 func (h *Binlog) getNextLeader() string {
 	//todo 判断当前节点是否为下一个leader
-	//current dsn
-	//currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
-	leaderIndex  := 0
+	//current dns
+	//currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	leaderIndex := 0
 	minIndex := 0
 	maxIndex := 0
 	for _, member := range h.members {
