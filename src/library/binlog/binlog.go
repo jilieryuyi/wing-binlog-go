@@ -220,10 +220,10 @@ func (h *Binlog) isNextLeader() bool {
 	log.Debugf("current dns: %s", currentDns)
 	leaderIndex  := 0
 	log.Debugf("all members: %+v", h.members)
-	for _, member := range h.members {
+	for dsn, member := range h.members {
+		log.Debugf("%s == %+v", dsn, *member)
 		if member.isLeader {
 			leaderIndex = member.index
-			break
 		}
 	}
 	log.Debugf("leader index: %d", leaderIndex)
