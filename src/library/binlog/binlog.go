@@ -229,7 +229,19 @@ func (h *Binlog) isNextLeader() bool {
 	log.Debugf("current dns: %s", currentDns)
 	leaderIndex  := 0
 	log.Debugf("all members: %+v", h.members)
+
+	minIndex := 0
+	maxIndex := 0
+
 	for dsn, member := range h.members {
+		if minIndex == 0 || member.index < minIndex {
+			minIndex = member.index
+		}
+
+		if maxIndex == 0 || member.index > maxIndex {
+			maxIndex = member.index
+		}
+
 		log.Debugf("%s == %+v", dsn, *member)
 		if member.isLeader {
 			leaderIndex = member.index
@@ -238,8 +250,8 @@ func (h *Binlog) isNextLeader() bool {
 	log.Debugf("leader index: %d", leaderIndex)
 	// next leader index
 	nextLeaderIndex := leaderIndex + 1
-	if nextLeaderIndex > len(h.members) {
-		nextLeaderIndex = 1
+	if nextLeaderIndex > maxIndex {
+		nextLeaderIndex = minIndex
 	}
 	log.Debugf("next leader index: %d", nextLeaderIndex)
 	for dns, member := range h.members {
