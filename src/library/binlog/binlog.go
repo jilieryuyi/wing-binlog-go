@@ -183,6 +183,7 @@ func (h *Binlog) leaderDown() {
 	for _, member := range h.members {
 		if member.isLeader {
 			member.isLeave = true
+			member.isLeader = false
 			break
 		}
 	}
