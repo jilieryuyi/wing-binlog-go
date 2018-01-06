@@ -219,6 +219,7 @@ func (h *Binlog) isNextLeader() bool {
 	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	log.Debugf("current dns: %s", currentDns)
 	leaderIndex  := 0
+	log.Debugf("all members: %+v", h.members)
 	for _, member := range h.members {
 		if member.isLeader {
 			leaderIndex = member.index
