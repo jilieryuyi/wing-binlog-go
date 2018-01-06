@@ -217,6 +217,7 @@ func (h *Binlog) isNextLeader() bool {
 	//todo 判断当前节点是否为下一个leader
 	//current dsn
 	currentDns   := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
+	log.Debugf("current dns: %s", currentDns)
 	leaderIndex  := 0
 	for _, member := range h.members {
 		if member.isLeader {
@@ -224,15 +225,18 @@ func (h *Binlog) isNextLeader() bool {
 			break
 		}
 	}
+	log.Debugf("leader index: %d", leaderIndex)
 	// next leader index
 	nextLeaderIndex := leaderIndex + 1
 	if nextLeaderIndex > len(h.members) {
 		nextLeaderIndex = 1
 	}
+	log.Debugf("next leader index: %d", nextLeaderIndex)
 	for dns, member := range h.members {
 		// if next leader index == current index and dns == currentDns
 		// so the current node is next leader
 		// return true
+		log.Debugf("%s -- %s", dns, currentDns)
 		if member.index == nextLeaderIndex && dns == currentDns {
 			log.Debugf("next leader is: %s", dns)
 			return true
