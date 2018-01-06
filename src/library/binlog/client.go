@@ -145,8 +145,9 @@ func (client *tcpClient) onClose()  {
 		}
 	} else {
 		log.Debugf("current node is not next leader")
-		nextDsn := client.binlog.getNextLeader()
-        client.sendCloseConfirm(nextDsn)
+		nextDns := client.binlog.getNextLeader()
+		log.Debugf("next leader dns: %s", nextDns)
+        client.sendCloseConfirm(nextDns)
 	}
 
 
