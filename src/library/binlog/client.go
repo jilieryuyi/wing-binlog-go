@@ -119,10 +119,12 @@ func (client *tcpClient) onClose()  {
 	//3、如果当前是next leader，如果数量达到int(n/2)则选举成功
 
 	if client.binlog.isNextLeader() {
+		log.Debugf("current node is next leader")
 		//todo 等待int(n/2)掉线选举确认
 		client.startConfirm = true
 		client.binlog.leaderDown()
 	} else {
+		log.Debugf("current node is not next leader")
 		nextDsn := client.binlog.getNextLeader()
         client.sendCloseConfirm(nextDsn)
 	}
