@@ -6,24 +6,21 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
 	"library/buffer"
-
 	log "github.com/sirupsen/logrus"
 )
 
 func (server *TcpServer) Start() {
 	go server.keepalive()
 	go func() {
-		//建立socket，监听端口
 		dns := fmt.Sprintf("%s:%d", server.listen, server.port)
 		listen, err := net.Listen("tcp", dns)
 		if err != nil {
-			log.Panicf("cluster服务错误：%+v", err)
+			log.Panicf("cluster server listen with error：%+v", err)
 			return
 		}
 		server.listener = &listen
-		log.Debugf("cluster服务%s等待新的连接...", dns)
+		log.Debugf("cluster server %s wait for new connect...", dns)
 		for {
 			conn, err := listen.Accept()
 			select {
@@ -32,7 +29,7 @@ func (server *TcpServer) Start() {
 			default:
 			}
 			if err != nil {
-				log.Errorf("cluster服务accept错误：%+v", err)
+				log.Errorf("cluster server accept with error：%+v", err)
 				continue
 			}
 			go server.onConnect(&conn)
@@ -44,6 +41,8 @@ func (server *TcpServer) Start() {
 func (server *TcpServer) SendPos(data string) {
 	server.send(CMD_POS, data)
 }
+
+// 同步读取binlog的游标信息到指定节点
 func (server *TcpServer) SendClientPos(node *tcpClientNode, data string) {
 	node.sendQueue <- server.pack(CMD_POS, data)
 }
@@ -53,8 +52,7 @@ func (server *TcpServer) send(cmd int, msg string) {
 	log.Debugf("cluster server sending broadcast: %s", msg)
 	server.lock.Lock()
 	defer server.lock.Unlock()
-	cc := len(server.clients)
-	if cc <= 0 {
+	if len(server.clients) <= 0 {
 		log.Debugf("no follower found, cluster server send broadcast aborted.")
 		return
 	}
@@ -71,7 +69,7 @@ func (tcp *TcpServer) pack(cmd int, msg string) []byte {
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
 	r[2] = byte(cl >> 16)
-	r[3] = byte(cl >> 32)
+	r[3] = byte(cl >> 24)
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 	copy(r[6:], m)
@@ -83,13 +81,13 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 	defer server.wg.Done()
 	for {
 		if !node.isConnected {
-			log.Info("cluster服务-clientService退出")
+			log.Info("cluster server, client service exit")
 			return
 		}
 		select {
 		case msg, ok := <-node.sendQueue:
 			if !ok {
-				log.Info("cluster服务-发送消息channel通道关闭")
+				log.Info("cluster server, client send msg channel close")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
@@ -98,12 +96,11 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 			if size <= 0 || err != nil {
 				atomic.AddInt64(&server.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
-				log.Warn("cluster服务-失败次数：", (*node.conn).RemoteAddr().String(),
-					node.sendFailureTimes)
+				log.Warnf("cluster server %s, failure times：%d", (*node.conn).RemoteAddr().String(), node.sendFailureTimes)
 			}
 		case <-(*server.ctx).Done():
 			if len(node.sendQueue) <= 0 {
-				log.Info("cluster服务-clientService退出")
+				log.Info("cluster server, client service context exit")
 				return
 			}
 		}
@@ -111,7 +108,7 @@ func (server *TcpServer) clientService(node *tcpClientNode) {
 }
 
 func (server *TcpServer) onConnect(conn *net.Conn) {
-	log.Infof("cluster服务新的连接：%s", (*conn).RemoteAddr().String())
+	log.Infof("cluster server, new connect：%s", (*conn).RemoteAddr().String())
 	cnode := &tcpClientNode{
 		conn:             conn,
 		isConnected:      true,
@@ -122,28 +119,26 @@ func (server *TcpServer) onConnect(conn *net.Conn) {
 		recvBuf:          buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
 	}
 	go server.clientService(cnode)
-
 	server.lock.Lock()
-	cc := len(server.clients)
-	server.clients = append(server.clients[:cc], cnode)
+	//cc := len(server.clients)
+	server.clients = append(server.clients/*[:cc]*/, cnode)
 	server.lock.Unlock()
-
-	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+	var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 	(*conn).SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
-		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
-		//清空旧数据 memset
+		buf := readBuffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+		//clear buffer cache data
 		for i := range buf {
 			buf[i] = byte(0)
 		}
 		size, err := (*conn).Read(buf)
 		if err != nil {
-			log.Errorf("cluster服务连接发生错误: %s, %v", (*conn).RemoteAddr().String(), err)
+			log.Errorf("cluster server, client %s read with error: %v", (*conn).RemoteAddr().String(), err)
 			server.onClose(cnode)
 			(*conn).Close()
 			return
 		}
-		log.Debugf("cluster服务收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
+		log.Debugf("cluster server, client receive %d bytes：%s", size, string(buf[:size]))
 		server.onMessage(cnode, buf[:size])
 	}
 }

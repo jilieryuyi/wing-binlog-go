@@ -5,10 +5,8 @@ import (
 	"net"
 	"os"
 	"sync"
-
 	"library/buffer"
 	"library/file"
-
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 )
@@ -62,13 +60,13 @@ type clusterConfig struct {
 
 func getServiceConfig() (*clusterConfig, error) {
 	var config clusterConfig
-	config_file := file.CurrentPath + "/config/cluster.toml"
-	wfile := file.WFile{config_file}
+	configFile := file.CurrentPath + "/config/cluster.toml"
+	wfile := file.WFile{configFile}
 	if !wfile.Exists() {
-		log.Errorf("config file %s does not exists", config_file)
+		log.Errorf("config file %s does not exists", configFile)
 		return nil, ErrorFileNotFound
 	}
-	if _, err := toml.DecodeFile(config_file, &config); err != nil {
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
 		log.Println(err)
 		return nil, ErrorFileParse
 	}
@@ -102,18 +100,16 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		startConfirm: false,
 		waitTimeout : false,
 	}
-
 	// 初始化缓存文件句柄
 	cache := file.CurrentPath + "/cache/nodes.list"
 	dir := file.WPath{cache}
 	dir = file.WPath{dir.GetParent()}
-
 	dir.Mkdir()
 	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	var err error
 	server.cacheHandler, err = os.OpenFile(cache, flag, 0755)
 	if err != nil {
-		log.Panicf("binlog服务，打开缓存文件错误：%s, %+v", cache, err)
+		log.Panicf("binlog service, open cache file %s with error: %+v", cache, err)
 	}
 	return server
 }
