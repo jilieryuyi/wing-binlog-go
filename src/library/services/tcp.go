@@ -270,7 +270,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			weight := int(node.recvBuf[6]) +
 				int(node.recvBuf[7] << 8) +
 				int(node.recvBuf[8] << 16) +
-				int(node.recvBuf[9] << 32)
+				int(node.recvBuf[9] << 24)
 			if weight < 0 || weight > 100 {
 				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的权重值：%d，请设置为0-100之间", weight))
 				return

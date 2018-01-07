@@ -23,6 +23,7 @@ type tcpClient struct {
 	ServicePort  int
 	confirmCount int32
 	startConfirm bool
+	waitTimeout  bool
 }
 
 type tcpClientNode struct {
@@ -97,6 +98,7 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		ServicePort : config.Port,
 		confirmCount: 0,
 		startConfirm: false,
+		waitTimeout : false,
 	}
 
 	// 初始化缓存文件句柄

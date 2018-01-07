@@ -142,6 +142,13 @@ func (client *tcpClient) onClose()  {
 				client.binlog.StartService()
 				client.binlog.leader(true)
 			}
+		} else {
+			//todo 等待确认选举超时，默认为3秒，一般发生在节点直接网络不通的情况下
+			go func() {
+				time.Sleep(time.Second * 3)
+				client.waitTimeout = true
+				client.selectLeader()
+			}()
 		}
 	} else {
 		log.Debugf("current node is not next leader")
@@ -189,13 +196,14 @@ func (client *tcpClient) selectLeader() {
 	if client.startConfirm {
 		atomic.AddInt32(&client.confirmCount, 1)
 		count := atomic.LoadInt32(&client.confirmCount)
-		if count >= int32(len(client.binlog.members)/2)  {
+		if count >= int32(len(client.binlog.members)/2) || client.waitTimeout {
 			//选举成功
 			client.startConfirm = false
+			client.waitTimeout = false
 			atomic.StoreInt32(&client.confirmCount, 0)
 			client.binlog.StartService()
+			client.binlog.leaderDown()
 			client.binlog.leader(true)
-
 			//todo send leader change
 			client.binlog.leaderChange()
 		}
