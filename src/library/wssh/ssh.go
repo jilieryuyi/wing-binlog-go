@@ -4,23 +4,25 @@ package wssh
 import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"net"
 	"io/ioutil"
 	"log"
+	"net"
 	"time"
 )
+
 const (
-	CERT_PASSWORD = 1
+	CERT_PASSWORD        = 1
 	CERT_PUBLIC_KEY_FILE = 2
-	DEFAULT_TIMEOUT = 3 // second
+	DEFAULT_TIMEOUT      = 3 // second
 )
-type SSH struct{
-	Ip string
-	User string
-	Cert string //password or key file path
-	Port int
+
+type SSH struct {
+	Ip      string
+	User    string
+	Cert    string //password or key file path
+	Port    int
 	session *ssh.Session
-	client *ssh.Client
+	client  *ssh.Client
 }
 
 func (ssh_client *SSH) readPublicKeyFile(file string) ssh.AuthMethod {
@@ -39,7 +41,7 @@ func (ssh_client *SSH) readPublicKeyFile(file string) ssh.AuthMethod {
 func (ssh_client *SSH) Connect(mode int) {
 
 	var ssh_config *ssh.ClientConfig
-	var auth  []ssh.AuthMethod
+	var auth []ssh.AuthMethod
 	if mode == CERT_PASSWORD {
 		auth = []ssh.AuthMethod{ssh.Password(ssh_client.Cert)}
 	} else if mode == CERT_PUBLIC_KEY_FILE {
@@ -56,7 +58,7 @@ func (ssh_client *SSH) Connect(mode int) {
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
-		Timeout:time.Second * DEFAULT_TIMEOUT,
+		Timeout: time.Second * DEFAULT_TIMEOUT,
 	}
 
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", ssh_client.Ip, ssh_client.Port), ssh_config)
@@ -73,7 +75,7 @@ func (ssh_client *SSH) Connect(mode int) {
 	}
 
 	ssh_client.session = session
-	ssh_client.client  = client
+	ssh_client.client = client
 }
 
 func (ssh_client *SSH) RunCmd(cmd string) {
@@ -102,4 +104,4 @@ func main() {
 	client.RunCmd("ls /home")
 	client.Close()
 }
- */
+*/

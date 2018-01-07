@@ -1,13 +1,15 @@
 package app
 
 import (
-	"library/file"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
+	"library/file"
 )
+
 type AppConfig struct {
 	LogLevel int `toml:"log_level"`
 }
+
 func GetAppConfig() (*AppConfig, error) {
 	var app_config AppConfig
 	config_file := file.GetCurrentPath() + "/config/wing-binlog-go.toml"

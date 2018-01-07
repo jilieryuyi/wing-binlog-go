@@ -1,4 +1,5 @@
 package http
+
 // 仅供admin管理交互使用
 
 import (
@@ -6,24 +7,24 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
+	ssh "library/wssh"
 	"net/http"
 	"sync"
-	"time"
 	"sync/atomic"
-	ssh "library/wssh"
+	"time"
 )
 
 func NewWebSocketService(ip string, port int) *WebSocketService {
-	tcp := &WebSocketService {
-		Ip                 : ip,
-		Port               : port,
-		clients_count      : int32(0),
-		lock               : new(sync.Mutex),
-		send_queue         : make(chan []byte, 128),
-		recv_times         : 0,
-		send_times         : 0,
-		send_failure_times : 0,
-		clients            : make(map[string] *websocketClientNode, 128),
+	tcp := &WebSocketService{
+		Ip:                 ip,
+		Port:               port,
+		clients_count:      int32(0),
+		lock:               new(sync.Mutex),
+		send_queue:         make(chan []byte, 128),
+		recv_times:         0,
+		send_times:         0,
+		send_failure_times: 0,
+		clients:            make(map[string]*websocketClientNode, 128),
 	}
 	return tcp
 }
@@ -45,7 +46,7 @@ func (tcp *WebSocketService) SendAll(msg []byte) bool {
 func (tcp *WebSocketService) broadcast() {
 	for {
 		select {
-		case  msg := <-tcp.send_queue:
+		case msg := <-tcp.send_queue:
 			tcp.lock.Lock()
 			for _, conn := range tcp.clients {
 				if !conn.is_connected {
@@ -63,7 +64,7 @@ func (tcp *WebSocketService) broadcast() {
 func (tcp *WebSocketService) pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 2)
+	r := make([]byte, l+2)
 	r[0] = byte(cmd)
 	r[1] = byte(cmd >> 8)
 	copy(r[2:], m)
@@ -95,15 +96,15 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 			return
 		}
 		select {
-		case  msg, ok:= <-node.send_queue:
+		case msg, ok := <-node.send_queue:
 			if !ok {
 				log.Debugf("websocket服务通道关闭")
 				return
 			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second*1))
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
 			err := (*node.conn).WriteMessage(1, msg)
 			atomic.AddInt64(&node.send_times, int64(1))
-			if (err != nil) {
+			if err != nil {
 				atomic.AddInt64(&tcp.send_failure_times, int64(1))
 				atomic.AddInt64(&node.send_failure_times, int64(1))
 				log.Warnf("websocket服务发送失败：%v", msg)
@@ -114,18 +115,18 @@ func (tcp *WebSocketService) clientSendService(node *websocketClientNode) {
 
 func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 	log.Info("websocket服务新的连接：", conn.RemoteAddr().String())
-	cnode := &websocketClientNode {
-		conn               : conn,
-		is_connected       : true,
-		send_queue         : make(chan []byte, TCP_MAX_SEND_QUEUE),
-		send_failure_times : 0,
-		connect_time       : time.Now().Unix(),
-		send_times         : int64(0),
-		recv_bytes         : 0,
+	cnode := &websocketClientNode{
+		conn:               conn,
+		is_connected:       true,
+		send_queue:         make(chan []byte, TCP_MAX_SEND_QUEUE),
+		send_failure_times: 0,
+		connect_time:       time.Now().Unix(),
+		send_times:         int64(0),
+		recv_bytes:         0,
 	}
 	go tcp.clientSendService(cnode)
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -134,7 +135,7 @@ func (tcp *WebSocketService) onConnect(conn *websocket.Conn) {
 				log.Errorf("websocket服务error: %v", err)
 			}
 			tcp.onClose(cnode)
-			conn.Close();
+			conn.Close()
 			return
 		}
 		size := len(message)
@@ -163,8 +164,8 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 	if clen < 34 {
 		return
 	}
-	cmd := int(msg[0]) + int(msg[1] << 8) //2字节 command
-	sign := string(msg[2:34])             //签名
+	cmd := int(msg[0]) + int(msg[1]<<8) //2字节 command
+	sign := string(msg[2:34])           //签名
 	log.Debugf("websocket服务签名：%s", sign)
 	if !isOnline(sign) {
 		conn.send_queue <- tcp.pack(CMD_RELOGIN, "需要重新登录")
@@ -180,10 +181,10 @@ func (tcp *WebSocketService) onMessage(conn *websocketClientNode, msg []byte, si
 		tcp.lock.Unlock()
 	case CMD_CONNECT:
 		client := &ssh.SSH{
-			Ip: "127.0.0.1",
-			User : "root",
-			Port:22,
-			Cert:"123456",
+			Ip:   "127.0.0.1",
+			User: "root",
+			Port: 22,
+			Cert: "123456",
 		}
 		client.Connect(ssh.CERT_PASSWORD)
 		client.RunCmd("ls /home")
@@ -221,5 +222,5 @@ func (tcp *WebSocketService) Start() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		log.Infof("websocket服务监听: %s", dns)
 		m.RunOnAddr(dns)
-	} ()
+	}()
 }

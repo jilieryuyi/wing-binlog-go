@@ -1,9 +1,11 @@
 package command
 
 import (
-	"library/unix"
-	log "github.com/sirupsen/logrus"
 	"fmt"
+
+	"library/unix"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Stop() {
@@ -38,4 +40,3 @@ func ShowMembers() {
 	fmt.Println(string(buf))
 	client.Close()
 }
-

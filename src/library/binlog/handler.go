@@ -1,21 +1,23 @@
 package binlog
 
 import (
-	"strings"
-	"strconv"
-	"github.com/siddontang/go-mysql/schema"
+	"fmt"
+	"math/big"
 	"reflect"
-	"github.com/siddontang/go-mysql/canal"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
-	"github.com/siddontang/go-mysql/replication"
-	"library/services"
-	"github.com/siddontang/go-mysql/mysql"
-	log "github.com/sirupsen/logrus"
-	"fmt"
+
 	"library/file"
+	"library/services"
 	wstring "library/string"
-	"math/big"
+
+	"github.com/siddontang/go-mysql/canal"
+	"github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/replication"
+	"github.com/siddontang/go-mysql/schema"
+	log "github.com/sirupsen/logrus"
 )
 
 func (h *binlogHandler) RegisterService(name string, s services.Service) {
@@ -59,7 +61,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		if column.IsUnsigned && r < 0 {
 			t := string([]byte(column.RawType)[0:3])
 			if t != "int" {
-				r = int64(int64(1 << 24) + int64(edata.(int32)))
+				r = int64(int64(1<<24) + int64(edata.(int32)))
 			} else {
 				r = int64(int64(4294967296) + int64(edata.(int32)))
 			}
@@ -68,14 +70,14 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 	case int64:
 		// 枚举类型支持
 		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
-			i   := int(edata.(int64))-1
+			i := int(edata.(int64)) - 1
 			str := column.EnumValues[i]
 			encode(buf, str)
 		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
-			v   := uint(edata.(int64))
-			l   := uint(len(column.SetValues))
+			v := uint(edata.(int64))
+			l := uint(len(column.SetValues))
 			res := ""
-			for i := uint(0); i < l; i++  {
+			for i := uint(0); i < l; i++ {
 				if (v & (1 << i)) > 0 {
 					if res != "" {
 						res += ","
@@ -89,7 +91,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 				var ur uint64 = 0
 				ur = uint64(edata.(int64))
 				if ur < 0 {
-					ur = 1 << 63 + (1 << 63 + ur)
+					ur = 1<<63 + (1<<63 + ur)
 				}
 				*buf = strconv.AppendUint(*buf, ur, 10)
 			} else {
@@ -114,7 +116,7 @@ func (h *binlogHandler) append(buf *[]byte, edata interface{}, column *schema.Ta
 		*buf = append(*buf, f.String()...)
 	default:
 		if edata != nil {
-			log.Warnf("binlog不支持的类型：%s %+v", column.Name/*col.Name*/, reflect.TypeOf(edata))
+			log.Warnf("binlog不支持的类型：%s %+v", column.Name /*col.Name*/, reflect.TypeOf(edata))
 			*buf = append(*buf, "\"--unkonw type--\""...)
 		} else {
 			*buf = append(*buf, "null"...)
@@ -136,7 +138,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 	log.Debugf("binlog基础数据：%+v", e.Rows)
 	columns_len := len(e.Table.Columns)
 	log.Debugf("binlog缓冲区详细信息: %d %d", len(h.buf), cap(h.buf))
-	db    := []byte(e.Table.Schema)
+	db := []byte(e.Table.Schema)
 	point := []byte(".")
 	table := []byte(e.Table.Name)
 	dblen := len(db) + len(table) + len(point)
@@ -145,7 +147,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			atomic.AddInt64(&h.EventIndex, int64(1))
 			buf := h.buf[:0]
 			buf = append(buf, byte(dblen))
-			buf = append(buf, byte(dblen >> 8))
+			buf = append(buf, byte(dblen>>8))
 			buf = append(buf, db...)
 			buf = append(buf, point...)
 			buf = append(buf, table...)
@@ -165,7 +167,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					edata = nil
 				}
 				h.append(&buf, edata, &col)
-				if k < columns_len - 1 {
+				if k < columns_len-1 {
 					buf = append(buf, ","...)
 				}
 			}
@@ -183,7 +185,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					edata = nil
 				}
 				h.append(&buf, edata, &col)
-				if k < columns_len - 1 {
+				if k < columns_len-1 {
 					buf = append(buf, ","...)
 				}
 			}
@@ -203,7 +205,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 			atomic.AddInt64(&h.EventIndex, int64(1))
 			buf := h.buf[:0]
 			buf = append(buf, byte(dblen))
-			buf = append(buf, byte(dblen >> 8))
+			buf = append(buf, byte(dblen>>8))
 			buf = append(buf, db...)
 			buf = append(buf, point...)
 			buf = append(buf, table...)
@@ -223,7 +225,7 @@ func (h *binlogHandler) OnRow(e *canal.RowsEvent) error {
 					edata = nil
 				}
 				h.append(&buf, edata, &col)
-				if k < columns_len - 1 {
+				if k < columns_len-1 {
 					buf = append(buf, ","...)
 				}
 			}
@@ -287,9 +289,9 @@ func (h *binlogHandler) setCacheInfo(data string) {
 		return
 	}
 	h.lastBinFile = res[0]
-	wstr  := wstring.WString{res[1]}
+	wstr := wstring.WString{res[1]}
 	h.lastPos = uint32(wstr.ToInt64())
-	wstr  = wstring.WString{res[2]}
+	wstr = wstring.WString{res[2]}
 	h.EventIndex = wstr.ToInt64()
 }
 
@@ -310,7 +312,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(data string) {
 }
 
 func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
-	wfile := file.WFile{file.CurrentPath +"/cache/mysql_binlog_position.pos"}
+	wfile := file.WFile{file.CurrentPath + "/cache/mysql_binlog_position.pos"}
 	str := wfile.ReadAll()
 	if str == "" {
 		return "", int64(0), int64(0)
@@ -319,10 +321,9 @@ func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
 	if len(res) < 3 {
 		return "", int64(0), int64(0)
 	}
-	wstr  := wstring.WString{res[1]}
-	pos   := wstr.ToInt64()
+	wstr := wstring.WString{res[1]}
+	pos := wstr.ToInt64()
 	wstr2 := wstring.WString{res[2]}
 	index := wstr2.ToInt64()
 	return res[0], pos, index
 }
-

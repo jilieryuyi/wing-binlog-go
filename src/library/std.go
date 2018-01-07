@@ -1,12 +1,12 @@
 package library
 
 import (
-	"os"
-	"time"
-	"sync"
-	"log"
 	"fmt"
 	"library/file"
+	"log"
+	"os"
+	"sync"
+	"time"
 )
 
 func Reset() error {
@@ -41,7 +41,7 @@ func Reset() error {
 				time.Sleep(time.Second)
 				continue
 			}
-			if s.Size() == 1024 * 1024 * 1024 * 1024 {
+			if s.Size() == 1024*1024*1024*1024 {
 				// == 1G
 				mutex.Lock()
 				os.Stdout.Close()
@@ -53,7 +53,7 @@ func Reset() error {
 
 				if err != nil {
 					log.Println(err)
-					mutex.Unlock();
+					mutex.Unlock()
 					time.Sleep(time.Second)
 					continue
 				}
@@ -64,12 +64,12 @@ func Reset() error {
 
 				if err != nil {
 					log.Println(err)
-					mutex.Unlock();
+					mutex.Unlock()
 					time.Sleep(time.Second)
 					continue
 				}
 
-				mutex.Unlock();
+				mutex.Unlock()
 			}
 			time.Sleep(time.Second)
 		}
