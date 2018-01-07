@@ -198,6 +198,8 @@ func (h *Binlog) setStatus(dns string, status string) {
 }
 
 func (h *Binlog) leaderDown() {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	for _, member := range h.members {
 		if member.isLeader {
 			member.isLeader = false
