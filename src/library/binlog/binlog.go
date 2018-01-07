@@ -306,6 +306,7 @@ func (h *Binlog) getNextLeader() string {
 func (h *Binlog) ShowMembers() string {
 	h.lock.Lock()
 	defer h.lock.Unlock()
+	currentDns := fmt.Sprintf("%s:%d", h.BinlogHandler.Cluster.ServiceIp, h.BinlogHandler.Cluster.port)
 	l := len(h.members)
 	res := fmt.Sprintf("cluster size: %d node(s)\r\n", l)
 	res += fmt.Sprintf("======+=========================+==========+===============\r\n")
@@ -315,6 +316,9 @@ func (h *Binlog) ShowMembers() string {
 		role := "follower"
 		if member.isLeader {
 			role = "leader"
+		}
+		if dns == currentDns {
+			dns += " *"
 		}
 		res += fmt.Sprintf("%-6d| %-23s | %-8s | %s\r\n", member.index, dns, role, member.status)
 	}
