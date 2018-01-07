@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync/atomic"
 	"time"
-
 	log "github.com/sirupsen/logrus"
 	"library/buffer"
 )
