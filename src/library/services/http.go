@@ -1,23 +1,22 @@
 package services
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
-	"time"
-	"sync/atomic"
-	"sync"
-	"strconv"
 	"library/http"
 	"regexp"
-	"context"
 	"runtime"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // 创建一个新的http服务
 func NewHttpService(ctx *context.Context) *HttpService {
 	config, _ := getHttpConfig()
 	if !config.Enable {
-		return &HttpService {
-			enable:config.Enable,
+		return &HttpService{
+			enable: config.Enable,
 		}
 	}
 	gc := len(config.Groups)
@@ -33,7 +32,6 @@ func NewHttpService(ctx *context.Context) *HttpService {
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
-			mode: cgroup.Mode,
 		}
 		group.filter = make([]string, len(cgroup.Filter))
 		group.filter = append(group.filter[:0], cgroup.Filter...)
@@ -41,10 +39,8 @@ func NewHttpService(ctx *context.Context) *HttpService {
 		nc := len(cgroup.Nodes)
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
-			w, _ := strconv.Atoi(cgroup.Nodes[i][1])
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i][0],
-				weight:           w,
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
@@ -85,11 +81,11 @@ func (client *HttpService) cacheInit(node *httpNode) {
 	}
 	node.cache = make([][]byte, HTTP_CACHE_LEN)
 	for k := 0; k < HTTP_CACHE_LEN; k++ {
-		node.cache[k] = nil//make([]byte, HTTP_CACHE_BUFFER_SIZE)
+		node.cache[k] = nil //make([]byte, HTTP_CACHE_BUFFER_SIZE)
 	}
-	node.cacheIsInit  = true
-	node.cacheIndex   = 0
-	node.cacheFull    = false
+	node.cacheIsInit = true
+	node.cacheIndex = 0
+	node.cacheFull = false
 }
 
 func (client *HttpService) addCache(node *httpNode, msg []byte) {
@@ -98,7 +94,7 @@ func (client *HttpService) addCache(node *httpNode, msg []byte) {
 	node.cacheIndex++
 	if node.cacheIndex >= HTTP_CACHE_LEN {
 		node.cacheIndex = 0
-		node.cacheFull  = true
+		node.cacheFull = true
 	}
 }
 
@@ -113,7 +109,7 @@ func (client *HttpService) sendCache(node *httpNode) {
 		for j := 0; j < node.cacheIndex; j++ {
 			node.sendQueue <- string(node.cache[j])
 		}
-		node.cacheFull  = false
+		node.cacheFull = false
 		node.cacheIndex = 0
 	}
 }
@@ -125,7 +121,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		sleepTime := time.Second * client.timeTick
 		if node.isDown {
 			times := atomic.LoadInt64(&node.errorCheckTimes)
-			step := float64(times)/float64(1000)
+			step := float64(times) / float64(1000)
 			if step > float64(1) {
 				sleepTime = time.Duration(step) * time.Second
 				if sleepTime > 60 {
@@ -135,7 +131,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 			// 发送空包检测
 			// post默认3秒超时，所以这里不会死锁
 			log.Debugf("http服务-故障节点探测：%s", node.url)
-			_, err := http.Post(node.url,[]byte{byte(0)})
+			_, err := http.Post(node.url, []byte{byte(0)})
 			if err == nil {
 				//重新上线
 				node.isDown = false
@@ -150,7 +146,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		}
 		node.lock.Unlock()
 		time.Sleep(sleepTime)
-		select{
+		select {
 		case <-(*client.ctx).Done():
 			log.Debugf("http服务errorCheckService退出：%s", node.url)
 			return
@@ -164,7 +160,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 	defer client.wg.Done()
 	for {
 		select {
-		case  msg, ok := <-node.sendQueue:
+		case msg, ok := <-node.sendQueue:
 			if !ok {
 				log.Warnf("http服务-发送消息channel通道关闭")
 				return
@@ -174,7 +170,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				log.Debug("http服务 post数据到url：",
 					node.url, string(msg))
 				data, err := http.Post(node.url, []byte(msg))
-				if (err != nil) {
+				if err != nil {
 					atomic.AddInt64(&client.sendFailureTimes, int64(1))
 					atomic.AddInt64(&node.sendFailureTimes, int64(1))
 					atomic.AddInt32(&node.failureTimesFlag, int32(1))
@@ -211,11 +207,11 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				// 保持最新的10000条
 				client.addCache(node, []byte(msg))
 			}
-			case <-(*client.ctx).Done():
-				if len(node.sendQueue) <= 0 {
-					log.Debugf("http服务clientSendService退出：%s", node.url)
-					return
-				}
+		case <-(*client.ctx).Done():
+			if len(node.sendQueue) <= 0 {
+				log.Debugf("http服务clientSendService退出：%s", node.url)
+				return
+			}
 		}
 	}
 }
@@ -253,43 +249,13 @@ func (client *HttpService) SendAll(msg []byte) bool {
 				continue
 			}
 		}
-		mode := cgroup.mode
-		// 如果不等于权重，即广播模式
-		if mode != MODEL_WEIGHT {
-			for _, cnode := range cgroup.nodes {
-				log.Debug("http send broadcast: %s=>%s", cnode.url, string(msg[tableLen+2:]))
-				if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-					log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(msg[tableLen+2:]))
-					continue
-				}
-				cnode.sendQueue <- string(msg[tableLen+2:])
+		for _, cnode := range cgroup.nodes {
+			log.Debug("http send broadcast: %s=>%s", cnode.url, string(msg[tableLen+2:]))
+			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(msg[tableLen+2:]))
+				continue
 			}
-		} else {
-			// 负载均衡模式
-			// todo 根据已经sendTimes的次数负载均衡
-			clen := len(cgroup.nodes)
-			target := cgroup.nodes[0]
-			//将发送次数/权重 作为负载基数，每次选择最小的发送
-			js := float64(atomic.LoadInt64(&target.sendTimes))/float64(target.weight)
-			for i := 1; i < clen; i++ {
-				stimes := atomic.LoadInt64(&cgroup.nodes[i].sendTimes)
-				if stimes == 0 {
-					//优先发送没有发过的
-					target = cgroup.nodes[i]
-					break
-				}
-				njs := float64(stimes)/float64(cgroup.nodes[i].weight)
-				if njs < js {
-					js = njs
-					target = cgroup.nodes[i]
-				}
-			}
-			if len(target.sendQueue) < cap(target.sendQueue) {
-				log.Debug("http send load balance msg: %s=>%s", target.url, string(msg[tableLen + 2:]))
-				target.sendQueue <- string(msg[tableLen + 2:])
-			} else {
-				log.Warnf("http send buffer full(balance): %s, %s", target.url, string(msg[tableLen + 2:]))
-			}
+			cnode.sendQueue <- string(msg[tableLen+2:])
 		}
 	}
 
@@ -318,7 +284,6 @@ func (client *HttpService) Reload() {
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
-			mode: cgroup.Mode,
 		}
 		group.filter = make([]string, len(cgroup.Filter))
 		group.filter = append(group.filter[:0], cgroup.Filter...)
@@ -326,10 +291,8 @@ func (client *HttpService) Reload() {
 		nc := len(cgroup.Nodes)
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
-			w, _ := strconv.Atoi(cgroup.Nodes[i][1])
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i][0],
-				weight:           w,
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
@@ -344,4 +307,3 @@ func (client *HttpService) Reload() {
 	}
 	log.Debug("http service reloaded.")
 }
-

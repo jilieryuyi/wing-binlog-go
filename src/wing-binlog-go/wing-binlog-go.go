@@ -1,41 +1,43 @@
 package main
 
 import (
-	"library/binlog"
-	"library/services"
-	"library/app"
-	_ "github.com/go-sql-driver/mysql"
-	"runtime"
-	"os"
-	"os/signal"
-	"syscall"
-	_ "net/http/pprof"
-	"net/http"
+	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"runtime"
 	"strconv"
-	"library/file"
-	"flag"
-	log "github.com/sirupsen/logrus"
-	"library/unix"
-	"library/command"
+	"syscall"
 	"time"
-	"context"
+
+	"library/app"
+	"library/binlog"
+	"library/command"
+	"library/file"
+	"library/services"
+	"library/unix"
+
+	_ "github.com/go-sql-driver/mysql"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
-	debug = flag.Bool("debug", false, "enable debug, default disable")
+	debug   = flag.Bool("debug", false, "enable debug, default disable")
 	version = flag.Bool("version", false, "wing binlog go version")
-	stop = flag.Bool("stop", false, "stop service")
+	stop    = flag.Bool("stop", false, "stop service")
 	//-service-reload http
 	//-service-reload tcp
 	//-service-reload websocket
 	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
 	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
-	help = flag.Bool("help", false, "help")
-	joinTo = flag.String("join-to", "", "join to cluster")
-	members = flag.Bool("members", false, "show members from current node")
+	help           = flag.Bool("help", false, "help")
+	joinTo         = flag.String("join-to", "", "join to cluster")
+	members        = flag.Bool("members", false, "show members from current node")
 )
 
 const (
@@ -43,9 +45,10 @@ const (
 )
 
 var pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
+
 func writePid() {
-	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()));
-	ioutil.WriteFile(pid, data_str, 0777)  //写入文件(字节数组)
+	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()))
+	ioutil.WriteFile(pid, data_str, 0777) //写入文件(字节数组)
 }
 
 func clearPid() {
@@ -96,11 +99,11 @@ func usage() {
 
 func init() {
 	time.LoadLocation("Local")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true})
+	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true, FullTimestamp: true})
 	app_config, _ := app.GetAppConfig()
-	log.SetLevel(log.Level(app_config.LogLevel))//log.DebugLevel)
+	log.SetLevel(log.Level(app_config.LogLevel)) //log.DebugLevel)
 	//log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
 	//log.ResetOutHandler()
 	//u := data.User{"admin", "admin"}
@@ -114,12 +117,12 @@ func init() {
 
 func commandService() bool {
 	// 显示版本信息
-	if (*version) {
+	if *version {
 		fmt.Println(VERSION)
 		return true
 	}
 	// 停止服务
-	if (*stop) {
+	if *stop {
 		command.Stop()
 		return true
 	}
@@ -154,21 +157,19 @@ func main() {
 	// 退出程序时删除pid文件
 	defer clearPid()
 	// 性能测试
- 	pprofService()
+	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// 各种通信服务
-	tcp_service       := services.NewTcpService(&ctx)
-	websocket_service := services.NewWebSocketService(&ctx)
-	http_service      := services.NewHttpService(&ctx)
+	tcp_service := services.NewTcpService(&ctx)
+	http_service := services.NewHttpService(&ctx)
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcp_service)
-	blog.BinlogHandler.RegisterService("websocket", websocket_service)
 	blog.BinlogHandler.RegisterService("http", http_service)
 	blog.Start()
 

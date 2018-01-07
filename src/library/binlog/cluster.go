@@ -1,14 +1,16 @@
 package binlog
 
 import (
-	log "github.com/sirupsen/logrus"
-	"sync"
-	"library/buffer"
-	"library/file"
 	"context"
-	"github.com/BurntSushi/toml"
 	"net"
 	"os"
+	"sync"
+
+	"library/buffer"
+	"library/file"
+
+	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
 
 type tcpClient struct {
@@ -52,7 +54,7 @@ type TcpServer struct {
 	cacheHandler     *os.File
 }
 
-type clusterConfig struct{
+type clusterConfig struct {
 	Listen    string `toml:"listen"`
 	Port      int    `toml:"port"`
 	ServiceIp string `toml:"service_ip"`
@@ -60,7 +62,7 @@ type clusterConfig struct{
 
 func getServiceConfig() (*clusterConfig, error) {
 	var config clusterConfig
-	config_file := file.CurrentPath+"/config/cluster.toml"
+	config_file := file.CurrentPath + "/config/cluster.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Errorf("config file %s does not exists", config_file)
@@ -74,7 +76,7 @@ func getServiceConfig() (*clusterConfig, error) {
 }
 
 func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
-	config, _:= getServiceConfig()
+	config, _ := getServiceConfig()
 	log.Debugf("cluster server init with config: %+v", config)
 	server := &TcpServer{
 		listen:           config.Listen,
@@ -89,25 +91,25 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 		ServiceIp:        config.ServiceIp,
 	}
 	server.Client = &tcpClient{
-		isClosed    : true,
-		recvTimes   : int64(0),
-		recvBuf     : buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
-		lock        : new(sync.Mutex),
-		binlog      : binlog,
-		ServiceIp   : config.ServiceIp,
-		ServicePort : config.Port,
+		isClosed:     true,
+		recvTimes:    int64(0),
+		recvBuf:      buffer.NewBuffer(TCP_RECV_DEFAULT_SIZE),
+		lock:         new(sync.Mutex),
+		binlog:       binlog,
+		ServiceIp:    config.ServiceIp,
+		ServicePort:  config.Port,
 		confirmCount: 0,
 		startConfirm: false,
 		waitTimeout : false,
 	}
 
 	// 初始化缓存文件句柄
-	cache := file.CurrentPath +"/cache/nodes.list"
-	dir   := file.WPath{cache}
-	dir    = file.WPath{dir.GetParent()}
+	cache := file.CurrentPath + "/cache/nodes.list"
+	dir := file.WPath{cache}
+	dir = file.WPath{dir.GetParent()}
 
 	dir.Mkdir()
-	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC// | os.O_TRUNC
+	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	var err error
 	server.cacheHandler, err = os.OpenFile(cache, flag, 0755)
 	if err != nil {
@@ -115,4 +117,3 @@ func NewCluster(ctx *context.Context, binlog *Binlog) *TcpServer {
 	}
 	return server
 }
-

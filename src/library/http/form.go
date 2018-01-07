@@ -1,20 +1,20 @@
 package http
 
 import (
-	"net/http"
 	"bytes"
-	"net"
-	"time"
 	"io/ioutil"
+	"net"
+	"net/http"
+	"time"
 	//log "github.com/sirupsen/logrus"
 	"errors"
 	"fmt"
 )
 
 // 超时设置
-var defaultHttpClient = http.Client {
-	Transport: &http.Transport {
-		MaxIdleConnsPerHost:16,
+var defaultHttpClient = http.Client{
+	Transport: &http.Transport{
+		MaxIdleConnsPerHost: 16,
 		Dial: func(netw, addr string) (net.Conn, error) {
 			//deadline := time.Now().Add(HTTP_POST_TIMEOUT * time.Second)
 
@@ -34,8 +34,6 @@ var defaultHttpClient = http.Client {
 			}
 			//
 			//fmt.Println("connect done, use", conn.LocalAddr().String())
-
-
 
 			//conn.SetDeadline(deadline)
 			return conn, nil
@@ -61,7 +59,7 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		// 返回异常状态
 		//log.Errorf("http post error, error status back: %d", resp.StatusCode)
-		return nil, errors.New(fmt.Sprintf("错误的状态码：%d", resp.StatusCode))//ErrorHttpStatus
+		return nil, errors.New(fmt.Sprintf("错误的状态码：%d", resp.StatusCode)) //ErrorHttpStatus
 	}
 	res, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -69,7 +67,6 @@ func Post(addr string, post_data []byte) ([]byte, error) {
 	}
 	return res, nil
 }
-
 
 func Get(addr string) (*[]byte, *int, *http.Header, error) {
 	// 上传JSON数据
@@ -104,4 +101,3 @@ func Get(addr string) (*[]byte, *int, *http.Header, error) {
 	// 不会到这里
 	return nil, nil, nil, nil
 }
-

@@ -1,42 +1,42 @@
 package http
 
 import (
-	"net/http"
-	"time"
-	log "github.com/sirupsen/logrus"
 	"fmt"
-	"library/util"
+	log "github.com/sirupsen/logrus"
 	"library/data"
 	"library/file"
+	"library/util"
+	"net/http"
 	"sync"
+	"time"
 )
 
-var online_users map[string] *OnLineUser = make(map[string] *OnLineUser)
+var online_users map[string]*OnLineUser = make(map[string]*OnLineUser)
 var online_users_lock *sync.Mutex = new(sync.Mutex)
-var http_errors map[int] string = map[int] string {
-	200 : "ok",
-	201 : "login error",
-	202 : "logout error",
-	203 : "logout ok",
-	204 : "please relogin",
+var http_errors map[int]string = map[int]string{
+	200: "ok",
+	201: "login error",
+	202: "logout error",
+	203: "logout ok",
+	204: "please relogin",
 }
 
 // 初始化，系统自动执行
 func init() {
 	return
-	log.SetFormatter(&log.TextFormatter{TimestampFormat:"2006-01-02 15:04:05",
-		ForceColors:true,
-		QuoteEmptyFields:true, FullTimestamp:true,
+	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true, FullTimestamp: true,
 	})
 	config, _ := getServiceConfig()
-	ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port);
+	ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port)
 	ws.Start()
 	server := &HttpServer{
-		Path : file.CurrentPath + "/web",
-		Ip   : config.Http.Listen,
-		Port : config.Http.Port,
-		ws   : ws,
-		httpHandler : http.FileServer(http.Dir(file.CurrentPath + "/web")),
+		Path:        file.CurrentPath + "/web",
+		Ip:          config.Http.Listen,
+		Port:        config.Http.Port,
+		ws:          ws,
+		httpHandler: http.FileServer(http.Dir(file.CurrentPath + "/web")),
 	}
 	server.Start()
 }
@@ -67,15 +67,15 @@ func onUserLogin(w http.ResponseWriter, req *http.Request) {
 		user_sign := util.RandString()
 		online_users_lock.Lock()
 		online_users[user_sign] = &OnLineUser{
-			Name : username[0],
-			Password:password[0],
-			LastPostTime:time.Now().Unix(),
+			Name:         username[0],
+			Password:     password[0],
+			LastPostTime: time.Now().Unix(),
 		}
 		online_users_lock.Unlock()
 		cookie := http.Cookie{
-			Name: "user_sign",
-			Value: user_sign,
-			Path: "/",
+			Name:   "user_sign",
+			Value:  user_sign,
+			Path:   "/",
 			MaxAge: 86400,
 		}
 		http.SetCookie(w, &cookie)
@@ -86,14 +86,14 @@ func onUserLogin(w http.ResponseWriter, req *http.Request) {
 }
 
 func onUserLogout(w http.ResponseWriter, req *http.Request) {
-	user_sign, err:= req.Cookie("user_sign")
+	user_sign, err := req.Cookie("user_sign")
 	if err != nil {
 		w.Write([]byte(output(202, http_errors[202], "")))
 		return
 	}
 	cookie := http.Cookie{
-		Name: "user_sign",
-		Path: "/",
+		Name:   "user_sign",
+		Path:   "/",
 		MaxAge: -1,
 	}
 	http.SetCookie(w, &cookie)
@@ -115,14 +115,14 @@ func (server *HttpServer) checkLoginTimeout() {
 		online_users_lock.Lock()
 		for key, user := range online_users {
 			now := time.Now().Unix()
-			if now - user.LastPostTime > DEFAULT_LOGIN_TIMEOUT {
+			if now-user.LastPostTime > DEFAULT_LOGIN_TIMEOUT {
 				log.Infof("http服务检测到登录超时：", key, user.Name)
 				server.ws.DeleteClient(key)
 				delete(online_users, key)
 			}
 		}
 		online_users_lock.Unlock()
-		time.Sleep(time.Second*3)
+		time.Sleep(time.Second * 3)
 	}
 }
 
@@ -132,7 +132,7 @@ func (server *HttpServer) Start() {
 		log.Infof("http服务器启动...")
 		log.Infof("http服务监听: %s:%d", server.Ip, server.Port)
 		static_http_handler := http.FileServer(http.Dir(server.Path))
-		http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request){
+		http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 			// 判断是否在线
 			user_sign, err := req.Cookie("user_sign")
 			is_leave := false
@@ -152,8 +152,8 @@ func (server *HttpServer) Start() {
 			if is_leave {
 				// 清除cookie
 				cookie := http.Cookie{
-					Name: "user_sign",
-					Path: "/",
+					Name:   "user_sign",
+					Path:   "/",
 					MaxAge: -1,
 				}
 				http.SetCookie(w, &cookie)
@@ -162,7 +162,7 @@ func (server *HttpServer) Start() {
 		})
 		http.HandleFunc("/user/login", onUserLogin)
 		http.HandleFunc("/get/websocket/port", func(w http.ResponseWriter, req *http.Request) {
-			user_sign, err:= req.Cookie("user_sign")
+			user_sign, err := req.Cookie("user_sign")
 			if err != nil {
 				w.Write([]byte(output(204, http_errors[204], "")))
 				return
@@ -176,8 +176,8 @@ func (server *HttpServer) Start() {
 				w.Write([]byte(output(204, http_errors[204], "")))
 			}
 		})
-		http.HandleFunc("/user/logout", func(w http.ResponseWriter, req *http.Request){
-			user_sign, err:= req.Cookie("user_sign")
+		http.HandleFunc("/user/logout", func(w http.ResponseWriter, req *http.Request) {
+			user_sign, err := req.Cookie("user_sign")
 			if err == nil {
 				server.ws.DeleteClient(user_sign.Value)
 			}
@@ -190,4 +190,3 @@ func (server *HttpServer) Start() {
 		}
 	}()
 }
-

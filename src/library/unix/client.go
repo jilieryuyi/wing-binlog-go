@@ -1,16 +1,16 @@
 package unix
 
 import (
-	"net"
-	"library/file"
-	log "github.com/sirupsen/logrus"
 	"github.com/juju/errors"
+	log "github.com/sirupsen/logrus"
+	"library/file"
+	"net"
 )
 
 func NewUnixClient() *UnixClient {
 	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
 	client := &UnixClient{
-		addr : addr,
+		addr: addr,
 	}
 	client.Start()
 	return client
@@ -47,7 +47,7 @@ func (client *UnixClient) Start() {
 func (client *UnixClient) Pack(cmd int, msg string) []byte {
 	m := []byte(msg)
 	l := len(m)
-	r := make([]byte, l + 6)
+	r := make([]byte, l+6)
 	cl := l + 2
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
@@ -76,4 +76,3 @@ func (client *UnixClient) Close() {
 	}
 	(*client.conn).Close()
 }
-
