@@ -145,6 +145,7 @@ func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
 	if ok {
 		mem.isLeader = isLeader
 		mem.index = index
+		mem.status = MEMBER_STATUS_LIVE
 	} else {
 		h.members[dns] = &member{
 			isLeader: isLeader,
