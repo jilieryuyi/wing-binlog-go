@@ -13,7 +13,7 @@ import (
 
 func NewTcpService(ctx *context.Context) *TcpService {
 	config, _ := getTcpConfig()
-	tcp := &TcpService{
+	tcp := &TcpService {
 		Ip:               config.Listen,
 		Port:             config.Port,
 		lock:             new(sync.Mutex),
@@ -28,11 +28,10 @@ func NewTcpService(ctx *context.Context) *TcpService {
 	}
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
-		var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
 		tcp.groups[cgroup.Name] = &tcpGroup{
 			name: cgroup.Name,
 		}
-		tcp.groups[cgroup.Name].nodes = nodes[:0]
+		tcp.groups[cgroup.Name].nodes = nil
 		tcp.groups[cgroup.Name].filter = make([]string, flen)
 		tcp.groups[cgroup.Name].filter = append(tcp.groups[cgroup.Name].filter[:0], cgroup.Filter...)
 	}
@@ -44,15 +43,17 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 	if !tcp.enable {
 		return false
 	}
-	log.Info("tcp服务-广播：", string(msg))
-	table_len := int(msg[0]) + int(msg[1]<<8)
-	table := string(msg[2 : table_len+2])
+	log.Info("tcp broadcast: ", string(msg))
+	tableLen := int(msg[0]) | int(msg[1] << 8)
+	table    := string(msg[2 : tableLen + 2])
 
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
 	for _, cgroup := range tcp.groups {
-		// 如果分组里面没有客户端连接，跳过
+		if cgroup.nodes == nil {
+			continue
+		}
 		if len(cgroup.nodes) <= 0 {
 			// if node count == 0 in each group
 			// program will left the loop from here
@@ -80,27 +81,26 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 			if !cnode.isConnected {
 				continue
 			}
-			log.Info("tcp服务-发送广播消息")
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Warnf("tcp服务-发送缓冲区满：%s", (*cnode.conn).RemoteAddr().String())
+				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
 				continue
 			}
-			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[table_len+2:])) //msg[table_len+2:]
+			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[tableLen + 2:]))
 		}
 	}
 	return true
 }
 
-// 数据封包
+// data pack with little endian
 func (tcp *TcpService) pack(cmd int, msg string) []byte {
-	m := []byte(msg)
-	l := len(m)
-	r := make([]byte, l+6)
+	m  := []byte(msg)
+	l  := len(m)
+	r  := make([]byte, l+6)
 	cl := l + 2
 	r[0] = byte(cl)
 	r[1] = byte(cl >> 8)
 	r[2] = byte(cl >> 16)
-	r[3] = byte(cl >> 32)
+	r[3] = byte(cl >> 24)
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 	copy(r[6:], m)
@@ -219,10 +219,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			return
 		}
 		//4字节长度
-		clen := int(node.recvBuf[0]) +
-			int(node.recvBuf[1]<<8) +
-			int(node.recvBuf[2]<<16) +
-			int(node.recvBuf[3]<<32)
+		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]<<8) | int(node.recvBuf[2]<<16) | int(node.recvBuf[3]<<24)
 		//2字节 command
 		cmd := int(node.recvBuf[4]) + int(node.recvBuf[5]<<8)
 		log.Debugf("收到消息：cmd=%d, content_len=%d", cmd, clen)
@@ -272,7 +269,7 @@ func (tcp *TcpService) Start() {
 			return
 		}
 		tcp.listener = &listen
-		log.Infof("tcp服务-等待新的连接...")
+		log.Infof("tcp service with: %s", dns)
 		for {
 			conn, err := listen.Accept()
 			select {
