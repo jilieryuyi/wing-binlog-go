@@ -4,7 +4,16 @@ import (
 	"context"
 	"sync"
 	"time"
+	"library/file"
+	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
+
+type httpNodeConfig struct {
+	Name   string
+	Nodes  []string
+	Filter []string
+}
 
 type httpGroup struct {
 	name   string      //
@@ -42,4 +51,22 @@ type httpNode struct {
 	cacheIsInit      bool
 	cacheFull        bool
 	errorCheckTimes  int64
+}
+
+func getHttpConfig() (*HttpConfig, error) {
+	var config HttpConfig
+	http_config_file := file.GetCurrentPath() + "/config/http.toml"
+	wfile := file.WFile{http_config_file}
+	if !wfile.Exists() {
+		log.Warnf("配置文件%s不存在 %s", http_config_file)
+		return nil, ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(http_config_file, &config); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	if config.TimeTick <= 0 {
+		config.TimeTick = 1
+	}
+	return &config, nil
 }

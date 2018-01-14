@@ -14,6 +14,7 @@ import (
 // 创建一个新的http服务
 func NewHttpService(ctx *context.Context) *HttpService {
 	config, _ := getHttpConfig()
+	log.Debugf("start http service with config: %+v", config)
 	if !config.Enable {
 		return &HttpService{
 			enable: config.Enable,
@@ -40,7 +41,7 @@ func NewHttpService(ctx *context.Context) *HttpService {
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
 			group.nodes[i] = &httpNode{
-				url:              cgroup.Nodes[i][0],
+				url:              cgroup.Nodes[i],
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
@@ -292,7 +293,7 @@ func (client *HttpService) Reload() {
 		group.nodes = make([]*httpNode, nc)
 		for i := 0; i < nc; i++ {
 			group.nodes[i] = &httpNode{
-				url:              cgroup.Nodes[i][0],
+				url:              cgroup.Nodes[i],
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
