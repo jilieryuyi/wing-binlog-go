@@ -36,7 +36,10 @@ echo "installing... golang.org/x/text/encoding/simplifiedchinese"
 go get golang.org/x/text/encoding/simplifiedchinese
 echo "installing... golang.org/x/text/transform"
 go get golang.org/x/text/transform
+echo "installing... github.com/axgle/mahonia"
 go get github.com/axgle/mahonia
+echo "installing... github.com/coreos/etcd"
+go get github.com/coreos/etcd
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 cp -rf $vendor_path/src/* $vendor_path
