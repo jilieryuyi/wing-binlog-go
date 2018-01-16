@@ -33,7 +33,7 @@ var (
 	//-service-reload websocket
 	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
-	service_reload = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
+	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
 	help           = flag.Bool("help", false, "help")
 	joinTo         = flag.String("join-to", "", "join to cluster")
 	members        = flag.Bool("members", false, "show members from current node")
@@ -133,8 +133,8 @@ func commandService() bool {
 		return true
 	}
 	// 重新加载服务
-	if *service_reload != "" {
-		command.Reload(*service_reload)
+	if *serviceReload != "" {
+		command.Reload(*serviceReload)
 		return true
 	}
 	// 帮助
