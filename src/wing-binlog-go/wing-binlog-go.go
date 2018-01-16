@@ -45,27 +45,30 @@ const (
 	VERSION = "1.0.0"
 )
 
-var pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
-
+var (
+	pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
+ 	appConfig, _ = app.GetAppConfig()
+)
+// write pid file
 func writePid() {
-	var data_str = []byte(fmt.Sprintf("%d", os.Getpid()))
-	ioutil.WriteFile(pid, data_str, 0777) //写入文件(字节数组)
+	data := []byte(fmt.Sprintf("%d", os.Getpid()))
+	ioutil.WriteFile(pid, data, 0777)
 }
-
+// delete pid file
 func clearPid() {
 	f := file.WFile{pid}
 	f.Delete()
 }
-
+// kill process by pid file
 func killPid() {
 	dat, _ := ioutil.ReadFile(pid)
 	fmt.Print(string(dat))
 	pid, _ := strconv.Atoi(string(dat))
-	log.Println("给进程发送终止信号：", pid)
+	log.Debugf("try to kill process: %d", pid)
 	//err := syscall.Kill(pid, syscall.SIGTERM)
 	//log.Println(err)
 }
-
+// pprof tool support
 func pprofService() {
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
@@ -80,7 +83,7 @@ func pprofService() {
 
 		//下载文件 http://localhost:6060/debug/pprof/profile
 		//分析 go tool pprof -web /Users/yuyi/Downloads/profile
-		log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+		log.Println(http.ListenAndServe(appConfig.PprofListen, nil))
 	}()
 }
 
@@ -99,12 +102,14 @@ func usage() {
 }
 
 func init() {
-	time.LoadLocation("Local")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
+	time.LoadLocation(appConfig.TimeZone)
+	log.SetFormatter(&log.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:      true,
-		QuoteEmptyFields: true, FullTimestamp: true})
-	app_config, _ := app.GetAppConfig()
-	log.SetLevel(log.Level(app_config.LogLevel)) //log.DebugLevel)
+		QuoteEmptyFields: true,
+		FullTimestamp:    true,
+	})
+	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
 	//log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
 	//log.ResetOutHandler()
 	//u := data.User{"admin", "admin"}
@@ -142,7 +147,6 @@ func commandService() bool {
 		command.JoinTo(*joinTo)
 		return true
 	}
-
 	if *members {
 		command.ShowMembers()
 		return true
@@ -164,14 +168,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// 各种通信服务
-	tcp_service := services.NewTcpService(&ctx)
-	http_service := services.NewHttpService(&ctx)
+	tcpService := services.NewTcpService(&ctx)
+	httpService := services.NewHttpService(&ctx)
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	// 注册tcp、http、websocket服务
-	blog.BinlogHandler.RegisterService("tcp", tcp_service)
-	blog.BinlogHandler.RegisterService("http", http_service)
+	blog.BinlogHandler.RegisterService("tcp", tcpService)
+	blog.BinlogHandler.RegisterService("http", httpService)
 	blog.Start()
 
 	// unix socket服务，用户本地指令控制
@@ -191,5 +195,5 @@ func main() {
 	// 优雅的退出程序
 	cancel()
 	blog.Close()
-	fmt.Println("服务退出...")
+	fmt.Println("wing binlog service exit...")
 }
