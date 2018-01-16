@@ -81,7 +81,9 @@ func pprofService() {
 
 		//下载文件 http://localhost:6060/debug/pprof/profile
 		//分析 go tool pprof -web /Users/yuyi/Downloads/profile
-		log.Println(http.ListenAndServe(appConfig.PprofListen, nil))
+		if appConfig.PprofListen != "" {
+			http.ListenAndServe(appConfig.PprofListen, nil)
+		}
 	}()
 }
 

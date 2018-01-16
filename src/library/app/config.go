@@ -24,9 +24,9 @@ func GetAppConfig() (*AppConfig, error) {
 		log.Errorf("读取配置文件错误：%+v", err)
 		return nil, ErrorFileParse
 	}
-	if appConfig.PprofListen == "" {
-		appConfig.PprofListen = "0.0.0.0:6060"
-	}
+	//if appConfig.PprofListen == "" {
+	//	appConfig.PprofListen = "0.0.0.0:6060"
+	//}
 	if appConfig.TimeZone == "" {
 		appConfig.TimeZone = "Local"
 	}

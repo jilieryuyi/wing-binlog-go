@@ -5,8 +5,8 @@
 # 3 =	WarnLevel
 # 4 =	InfoLevel
 # 5 =	DebugLevel
-##日志级别，默认为5，即显示所有的日志信息
+##log level, default is 5, show all logs
 log_level = 5
-##新能分析工具
+##pprof tool, if empty, it will not start
 pprof_listen = "0.0.0.0:6060
 time_zone = "Local"
