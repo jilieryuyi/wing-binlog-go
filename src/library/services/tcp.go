@@ -43,13 +43,11 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 	if !tcp.enable {
 		return false
 	}
-	log.Info("tcp broadcast: ", string(msg))
+	log.Debugf("tcp broadcast: %s", string(msg))
 	tableLen := int(msg[0]) | int(msg[1] << 8)
-	table    := string(msg[2 : tableLen + 2])
-
+	table    := string(msg[2:tableLen + 2])
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-
 	for _, cgroup := range tcp.groups {
 		if cgroup.nodes == nil {
 			continue
@@ -111,16 +109,14 @@ func (tcp *TcpService) pack(cmd int, msg string) []byte {
 func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-
 	close(node.sendQueue)
 	node.isConnected = false
-
 	if node.group != "" {
 		// remove node if exists
 		if group, found := tcp.groups[node.group]; found {
 			for index, cnode := range group.nodes {
 				if cnode.conn == node.conn {
-					group.nodes = append(group.nodes[:index], group.nodes[index+1:]...)
+					group.nodes = append(group.nodes[:index], group.nodes[index + 1:]...)
 					break
 				}
 			}
@@ -134,13 +130,13 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 	defer tcp.wg.Done()
 	for {
 		if !node.isConnected {
-			log.Info("tcp服务-clientSendService退出")
+			log.Info("tcp service, clientSendService exit.")
 			return
 		}
 		select {
 		case msg, ok := <-node.sendQueue:
 			if !ok {
-				log.Info("tcp服务-发送消息channel通道关闭")
+				log.Info("tcp service, sendQueue channel closed.")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
@@ -149,11 +145,11 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 			if size <= 0 || err != nil {
 				atomic.AddInt64(&tcp.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
-				log.Warn("tcp服务-失败次数：", (*node.conn).RemoteAddr().String(), node.sendFailureTimes)
+				log.Warnf("tcp service, %s failure times: %d", (*node.conn).RemoteAddr().String(), node.sendFailureTimes)
 			}
 		case <-(*tcp.ctx).Done():
 			if len(node.sendQueue) <= 0 {
-				log.Info("tcp服务-clientSendService退出")
+				log.Info("tcp service, clientSendService exit.")
 				return
 			}
 		}
@@ -162,7 +158,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 
 // 连接成功回调
 func (tcp *TcpService) onConnect(conn net.Conn) {
-	log.Info("tcp服务-新的连接：", conn.RemoteAddr().String())
+	log.Debugf("tcp service, new connect: %s", conn.RemoteAddr().String())
 	cnode := &tcpClientNode{
 		conn:             &conn,
 		isConnected:      true,
@@ -205,7 +201,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 	}
 }
 
-// 收到消息回调函数
+// receive a new message
 func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 	node.recvBuf = append(node.recvBuf[:node.recvBytes-size], msg[0:size]...)
 	for {
@@ -219,23 +215,22 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			return
 		}
 		//4字节长度
-		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]<<8) | int(node.recvBuf[2]<<16) | int(node.recvBuf[3]<<24)
+		clen := int(node.recvBuf[0]) | int(node.recvBuf[1] << 8) | int(node.recvBuf[2] << 16) | int(node.recvBuf[3] << 24)
 		//2字节 command
-		cmd := int(node.recvBuf[4]) + int(node.recvBuf[5]<<8)
-		log.Debugf("收到消息：cmd=%d, content_len=%d", cmd, clen)
+		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5] << 8)
+		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		switch cmd {
 		case CMD_SET_PRO:
-			log.Info("tcp服务-收到注册分组消息")
+			log.Info("tcp service, receive register group message")
 			if len(node.recvBuf) < 10 {
 				return
 			}
-
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			name := string(node.recvBuf[10 : clen+4])
+			name := string(node.recvBuf[10 : clen + 4])
 			tcp.lock.Lock()
 			group, found := tcp.groups[name]
 			if !found {
-				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp服务-组不存在：%s", group))
+				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service, group does not exists: %s", group))
 				tcp.lock.Unlock()
 				return
 			}
@@ -246,12 +241,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.lock.Unlock()
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
-		//心跳包
+			//心跳包
 		default:
-			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("不支持的指令：%d", cmd))
+			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 		}
-		//数据移动
-		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen+4:node.recvBytes]...)
+		//数据移动，清除已读数据
+		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:node.recvBytes]...)
 		node.recvBytes = node.recvBytes - clen - 4
 	}
 }
@@ -261,15 +256,14 @@ func (tcp *TcpService) Start() {
 		return
 	}
 	go func() {
-		//建立socket，监听端口
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		listen, err := net.Listen("tcp", dns)
 		if err != nil {
-			log.Error("tcp服务发生错误：", err)
+			log.Errorf("tcp service listen with error: %+v", err)
 			return
 		}
 		tcp.listener = &listen
-		log.Infof("tcp service with: %s", dns)
+		log.Infof("tcp service start with: %s", dns)
 		for {
 			conn, err := listen.Accept()
 			select {
@@ -278,7 +272,7 @@ func (tcp *TcpService) Start() {
 			default:
 			}
 			if err != nil {
-				log.Warn("tcp服务发生错误：", err)
+				log.Warnf("tcp service accept with error: %+v", err)
 				continue
 			}
 			go tcp.onConnect(conn)
@@ -290,14 +284,12 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-
 	for _, cgroup := range tcp.groups {
 		if len(cgroup.nodes) > 0 {
 			tcp.wg.Wait()
 			break
 		}
 	}
-
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
@@ -308,31 +300,33 @@ func (tcp *TcpService) Close() {
 			cnode.isConnected = false
 		}
 	}
-
 	log.Debugf("tcp service closed.")
 }
 
-// 重新加载服务
 func (tcp *TcpService) Reload() {
-	log.Debug("tcp服务reload...")
-	config, _ := getTcpConfig()
-	log.Debugf("新配置：%+v", config)
+	config, err := getTcpConfig()
+	if err != nil {
+		log.Errorf("tcp service reload get config with error: %+v", err)
+		return
+	}
+	log.Debugf("tcp service reload with new config：%+v", config)
 	tcp.enable = config.Enable
+	// flag to mark if need restart
 	restart := false
-
+	// check if is need restart
 	if tcp.Ip != config.Listen || tcp.Port != config.Port {
 		log.Debugf("tcp service need to be restarted since ip address or/and port changed from %s:%d to %s:%d",
-			tcp.Ip,
-			tcp.Port,
-			config.Listen,
-			config.Port)
+			tcp.Ip, tcp.Port, config.Listen, config.Port)
 		restart = true
+		// new config
 		tcp.Ip = config.Listen
 		tcp.Port = config.Port
+		// clear counter
 		tcp.recvTimes = 0
 		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
-
+		// close all connected nodes
+		// remove all groups
 		for name, cgroup := range tcp.groups {
 			for _, cnode := range cgroup.nodes {
 				log.Debugf("closing service：%s", (*cnode.conn).RemoteAddr().String())
@@ -343,6 +337,7 @@ func (tcp *TcpService) Reload() {
 			log.Debugf("removing groups：%s", name)
 			delete(tcp.groups, name)
 		}
+		// reset tcp config form new config
 		for _, ngroup := range config.Groups { // new group
 			flen := len(ngroup.Filter)
 			var nodes [TCP_DEFAULT_CLIENT_SIZE]*tcpClientNode
@@ -354,16 +349,18 @@ func (tcp *TcpService) Reload() {
 			tcp.groups[ngroup.Name].filter = append(tcp.groups[ngroup.Name].filter[:0], ngroup.Filter...)
 		}
 	} else {
+		// if listen ip or/and port does not change
 		// 2-direction group comparision
 		for name, cgroup := range tcp.groups { // current group
 			found := false
+			// check the current group if exists in the new config group
 			for _, ngroup := range config.Groups { // new group
 				if name == ngroup.Name {
 					found = true
 					break
 				}
 			}
-			// remove group
+			// if a group does not in the new config group, remove it
 			if !found {
 				log.Debugf("group removed: %s", name)
 				for _, cnode := range cgroup.nodes {
@@ -374,6 +371,7 @@ func (tcp *TcpService) Reload() {
 				}
 				delete(tcp.groups, name)
 			} else {
+				// if exists, reset with the new config
 				// replace group filters
 				group, _ := config.Groups[name]
 				flen := len(group.Filter)
@@ -381,7 +379,7 @@ func (tcp *TcpService) Reload() {
 				tcp.groups[name].filter = append(tcp.groups[name].filter[:0], group.Filter...)
 			}
 		}
-
+		// check new group
 		for _, ngroup := range config.Groups { // new group
 			found := false
 			for name := range tcp.groups {
@@ -390,7 +388,6 @@ func (tcp *TcpService) Reload() {
 					break
 				}
 			}
-
 			// add it if new group found
 			if !found {
 				log.Debugf("new group: %s", ngroup.Name)
@@ -408,9 +405,9 @@ func (tcp *TcpService) Reload() {
 			}
 		}
 	}
-
+	// if need restart, restart it
 	if restart {
-		log.Debugf("tcp服务重启...")
+		log.Debugf("tcp service restart...")
 		tcp.Close()
 		tcp.Start()
 	}
