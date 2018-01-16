@@ -35,4 +35,4 @@ call go get github.com/mattn/go-sqlite3
 echo "installing... segmentio/kafka-go"
 call go get github.com/segmentio/kafka-go
 
-xcopy  %vendor_path%\src\*.* %vendor_path% /s /e /y /q
+::xcopy  %vendor_path%\src\*.* %vendor_path% /s /e /y /q

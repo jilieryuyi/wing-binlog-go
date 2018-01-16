@@ -44,7 +44,7 @@ echo "installing... github.com/mattn/goreman"
 go get github.com/mattn/goreman
 
 find $vendor_path -name '*.git*' | xargs rm -rf
-cp -rf $vendor_path/src/* $vendor_path
-cp -rf $current_path/src/library $current_path/vendor/
+##cp -rf $vendor_path/src/* $vendor_path
+##cp -rf $current_path/src/library $current_path/vendor/
 
 echo "install complete"
