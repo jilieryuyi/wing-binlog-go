@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	//if debug is true, print stack log
 	debug   = flag.Bool("debug", false, "enable debug, default disable")
 	version = flag.Bool("version", false, "wing binlog go version")
 	stop    = flag.Bool("stop", false, "stop service")
