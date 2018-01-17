@@ -119,7 +119,7 @@ func pack(cmd int, client_id string, msgs []string) []byte {
 		r[base_start+0] = byte(ml)
 		r[base_start+1] = byte(ml >> 8)
 		r[base_start+2] = byte(ml >> 16)
-		r[base_start+3] = byte(ml >> 32)
+		r[base_start+3] = byte(ml >> 24)
 		base_start += 4
 		// 实际的内容
 		copy(r[base_start:], m)
