@@ -44,6 +44,17 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		Cluster:       cluster,
 		ctx:           ctx,
 	}
+
+	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
+	dir := file.WPath{mysqlBinlogCacheFile}
+	dir = file.WPath{dir.GetParent()}
+	dir.Mkdir()
+	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
+	if err != nil {
+		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
+	}
+
 	f, p, index := binlog.BinlogHandler.getBinlogPositionCache()
 
 	binlog.BinlogHandler.EventIndex = index
@@ -77,16 +88,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 
 	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
 	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
-
-	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
-	dir := file.WPath{mysqlBinlogCacheFile}
-	dir = file.WPath{dir.GetParent()}
-	dir.Mkdir()
-	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
-	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
-	if err != nil {
-		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
-	}
+	
 	return binlog
 }
 
