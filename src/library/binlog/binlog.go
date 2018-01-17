@@ -88,7 +88,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 
 	binlog.BinlogHandler.lastBinFile = binlog.Config.BinFile
 	binlog.BinlogHandler.lastPos = uint32(binlog.Config.BinPos)
-	
+
 	return binlog
 }
 
@@ -105,24 +105,24 @@ func newCanal() *canal.Canal {
 }
 
 // recover, try to rejoin to the cluster
-func (h *Binlog) recover() {
-	wfile := file.WFile{file.CurrentPath + "/cache/nodes.list"}
-	str := wfile.ReadAll()
-	if str == "" {
-		log.Debug("recover empty")
-		return
-	}
-	var nodes []interface{}
-	err := json.Unmarshal([]byte(str), &nodes)
-	if err != nil {
-		log.Debugf("recover error with: %+v", err)
-		return
-	}
-	log.Debugf("recover: %+v", nodes)
-	dns := nodes[0].(string)
-	log.Debugf("recover: %s", dns)
-	h.BinlogHandler.Cluster.Client.ConnectTo(dns)
-}
+//func (h *Binlog) recover() {
+//	wfile := file.WFile{file.CurrentPath + "/cache/nodes.list"}
+//	str := wfile.ReadAll()
+//	if str == "" {
+//		log.Debug("recover empty")
+//		return
+//	}
+//	var nodes []interface{}
+//	err := json.Unmarshal([]byte(str), &nodes)
+//	if err != nil {
+//		log.Debugf("recover error with: %+v", err)
+//		return
+//	}
+//	log.Debugf("recover: %+v", nodes)
+//	dns := nodes[0].(string)
+//	log.Debugf("recover: %s", dns)
+//	h.BinlogHandler.Cluster.Client.ConnectTo(dns)
+//}
 
 // set member
 func (h *Binlog) setMember(dns string, isLeader bool, index int) int {
@@ -414,10 +414,10 @@ func (h *Binlog) Start() {
 		service.Start()
 	}
 	h.StartService()
-	go func() {
-		time.Sleep(time.Microsecond * 10)
-		h.recover()
-	}()
+	//go func() {
+	//	time.Sleep(time.Microsecond * 10)
+	//	//h.recover()
+	//}()
 }
 
 func (h *Binlog) Reload(service string) {
