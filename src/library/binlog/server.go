@@ -154,7 +154,7 @@ func (server *TcpServer) onClose(node *tcpClientNode) {
 		}
 	}
 	server.lock.Unlock()
-	server.binlog.setStatus(node.ServiceDns, MEMBER_STATUS_LEAVE)
+	//server.binlog.setStatus(node.ServiceDns, MEMBER_STATUS_LEAVE)
 }
 
 func (server *TcpServer) keepalive() {
@@ -201,42 +201,42 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 			// todo 这里还需要缓存起来，异常恢复的时候读取这个缓存，尝试重新加入集群
 			server.saveNodes()
 			//index := len(server.binlog.members) + 1
-			index := server.binlog.setMember(node.ServiceDns, false, 0)
+			//index := server.binlog.setMember(node.ServiceDns, false, 0)
 			// todo: 将新增的节点广播给所有的节点，然后节点的members新增一个
 
-			r := make([]byte, len(node.ServiceDns)+2)
-			r[0] = byte(index)
-			r[1] = byte(index >> 8)
-			copy(r[2:], node.ServiceDns)
-
-			server.send(CMD_NEW_NODE, string(r))
-
-			//todo 这里还需要做一件事情就是把node列表同步过去
-			for dns, member := range server.binlog.members {
-				if dns != node.ServiceDns {
-					res := make([]byte, len(dns) + 4)
-					isleader := 0
-					if member.isLeader {
-						isleader = 1
-					}
-					res[0] = byte(member.index)
-					res[1] = byte(member.index >> 8)
-					res[2] = byte(isleader)
-					res[3] = byte(isleader >> 8)
-					copy(res[4:], dns)
-					server.send(CMD_NODE_SYNC, string(res))
-				}
-			}
+			//r := make([]byte, len(node.ServiceDns)+2)
+			//r[0] = byte(index)
+			//r[1] = byte(index >> 8)
+			//copy(r[2:], node.ServiceDns)
+			//
+			//server.send(CMD_NEW_NODE, string(r))
+			//
+			////todo 这里还需要做一件事情就是把node列表同步过去
+			//for dns, member := range server.binlog.members {
+			//	if dns != node.ServiceDns {
+			//		res := make([]byte, len(dns) + 4)
+			//		isleader := 0
+			//		if member.isLeader {
+			//			isleader = 1
+			//		}
+			//		res[0] = byte(member.index)
+			//		res[1] = byte(member.index >> 8)
+			//		res[2] = byte(isleader)
+			//		res[3] = byte(isleader >> 8)
+			//		copy(res[4:], dns)
+			//		server.send(CMD_NODE_SYNC, string(res))
+			//	}
+			//}
 
 		case CMD_GET_LEADER:
 			//todo: get leader ip and response
-			dns, index := server.binlog.getLeader()
-			log.Debugf("cmd get leader is: %d, %s", index, dns)
-			r := make([]byte, len(dns)+2)
-			r[0] = byte(index)
-			r[1] = byte(index >> 8)
-			copy(r[2:], dns)
-			node.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
+			//dns, index := server.binlog.getLeader()
+			//log.Debugf("cmd get leader is: %d, %s", index, dns)
+			//r := make([]byte, len(dns)+2)
+			//r[0] = byte(index)
+			//r[1] = byte(index >> 8)
+			//copy(r[2:], dns)
+			//node.sendQueue <- server.pack(CMD_GET_LEADER, string(r))
 		case CMD_CLOSE_CONFIRM:
 			log.Debugf("receive close confirm from: %s", (*node.conn).RemoteAddr().String())
 			server.Client.selectLeader()

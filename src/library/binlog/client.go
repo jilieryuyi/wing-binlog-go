@@ -10,40 +10,40 @@ import (
 )
 
 func (client *tcpClient) ConnectTo(dns string) bool {
-	client.lock.Lock()
-	defer client.lock.Unlock()
-
-	log.Debugf("connect to: %s", dns)
-	var index int
-	dns, index = client.getLeaderDns(dns)
-	if dns == "" {
-		return false
-	}
-	client.binlog.setMember(dns, true, index)
-	client.dns = dns
-	if client.connect() != nil {
-		return false
-	}
-
-	go func() {
-		var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
-		for {
-			buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
-			//清空旧数据 memset
-			for i := range buf {
-				buf[i] = byte(0)
-			}
-			size, err := (*client.conn).Read(buf)
-			if err != nil {
-				log.Errorf("%s 连接发生错误: %s", (*client.conn).RemoteAddr().String(), err)
-				client.onClose()
-				return
-			}
-			log.Debugf("cluster client 收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
-			atomic.AddInt64(&client.recvTimes, int64(1))
-			client.onMessage(buf[:size])
-		}
-	}()
+	//client.lock.Lock()
+	//defer client.lock.Unlock()
+	//
+	//log.Debugf("connect to: %s", dns)
+	//var index int
+	//dns, index = client.getLeaderDns(dns)
+	//if dns == "" {
+	//	return false
+	//}
+	//client.binlog.setMember(dns, true, index)
+	//client.dns = dns
+	//if client.connect() != nil {
+	//	return false
+	//}
+	//
+	//go func() {
+	//	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+	//	for {
+	//		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+	//		//清空旧数据 memset
+	//		for i := range buf {
+	//			buf[i] = byte(0)
+	//		}
+	//		size, err := (*client.conn).Read(buf)
+	//		if err != nil {
+	//			log.Errorf("%s 连接发生错误: %s", (*client.conn).RemoteAddr().String(), err)
+	//			client.onClose()
+	//			return
+	//		}
+	//		log.Debugf("cluster client 收到消息 %d 字节：%d %s", size, buf[:size], string(buf[:size]))
+	//		atomic.AddInt64(&client.recvTimes, int64(1))
+	//		client.onMessage(buf[:size])
+	//	}
+	//}()
 	return true
 }
 
@@ -119,43 +119,43 @@ func (client *tcpClient) onClose() {
 	//2、如果当前节点不是next leader，则连接leader，确认选举
 	//3、如果当前是next leader，如果数量达到int(n/2)则选举成功
 
-	if client.binlog.isNextLeader() {
-		log.Debugf("current node is next leader")
-		//todo 等待int(n/2)掉线选举确认
-		client.startConfirm = true
-		client.binlog.leaderDown()
-
-		if len(client.binlog.members) <= 2 {
-			errTimes := 0
-			for i := 0; i < 3; i++ {
-				err := client.connect()
-				log.Debugf("try to reconnect %d times", (i + 1))
-				if err == nil {
-					break
-				} else {
-					errTimes++
-				}
-			}
-			if errTimes >= 3 {
-				log.Debug("reconnect failure, set current node is leader")
-				//如果都失败，则把当前节点设置为leader
-				client.binlog.StartService()
-				client.binlog.leader(true)
-			}
-		} else {
-			//todo 等待确认选举超时，默认为3秒，一般发生在节点直接网络不通的情况下
-			go func() {
-				time.Sleep(time.Second * 3)
-				client.waitTimeout = true
-				client.selectLeader()
-			}()
-		}
-	} else {
-		log.Debugf("current node is not next leader")
-		nextDns := client.binlog.getNextLeader()
-		log.Debugf("next leader dns: %s", nextDns)
-        client.sendCloseConfirm(nextDns)
-	}
+	//if client.binlog.isNextLeader() {
+	//	log.Debugf("current node is next leader")
+	//	//todo 等待int(n/2)掉线选举确认
+	//	client.startConfirm = true
+	//	//client.binlog.leaderDown()
+	//
+	//	if len(client.binlog.members) <= 2 {
+	//		errTimes := 0
+	//		for i := 0; i < 3; i++ {
+	//			err := client.connect()
+	//			log.Debugf("try to reconnect %d times", (i + 1))
+	//			if err == nil {
+	//				break
+	//			} else {
+	//				errTimes++
+	//			}
+	//		}
+	//		if errTimes >= 3 {
+	//			log.Debug("reconnect failure, set current node is leader")
+	//			//如果都失败，则把当前节点设置为leader
+	//			client.binlog.StartService()
+	//			client.binlog.leader(true)
+	//		}
+	//	} else {
+	//		//todo 等待确认选举超时，默认为3秒，一般发生在节点直接网络不通的情况下
+	//		go func() {
+	//			time.Sleep(time.Second * 3)
+	//			client.waitTimeout = true
+	//			client.selectLeader()
+	//		}()
+	//	}
+	//} else {
+	//	log.Debugf("current node is not next leader")
+	//	nextDns := client.binlog.getNextLeader()
+	//	log.Debugf("next leader dns: %s", nextDns)
+     //   client.sendCloseConfirm(nextDns)
+	//}
 
 	//集群leader当节点<=2的时候，有一个明显的缺点，就是如果两个节点的网络断开，
 	//没办法进一步确认是否正的原leader节点已经下线，所以可能出现两个leader的情况
@@ -201,10 +201,10 @@ func (client *tcpClient) selectLeader() {
 			client.waitTimeout = false
 			atomic.StoreInt32(&client.confirmCount, 0)
 			client.binlog.StartService()
-			client.binlog.leaderDown()
-			client.binlog.leader(true)
+			//client.binlog.leaderDown()
+			//client.binlog.leader(true)
 			//todo send leader change
-			client.binlog.leaderChange()
+			//client.binlog.leaderChange()
 		}
 	}
 }
@@ -282,21 +282,21 @@ func (client *tcpClient) onMessage(msg []byte) {
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 				//这里是follower节点，所以后续要停止数据采集操作
 				client.binlog.StopService(false)
-				client.binlog.leader(false)
+				//client.binlog.leader(false)
 		    case CMD_NEW_NODE:
 				//index := len(client.binlog.members) + 1
 				// leader分配的索引
-				index := int(content[0]) + int(content[1] << 8)
-				dns := string(content[2:])
-				client.binlog.setMember(dns, false, index)
+				//index := int(content[0]) + int(content[1] << 8)
+				//dns := string(content[2:])
+				//client.binlog.setMember(dns, false, index)
 		    case CMD_NODE_SYNC:
 				index := int(content[0]) + int(content[1] << 8)
 				isLeader := int(content[2]) + int(content[3] << 8)
 				dns := string(content[4:])
-				il := isLeader == 1
+				//il := isLeader == 1
 				fmt.Println(content)
 				log.Debugf("CMD_NODE_SYNC: %s==%d,%d,%s", content, index, isLeader, dns)
-				client.binlog.setMember(dns, il, index)
+				//client.binlog.setMember(dns, il, index)
 			case CMD_KEEPALIVE:
 				// keep alive
 				log.Debugf("keep alive")
