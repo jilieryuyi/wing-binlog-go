@@ -30,7 +30,6 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		services:      make(map[string]services.Service),
 		servicesCount: 0,
 		lock:          new(sync.Mutex),
-		Cluster:       nil,
 		ctx:           ctx,
 	}
 	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
@@ -95,7 +94,6 @@ func (h *Binlog) Close() {
 	h.lock.Unlock()
 	h.StopService(true)
 	h.BinlogHandler.cacheHandler.Close()
-	h.BinlogHandler.Cluster.Close()
 	for name, service := range h.BinlogHandler.services {
 		log.Debugf("%s service exit", name)
 		service.Close()
