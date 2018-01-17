@@ -2,18 +2,15 @@ package binlog
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
-
 	"library/buffer"
 	"library/file"
 	"library/services"
-
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	log "github.com/sirupsen/logrus"
