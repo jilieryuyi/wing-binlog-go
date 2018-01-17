@@ -275,9 +275,9 @@ func (client *tcpClient) onMessage(msg []byte) {
 
 		switch cmd {
 			case CMD_POS:
-				log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
-				client.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
-				client.binlog.BinlogHandler.setCacheInfo(string(content))
+				//log.Debugf("cluster服务-client-binlog写入缓存：%s", string(content))
+				//client.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
+				//client.binlog.BinlogHandler.setCacheInfo(string(content))
 			case CMD_JOIN:
 				log.Debugf("cluster服务-client收到握手回复，加入群集成功")
 				//这里是follower节点，所以后续要停止数据采集操作

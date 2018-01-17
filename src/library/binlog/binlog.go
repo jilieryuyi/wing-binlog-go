@@ -364,11 +364,11 @@ func (h *Binlog) StopService(exit bool) {
 	if !h.BinlogHandler.isClosed {
 		h.handler.Close()
 	} else {
-		data := fmt.Sprintf("%s:%d:%d",
-			h.BinlogHandler.lastBinFile,
-			h.BinlogHandler.lastPos,
-			atomic.LoadInt64(&h.BinlogHandler.EventIndex))
-		h.BinlogHandler.SaveBinlogPostionCache(data)
+		//data := fmt.Sprintf("%s:%d:%d",
+		//	h.BinlogHandler.lastBinFile,
+		//	h.BinlogHandler.lastPos,
+		//	atomic.LoadInt64(&h.BinlogHandler.EventIndex))
+		h.BinlogHandler.SaveBinlogPostionCache(h.BinlogHandler.lastBinFile, int64(h.BinlogHandler.lastPos), atomic.LoadInt64(&h.BinlogHandler.EventIndex))
 	}
 	h.BinlogHandler.isClosed = true
 	h.isClosed = true
