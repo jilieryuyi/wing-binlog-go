@@ -19,11 +19,6 @@ func NewUnixServer() *UnixServer {
 	return server
 }
 
-//func init() {
-//	server := NewUnixServer()
-//	server.Start()
-//}
-
 func (server *UnixServer) onConnect(c net.Conn) {
 	for {
 		buf := make([]byte, 512)
@@ -59,7 +54,6 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			}
 		case CMD_JOINTO:
 			log.Debugf("收到加入群集指令：%s", string(content))
-			server.binlog.BinlogHandler.Cluster.Client.ConnectTo(string(content))
 		case CMD_SHOW_MEMBERS:
 			c.Write([]byte(/*server.binlog.ShowMembers()*/""))
 		default:

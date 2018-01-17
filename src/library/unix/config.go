@@ -23,5 +23,4 @@ type UnixServer struct {
 	cancel  *context.CancelFunc
 	binlog  *binlog.Binlog
 	pidFile string
-	cluster *binlog.TcpServer
 }
