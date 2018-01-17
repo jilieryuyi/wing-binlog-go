@@ -96,7 +96,6 @@ type binlogHandler struct {
 	lock          *sync.Mutex // 互斥锁，修改资源时锁定
 	isClosed      bool
 	ctx           *context.Context
-	Cluster       *TcpServer
 	lastPos       uint32
 	lastBinFile   string
 }
