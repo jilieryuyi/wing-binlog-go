@@ -315,7 +315,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventI
 	r[14] = byte(eventIndex >> 48)
 	r[15] = byte(eventIndex >> 56)
 	r = append(r[:16], res...)
-	log.Debugf("write binlog cache: %+v", r)
+	log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
 	_, err := h.cacheHandler.WriteAt(res, 0)
 	//select {
 	//case <-(*h.ctx).Done():
@@ -359,6 +359,8 @@ func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
 			int64(data[13]) << 40 |
 			int64(data[14]) << 48 |
 			int64(data[15]) << 56
+	log.Debugf("read binlog cache: %s, %d, %d", string(data[16:]), pos, eventIndex)
+
 	return string(data[16:]), pos, eventIndex
 
 	//res := strings.Split(str, ":")
