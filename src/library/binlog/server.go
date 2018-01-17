@@ -185,7 +185,7 @@ func (server *TcpServer) onMessage(node *tcpClientNode, msg []byte) {
 		switch cmd {
 		case CMD_POS:
 			log.Debugf("cluster服务-binlog写入缓存：%s", string(content))
-			server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
+			//server.binlog.BinlogHandler.SaveBinlogPostionCache(string(content))
 		case CMD_JOIN:
 			// 这里需要把服务ip和端口发送过来
 			log.Debugf("cluster服务-client加入集群成功%s", (*node.conn).RemoteAddr().String())

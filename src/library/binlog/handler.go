@@ -1,18 +1,15 @@
 package binlog
 
 import (
-	"fmt"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
-
 	"library/file"
 	"library/services"
 	wstring "library/string"
-
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
@@ -272,9 +269,9 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	//h.lock.Lock()
 	//defer h.lock.Unlock()
 	log.Debugf("binlog事件：OnPosSynced %+v %b", p, b)
-	data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.EventIndex))
-	h.SaveBinlogPostionCache(data)
-	h.Cluster.SendPos(data)
+	//data := fmt.Sprintf("%s:%d:%d", p.Name, p.Pos, atomic.LoadInt64(&h.EventIndex))
+	h.SaveBinlogPostionCache(p.Name, int64(p.Pos), atomic.LoadInt64(&h.EventIndex))
+	//h.Cluster.SendPos(data)
 	h.lastBinFile = p.Name
 	h.lastPos = p.Pos
 	return nil
@@ -295,10 +292,31 @@ func (h *binlogHandler) setCacheInfo(data string) {
 	h.EventIndex = wstr.ToInt64()
 }
 
-func (h *binlogHandler) SaveBinlogPostionCache(data string) {
-	log.Debugf("binlog写入缓存：%s", data)
-	wdata := []byte(data)
-	_, err := h.cacheHandler.WriteAt(wdata, 0)
+func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventIndex int64) {
+	//log.Debugf("binlog写入缓存：%s", data)
+	//wdata := []byte(data)
+	res := []byte(binFile)
+	r := make([]byte, 16 + len(res))
+	r[0] = byte(pos)
+	r[1] = byte(pos >> 8)
+	r[2] = byte(pos >> 16)
+	r[3] = byte(pos >> 24)
+	r[4] = byte(pos >> 32)
+	r[5] = byte(pos >> 40)
+	r[6] = byte(pos >> 48)
+	r[7] = byte(pos >> 56)
+
+	r[8]  = byte(eventIndex)
+	r[9]  = byte(eventIndex >> 8)
+	r[10] = byte(eventIndex >> 16)
+	r[11] = byte(eventIndex >> 24)
+	r[12] = byte(eventIndex >> 32)
+	r[13] = byte(eventIndex >> 40)
+	r[14] = byte(eventIndex >> 48)
+	r[15] = byte(eventIndex >> 56)
+	r = append(r[:16], res...)
+	log.Debugf("write binlog cache: %+v", r)
+	_, err := h.cacheHandler.WriteAt(res, 0)
 	//select {
 	//case <-(*h.ctx).Done():
 	//	log.Debugf("服务退出，等待SaveBinlogPostionCache完成，%s", data)
@@ -317,13 +335,39 @@ func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
 	if str == "" {
 		return "", int64(0), int64(0)
 	}
-	res := strings.Split(str, ":")
-	if len(res) < 3 {
-		return "", int64(0), int64(0)
+	data := []byte(str)
+
+	if len(data) < 16 {
+		return "", 0, 0
 	}
-	wstr := wstring.WString{res[1]}
-	pos := wstr.ToInt64()
-	wstr2 := wstring.WString{res[2]}
-	index := wstr2.ToInt64()
-	return res[0], pos, index
+	pos :=
+		int64(data[0]) |
+			int64(data[1]) << 8 |
+			int64(data[2]) << 16 |
+			int64(data[3]) << 24 |
+			int64(data[4]) << 32 |
+			int64(data[5]) << 40 |
+			int64(data[6]) << 48 |
+			int64(data[7]) << 56
+
+	eventIndex :=
+		int64(data[8]) |
+			int64(data[9]) << 8 |
+			int64(data[10]) << 16 |
+			int64(data[11]) << 24 |
+			int64(data[12]) << 32 |
+			int64(data[13]) << 40 |
+			int64(data[14]) << 48 |
+			int64(data[15]) << 56
+	return string(data[16:]), pos, eventIndex
+
+	//res := strings.Split(str, ":")
+	//if len(res) < 3 {
+	//	return "", int64(0), int64(0)
+	//}
+	//wstr := wstring.WString{res[1]}
+	//pos := wstr.ToInt64()
+	//wstr2 := wstring.WString{res[2]}
+	//index := wstr2.ToInt64()
+	//return res[0], pos, index
 }
