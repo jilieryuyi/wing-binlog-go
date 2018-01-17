@@ -47,3 +47,18 @@ func TestGetPoint(t *testing.T) {
 	//
 
 }
+
+func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
+	binfile := "mysql-bin.000059"
+	pos := int64(123456)
+	eventIndex := int64(20)
+
+	h := &binlogHandler{}
+	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
+
+	s, p, e := h.getBinlogPositionCache()
+
+	if s != binfile || pos != p || e != eventIndex {
+		t.Errorf("getBinlogPositionCache error")
+	}
+}
