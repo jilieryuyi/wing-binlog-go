@@ -101,6 +101,12 @@ type binlogHandler struct {
 	lastBinFile   string
 }
 
+type Pos struct {
+	BinFile string
+	Pos int64
+	EventIndex int64
+}
+
 // 获取mysql配置
 func GetMysqlConfig() (*AppConfig, error) {
 	var app_config AppConfig

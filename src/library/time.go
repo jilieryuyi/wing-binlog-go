@@ -2,7 +2,6 @@ package library
 
 import (
 	"time"
-	"github.com/hashicorp/consul/command/info"
 )
 
 func GetDayTime() string {

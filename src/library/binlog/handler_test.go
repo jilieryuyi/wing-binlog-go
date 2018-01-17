@@ -1,52 +1,21 @@
 package binlog
 
-import "testing"
+import (
+	"testing"
+	"os"
+	log "github.com/sirupsen/logrus"
+)
 
-func TestGetPoint(t *testing.T) {
-	//h := &binlogHandler{}
-	//p , err := h.getPoint("double", 1.1)
-	//
-	//if err != nil {
-	//	t.Errorf("发生错误：%+v", err)
-	//}
-	//
-	//if p != 1 {
-	//	t.Errorf("获取小数位长度不对-1")
-	//}
-	//
-	//p , err = h.getPoint("double", 1.12)
-	//
-	//if err != nil {
-	//	t.Errorf("发生错误：%+v", err)
-	//}
-	//
-	//if p != 1 {
-	//	t.Errorf("获取小数位长度不对-2")
-	//}
-	//
-	//p , err = h.getPoint("decimal(10,5)", 0)
-	//
-	//if err != nil {
-	//	t.Errorf("发生错误：%+v", err)
-	//}
-	//
-	//if p != 5 {
-	//	t.Errorf("获取小数位长度不对-2")
-	//}
-	//
-	//
-	//p , err = h.getPoint("float(10,5)", 0)
-	//
-	//if err != nil {
-	//	t.Errorf("发生错误：%+v", err)
-	//}
-	//
-	//if p != 5 {
-	//	t.Errorf("获取小数位长度不对-2")
-	//}
-	//
-
+func init() {
+	log.SetFormatter(&log.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true,
+		FullTimestamp:    true,
+	})
+	log.SetLevel(5)
 }
+
 
 func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	binfile := "mysql-bin.000059"
@@ -54,11 +23,28 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	eventIndex := int64(20)
 
 	h := &binlogHandler{}
+	var err error
+	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	h.cacheHandler, err = os.OpenFile("/tmp/cache_test.pos", flag, 0755)
+	if err != nil {
+		t.Errorf("binlog open cache file error: %+v", err)
+	}
 	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
 
 	s, p, e := h.getBinlogPositionCache()
+	log.Debugf("%s, %d, %d", s, p, e)
 
-	if s != binfile || pos != p || e != eventIndex {
-		t.Errorf("getBinlogPositionCache error")
+	log.Debugf("%+v, %+v", []byte(s), []byte(binfile))
+
+	if s != binfile {
+		t.Errorf("getBinlogPositionCache binfile error")
+	}
+
+	if pos != p {
+		t.Errorf("getBinlogPositionCache pos error")
+	}
+
+	if e != eventIndex {
+		t.Errorf("getBinlogPositionCache eventIndex error")
 	}
 }
