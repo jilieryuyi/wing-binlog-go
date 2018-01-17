@@ -3,9 +3,6 @@ package file
 import (
 	"io/ioutil"
 	"os"
-	// "log"
-	//"path/filepath"
-	//"io"
 	"log"
 	"time"
 )
