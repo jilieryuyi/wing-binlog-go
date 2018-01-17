@@ -26,13 +26,11 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		isLeader: true,
 		members:  make(map[string]*member),
 	}
-	cluster := NewCluster(ctx, binlog)
-	cluster.Start()
 	binlog.BinlogHandler = &binlogHandler{
 		services:      make(map[string]services.Service),
 		servicesCount: 0,
 		lock:          new(sync.Mutex),
-		Cluster:       cluster,
+		Cluster:       nil,
 		ctx:           ctx,
 	}
 	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
