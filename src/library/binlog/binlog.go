@@ -82,7 +82,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 	dir := file.WPath{mysqlBinlogCacheFile}
 	dir = file.WPath{dir.GetParent()}
 	dir.Mkdir()
-	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
 	if err != nil {
 		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
