@@ -1,4 +1,4 @@
-package wssh
+package ssh
 
 // link: http://blog.ralch.com/tutorial/golang-ssh-connection/
 import (

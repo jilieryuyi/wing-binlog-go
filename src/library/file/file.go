@@ -8,11 +8,11 @@ import (
 )
 
 type WFile struct {
-	File_path string
+	FilePath string
 }
 
 func (file *WFile) Exists() bool {
-	if _, err := os.Stat(file.File_path); err != nil {
+	if _, err := os.Stat(file.FilePath); err != nil {
 		if os.IsNotExist(err) {
 			// file does not exist
 			return false
@@ -30,7 +30,7 @@ func (file *WFile) ReadAll() string {
 	if !file.Exists() {
 		return ""
 	}
-	dat, err := ioutil.ReadFile(file.File_path)
+	dat, err := ioutil.ReadFile(file.FilePath)
 	if err != nil {
 		return ""
 	}
@@ -66,7 +66,7 @@ func (file *WFile) Read(offset int64, length int64) string {
 	if !file.Exists() {
 		return ""
 	}
-	handle, err := os.Open(file.File_path)
+	handle, err := os.Open(file.FilePath)
 	if err != nil {
 		return ""
 	}
@@ -142,7 +142,7 @@ func (file *WFile) Length() int64 {
 	if !file.Exists() {
 		return 0
 	}
-	handle, err := os.Open(file.File_path)
+	handle, err := os.Open(file.FilePath)
 	if err != nil {
 		return 0
 	}
@@ -167,12 +167,12 @@ func (file *WFile) Length() int64 {
 }
 
 func (file *WFile) Delete() bool {
-	err := os.Remove(file.File_path)
+	err := os.Remove(file.FilePath)
 	return err == nil
 }
 
 func (file *WFile) Write(data string, append bool) int {
-	dir := WPath{file.File_path}
+	dir := WPath{file.FilePath}
 	dir = WPath{dir.GetParent()}
 	dir.Mkdir()
 
@@ -183,7 +183,7 @@ func (file *WFile) Write(data string, append bool) int {
 		flag |= os.O_TRUNC
 	}
 
-	handle, err := os.OpenFile(file.File_path, flag, 0755)
+	handle, err := os.OpenFile(file.FilePath, flag, 0755)
 	if err != nil {
 		return 0
 	}
@@ -215,6 +215,6 @@ func (file *WFile) Write(data string, append bool) int {
 	}
 
 	//io.WriteString(handle, data)
-	//ioutil.WriteFile(file.File_path, []byte(data), 0755)
+	//ioutil.WriteFile(file.FilePath, []byte(data), 0755)
 	return n
 }

@@ -11,7 +11,7 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	eventIndex := int64(20)
 	h := &binlogHandler{}
 	var err error
-	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC
 	h.cacheHandler, err = os.OpenFile("/tmp/cache_test.pos", flag, 0755)
 	if err != nil {
 		t.Errorf("binlog open cache file error: %+v", err)

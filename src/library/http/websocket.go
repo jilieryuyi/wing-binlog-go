@@ -7,7 +7,7 @@ import (
 	"github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	ssh "library/wssh"
+	ssh "library/ssh"
 	"net/http"
 	"sync"
 	"sync/atomic"
