@@ -27,7 +27,7 @@ var cache_file *os.File = nil
 
 func ResetOutHandler() {
 	syslog.Println("=======>std.Out==", std.Out)
-	daytime := wtime.GetDayTime2()
+	daytime := time.GetDayTime2()
 	if cache_log_daytime == daytime {
 		return
 	}
@@ -35,8 +35,8 @@ func ResetOutHandler() {
 		syslog.Println("close debug--------1")
 		cache_file.Close()
 	}
-	year := wtime.GetYear()
-	month := wtime.GetYearMonth()
+	year := time.GetYear()
+	month := time.GetYearMonth()
 	dir := fmt.Sprintf("%s/logs/%d/%s", file.GetCurrentPath(), year, month)
 	logs_dir := &file.WPath{dir}
 	syslog.Println("try to create dir ", dir)
