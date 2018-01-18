@@ -1,4 +1,4 @@
-package library
+package pdo
 
 import (
 	"database/sql"
