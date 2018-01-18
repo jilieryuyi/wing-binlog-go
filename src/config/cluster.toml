@@ -2,13 +2,14 @@
 enable = true
 ##支持以consul、mysql、redis、ssdb方式进行集群控制
 ##根据type配置的不同，以下配置可选其一
-type = "consul"
+type = "mysql"
 
 [consul]
 service_ip = "127.0.0.1:8500"
 
 [mysql]
 ##参照doc/cluster.db.md文档进行数据表的创建
+##只需要将wing-binlog-go配置到相同的库和表上即可构建一个集群
 addr      = "127.0.0.1:3306"
 user      = "root"
 password  = "123456"
