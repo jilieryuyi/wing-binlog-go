@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
 	"library/file"
-	//log "library/log"
+	"library/path"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -12,7 +12,7 @@ var user_data_path string
 
 func init() {
 	// 默认的数据目录
-	data_path := file.GetCurrentPath() + "/data"
+	data_path := path.CurrentPath + "/data"
 
 	// 如果不存在，尝试创建
 	wpath := &file.WPath{data_path}

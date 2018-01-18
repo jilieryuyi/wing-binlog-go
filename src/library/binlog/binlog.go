@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"library/file"
+	"library/path"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
@@ -32,7 +33,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		lock:          new(sync.Mutex),
 		ctx:           ctx,
 	}
-	mysqlBinlogCacheFile := file.CurrentPath + "/cache/mysql_binlog_position.pos"
+	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
 	dir := file.WPath{mysqlBinlogCacheFile}
 	dir = file.WPath{dir.GetParent()}
 	dir.Mkdir()
@@ -73,7 +74,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 }
 
 func newCanal() *canal.Canal {
-	cfg, err := canal.NewConfigWithFile(file.CurrentPath + "/config/canal.toml")
+	cfg, err := canal.NewConfigWithFile(path.CurrentPath + "/config/canal.toml")
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
 	}

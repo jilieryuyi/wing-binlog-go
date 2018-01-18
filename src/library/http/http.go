@@ -4,7 +4,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"library/data"
-	"library/file"
+	"library/path"
 	"library/util"
 	"net/http"
 	"sync"
@@ -32,11 +32,11 @@ func init() {
 	ws := NewWebSocketService(config.Websocket.Listen, config.Websocket.Port)
 	ws.Start()
 	server := &HttpServer{
-		Path:        file.CurrentPath + "/web",
+		Path:        path.CurrentPath + "/web",
 		Ip:          config.Http.Listen,
 		Port:        config.Http.Port,
 		ws:          ws,
-		httpHandler: http.FileServer(http.Dir(file.CurrentPath + "/web")),
+		httpHandler: http.FileServer(http.Dir(path.CurrentPath + "/web")),
 	}
 	server.Start()
 }

@@ -7,10 +7,11 @@ import (
 	"os"
 	"sync"
 	"time"
+	"library/path"
 )
 
 func Reset() error {
-	dir := file.GetCurrentPath() + "/logs"
+	dir := path.CurrentPath + "/logs"
 	logs_dir := &file.WPath{dir}
 
 	if !logs_dir.Exists() {
