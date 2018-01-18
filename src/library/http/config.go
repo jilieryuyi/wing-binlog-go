@@ -8,6 +8,7 @@ import (
 	"library/file"
 	"net/http"
 	"sync"
+	"library/path"
 )
 
 var (
@@ -90,7 +91,7 @@ const (
 
 func getServiceConfig() (*httpServiceConfig, error) {
 	var config httpServiceConfig
-	config_file := file.GetCurrentPath() + "/config/admin.toml"
+	config_file := path.CurrentPath + "/config/admin.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Printf("配置文件%s不存在", config_file)

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"library/file"
-	"library/wtime"
+	"library/time"
+	"library/path"
 	syslog "log"
 	"os"
 )
@@ -37,7 +38,7 @@ func ResetOutHandler() {
 	}
 	year := time.GetYear()
 	month := time.GetYearMonth()
-	dir := fmt.Sprintf("%s/logs/%d/%s", file.GetCurrentPath(), year, month)
+	dir := fmt.Sprintf("%s/logs/%d/%s", path.CurrentPath, year, month)
 	logs_dir := &file.WPath{dir}
 	syslog.Println("try to create dir ", dir)
 	if !logs_dir.Exists() {

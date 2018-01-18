@@ -4,6 +4,7 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"library/file"
+	"library/path"
 )
 
 type AppConfig struct {
@@ -14,7 +15,7 @@ type AppConfig struct {
 
 func GetAppConfig() (*AppConfig, error) {
 	var appConfig AppConfig
-	config_file := file.GetCurrentPath() + "/config/wing-binlog-go.toml"
+	config_file := path.CurrentPath + "/config/wing-binlog-go.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Errorf("配置文件%s不存在：%s", config_file)

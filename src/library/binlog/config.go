@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
-
 	"library/file"
+	"library/path"
 	"library/services"
-
 	"github.com/BurntSushi/toml"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
@@ -109,7 +108,7 @@ type Pos struct {
 // 获取mysql配置
 func GetMysqlConfig() (*AppConfig, error) {
 	var app_config AppConfig
-	config_file := file.GetCurrentPath() + "/config/canal.toml"
+	config_file := path.CurrentPath + "/config/canal.toml"
 	wfile := file.WFile{config_file}
 	if !wfile.Exists() {
 		log.Errorf("配置文件%s不存在 %s", config_file)
