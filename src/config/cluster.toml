@@ -1,5 +1,24 @@
-##群集配置 listen和port是监听配置，即监听ip和服务端口
-##service_ip为对外可见的服务ip，外部节点访问此节点通过service_ip访问
-listen = "0.0.0.0"
-port = 9990
-service_ip = "192.168.0.105"
+##cluster config
+enable = true
+##支持以consul、mysql、redis、ssdb方式进行集群控制
+##根据type配置的不同，以下配置可选其一
+type = "consul"
+
+[consul]
+service_ip = "127.0.0.1:8500"
+
+[mysql]
+##参照doc/cluster.db.md文档进行数据表的创建
+addr      = "127.0.0.1:3306"
+user      = "root"
+password  = "123456"
+database  = "wing-binlog-cluster"
+charset   = "utf8"
+
+[redis]
+addr = "127.0.0.1"
+port = 6379
+
+[ssdb]
+addr = "127.0.0.1"
+port = 8888
