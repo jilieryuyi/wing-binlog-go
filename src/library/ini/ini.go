@@ -1,4 +1,4 @@
-package library
+package ini
 
 import (
 	"github.com/larspensjo/config"
