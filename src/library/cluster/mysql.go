@@ -6,12 +6,12 @@ import (
 	"time"
 	"database/sql"
 	"fmt"
+	"os"
 )
 
 type Mysql struct{
 	IsLeader bool
 	lock *sync.Mutex
-
 	addr string
 	port int
 	user string
@@ -19,6 +19,7 @@ type Mysql struct{
 	database string
 	charset string
 	handler *sql.DB
+	session string
 }
 
 const (
@@ -27,7 +28,10 @@ const (
 )
 
 func NewMysql() *Mysql {
-	config, _ := GetConfig()
+	config, err := GetConfig()
+	if err != nil {
+		log.Printf("cluster mysql with error: %+v", err)
+	}
 	m := &Mysql{
 		addr: config.Mysql.Addr,
 		port: config.Mysql.Port,
@@ -35,6 +39,8 @@ func NewMysql() *Mysql {
 		password: config.Mysql.Password,
 		database: config.Mysql.Database,
 		charset: config.Mysql.Charset,
+		lock: new(sync.Mutex),
+		session: GetSession(),
 	}
 	m.init()
 	return m
@@ -69,22 +75,6 @@ func (m *Mysql) init() {
 	}
 }
 
-/**
-CREATE TABLE `lock` (
- `ip` varchar(128) NOT NULL DEFAULT '' COMMENT '成功获取锁的ip',
- `lock` varchar(128) NOT NULL DEFAULT '' COMMENT '锁',
- `updated` int(11) NOT NULL DEFAULT '0' COMMENT '最后的更新时间，用于keepalive',
- UNIQUE KEY `lock` (`lock`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
-
-CREATE TABLE `cursor` (
- `bin_file` varchar(128) NOT NULL DEFAULT '' COMMENT '最后读取到的binlog文件名',
- `pos` bigint(20) NOT NULL DEFAULT '0' COMMENT '读取到的位置',
- `event_index` bigint(20) NOT NULL DEFAULT '0' COMMENT '最新的事件索引',
- `updated` int(11) NOT NULL DEFAULT '0' COMMENT '最后更新的时间戳'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
-*/
-
 // 校验当前节点是否为leader，返回true，说明是leader，则当前节点开始工作
 // 返回false，说明是follower
 func (m *Mysql) Leader() bool {
@@ -94,17 +84,16 @@ func (m *Mysql) Leader() bool {
 	if m.handler == nil {
 		return false
 	}
-	sqlStr := "INSERT INTO `lock`(`ip`, `lock`, `updated`) VALUES (?,?,?)"
+	sqlStr := "INSERT INTO `lock`(`session`, `lock`, `updated`) VALUES (?,?,?)"
 	log.Debugf("%s", sqlStr)
-	ip := ""
-	res, err := m.handler.Exec(sqlStr, ip, LOCK, time.Now().Unix())
+	res, err := m.handler.Exec(sqlStr, m.session, LOCK, time.Now().Unix())
 	if err != nil {
-		log.Errorf("insert db with error：%+v, %s, %d, %s", err, sqlStr, ip, LOCK)
+		log.Errorf("insert db with error：%+v, %s, %s", err, sqlStr, LOCK)
 		return false
 	}
 	num, err := res.RowsAffected()
 	if err != nil {
-		log.Errorf("insert db with error：%+v, %s, %d, %s", err, sqlStr, ip, LOCK)
+		log.Errorf("insert db with error：%+v, %s, %s", err, sqlStr, LOCK)
 		return false
 	}
 	if num > 0 {
@@ -115,6 +104,26 @@ func (m *Mysql) Leader() bool {
 		return true
 	}
 	return false
+}
+func (m *Mysql) updateLeader() bool {
+	if m.handler == nil {
+		m.init()
+	}
+	if m.handler == nil {
+		return false
+	}
+	sqlStr := "UPDATE `lock` SET `updated`=? WHERE `session`=?"
+	res, err := m.handler.Exec(sqlStr, time.Now().Unix(), m.session)
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	return num > 0
 }
 
 // 同步游标相关信息
@@ -164,47 +173,159 @@ func (m *Mysql) Read() (string, int64, int64) {
 }
 
 // 获取当前的集群成员
-func (d *Mysql) Members() []ClusterMember {
+func (d *Mysql) Members() []*ClusterMember {
 	return nil
 }
 
-func (d *Mysql) AddMember() bool {
-	return false
+func (m *Mysql) GetMember() *ClusterMember {
+	if m.handler == nil {
+		m.init()
+	}
+	if m.handler == nil {
+		return nil
+	}
+	sqlStr := "SELECT * FROM `members` WHERE `session`=?"
+	row := m.handler.QueryRow(sqlStr)
+	var (
+		id int
+		hostname string
+		session string
+		isLeader int
+		updated int64
+	)
+	err := row.Scan(&id, &hostname, &session, &isLeader, &updated)
+	if err != nil {
+		log.Errorf("query with error：%+v, %s", err, sqlStr)
+		return nil
+	}
+	return &ClusterMember{
+		Hostname:hostname,
+		IsLeader:isLeader == 1,
+		Updated:updated,
+	}
 }
 
-func (d *Mysql) DelMember() bool {
-	return false
+func (m *Mysql) AddMember(isLeader bool) bool {
+	if m.handler == nil {
+		m.init()
+	}
+	if m.handler == nil {
+		return false
+	}
+	sqlStr := "INSERT INTO `members`(`hostname`, `session`, `is_leader`, `updated`) VALUES (?,?,?,?)"
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+		log.Errorf("get hostname with error: %+v", err)
+	}
+	iIsLeader := 0
+	if isLeader {
+		iIsLeader = 1
+	}
+	res, err := m.handler.Exec(sqlStr, hostname, m.session, iIsLeader, time.Now().Unix())
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	return num > 0
 }
 
-func (d *Mysql) keepAlive() {
+func (m *Mysql) UpdateMember(isLeader bool) bool {
+	if m.handler == nil {
+		m.init()
+	}
+	if m.handler == nil {
+		return false
+	}
+	sqlStr := "UPDATE `members` SET `hostname`=?,`is_leader`=?,`updated`=? WHERE `session`=?"
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+		log.Errorf("get hostname with error: %+v", err)
+	}
+	iIsLeader := 0
+	if isLeader {
+		iIsLeader = 1
+	}
+	res, err := m.handler.Exec(sqlStr, hostname, iIsLeader, time.Now().Unix(), m.session)
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	return num > 0
+}
+
+func (m *Mysql) DelMember() bool {
+	if m.handler == nil {
+		m.init()
+	}
+	if m.handler == nil {
+		return false
+	}
+	sqlStr := "DELETE FROM `members` WHERE `session`=?"
+	res, err := m.handler.Exec(sqlStr, m.session)
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	num, err := res.RowsAffected()
+	if err != nil {
+		log.Errorf("insert db with error：%+v, %s", err, sqlStr)
+		return false
+	}
+	return num > 0
+}
+
+func (m *Mysql) keepAlive() {
 	for {
-		d.lock.Lock()
-		if d.IsLeader {
+		m.lock.Lock()
+		if m.IsLeader {
 			//leader节点保持心跳
 			//更新updated为当前时间戳
+			if m.updateLeader() {
+				log.Debug("keep alive success")
+			} else {
+				log.Warn("keep alive success")
+			}
 		}
-		d.lock.Unlock()
+		m.lock.Unlock()
 		time.Sleep(time.Second * 2)
 	}
 }
 
-func (d *Mysql) checkTimeout() {
+func (m *Mysql) checkTimeout() {
 	for {
-		d.lock.Lock()
-		if !d.IsLeader {
+		m.lock.Lock()
+		if !m.IsLeader {
 			//非leader节点判断超时
 			//读取updated字段与当前时间比对
 			//如果超过TIMEOUT，ze重新选leader
 		}
-		d.lock.Unlock()
+		m.lock.Unlock()
 		time.Sleep(time.Second * 2)
 	}
 }
 
-func (d *Mysql) Start() {
+func (m *Mysql) Start() {
 	//读取配置
 	//连接mysql
-	go d.keepAlive()
-	go d.checkTimeout()
+	go m.keepAlive()
+	go m.checkTimeout()
+	isLeader := m.Leader()
+	if nil == m.GetMember() {
+		m.AddMember(isLeader)
+	} else {
+		m.UpdateMember(isLeader)
+	}
 }
 

@@ -13,7 +13,7 @@ import (
 // if exists return true, else return false
 func Exists(filePath string) bool {
 	if _, err := os.Stat(filePath); err != nil {
-		log.Errorf("check file exists with error: %+v")
+		//log.Errorf("check file exists with error: %+v", err)
 		if os.IsNotExist(err) {
 			// file does not exist
 			return false

@@ -14,7 +14,9 @@ var (
 )
 
 type ClusterMember struct {
-
+	Hostname string
+	IsLeader bool
+	Updated int64
 }
 
 type ConsulConfig struct{
