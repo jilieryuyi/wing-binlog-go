@@ -43,6 +43,10 @@ func TestMkdir(t *testing.T) {
 	if !Exists(dir) {
 		t.Error("mkdir error")
 	}
+	Delete(dir)
+	if Exists(dir) {
+		t.Error("Delete error")
+	}
 }
 
 func TestGetPath(t *testing.T) {

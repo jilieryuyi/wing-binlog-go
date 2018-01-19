@@ -63,3 +63,11 @@ func GetPath(dir string) string {
 	}
 	return dir
 }
+
+func Delete(dir string) bool {
+	if !Exists(dir) {
+		log.Warnf("delete dir %s is not exists", dir)
+		return false
+	}
+	return nil == os.RemoveAll(dir)
+}
