@@ -19,6 +19,7 @@ import (
 	"library/file"
 	"library/services"
 	"library/unix"
+	"library/cluster"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 )
@@ -182,6 +183,9 @@ func main() {
 	server := unix.NewUnixServer()
 	server.Start(blog, &cancel, pid)
 	defer server.Close()
+
+	clu := cluster.NewMysql()
+	clu.Start()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
