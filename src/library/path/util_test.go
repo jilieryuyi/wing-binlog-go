@@ -3,7 +3,7 @@ package path
 import (
 	"testing"
 	"os"
-	"fmt"
+	"strings"
 )
 
 func TestExists(t *testing.T) {
@@ -16,8 +16,10 @@ func TestExists(t *testing.T) {
 }
 
 func TestGetCurrentPath(t *testing.T) {
-	fmt.Println("current file path: ", os.Args[0])
-	fmt.Println("current path:", GetCurrentPath())
+	file := strings.Replace(os.Args[0], "\\", "/", -1)
+	if !strings.Contains(file, GetCurrentPath()) {
+		t.Error("get current path error")
+	}
 }
 
 func TestGetParentPath(t *testing.T) {
