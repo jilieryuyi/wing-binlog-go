@@ -189,6 +189,12 @@ func (h *Binlog) OnLeader() {
 	h.StartService()
 }
 func (h *Binlog) OnPos(data []byte) {
+	if data == nil {
+		return
+	}
+	if len(data) < 19 {
+		return
+	}
 	log.Debugf("onPos")
 	// dl is file data length
 	pos := int64(data[2]) | int64(data[3]) << 8 | int64(data[4]) << 16 |

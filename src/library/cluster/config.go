@@ -17,8 +17,8 @@ type Cluster interface{
 	Close()
 	Lock() bool
 	Write(data []byte) bool
-	RegisterOnLeaderCallback(fun func())
-	RegisterOnPosChangeCallback(fun func([]byte))
+	//RegisterOnLeaderCallback(fun func())
+	//RegisterOnPosChangeCallback(fun func([]byte))
 }
 
 type ClusterMember struct {

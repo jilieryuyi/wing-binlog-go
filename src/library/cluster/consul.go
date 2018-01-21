@@ -25,7 +25,7 @@ const (
 	SESSION = "wing/binlog/session"
 )
 
-func NewConsul() *Consul{
+func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 	config, err := GetConfig()
 	log.Debugf("cluster config: %+v", *config.Consul)
 	if err != nil {
@@ -37,6 +37,8 @@ func NewConsul() *Consul{
 		lock:new(sync.Mutex),
 		key:GetSession(),
 		//startLock:make(chan struct{}),
+		onLeaderCallback:onLeaderCallback,
+		onPosChange:onPosChange,
 	}
 	con.session, err = con.createSession()
 	if err != nil {
@@ -126,6 +128,7 @@ func (con *Consul) checkAlive() {
 		}
 
 		reLeader := true
+		leaderCount := 0
 		for _, v := range pairs {
 			if v.Value == nil {
 				log.Debugf("%+v", v)
@@ -141,21 +144,20 @@ func (con *Consul) checkAlive() {
 				isLock = int(v.Value[8])
 			}
 			if isLock == 1 {
-				//log.Debugf("find a leader")
 				reLeader = false
+				leaderCount++
 			}
-			//log.Debugf("read keepalive %s=>%d", v.Key, t)
 			if time.Now().Unix() - t > 3 {
-				//todo create a new leader
-				//delete lock
 				con.Delete(v.Key)
 				if isLock == 1 {
 					reLeader = true
 				}
 			}
 		}
-		if reLeader {
+		if reLeader || leaderCount > 1 {
 			log.Warnf("leader maybe leave, try to create a new leader")
+			//con.Unlock()
+			con.Delete(LOCK)
 			if con.Lock() {
 				if con.onLeaderCallback != nil {
 					con.onLeaderCallback()
@@ -187,6 +189,20 @@ func (con *Consul) watch() {
 			time.Sleep(time.Second)
 			continue
 		}
+		if meta == nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		//if d != nil {
+		//	log.Debugf("%+v", d)
+		//	for _, vv := range d {
+		//		if vv == nil {
+		//			continue
+		//		}
+		//		log.Debugf("===>%+v", vv)
+		//		con.onPosChange(vv.Value)
+		//	}
+		//}
 		_, v, err := con.client.WatchGet("wing/binlog/pos", meta.ModifyIndex)
 		if err != nil {
 			log.Errorf("watch chang with error：%#v, %+v", err, v)
@@ -201,17 +217,17 @@ func (con *Consul) watch() {
 			continue
 		}
 		con.onPosChange(v.Value)
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Microsecond * 1)
 	}
 }
 
-func (con *Consul) RegisterOnLeaderCallback(fun func()) {
-	con.onLeaderCallback = fun
-}
-
-func (con *Consul) RegisterOnPosChangeCallback(fun func([]byte)) {
-	con.onPosChange = fun
-}
+//func (con *Consul) RegisterOnLeaderCallback(fun func()) {
+//	con.onLeaderCallback = fun
+//}
+//
+//func (con *Consul) RegisterOnPosChangeCallback(fun func([]byte)) {
+//	con.onPosChange = fun
+//}
 
 func (con *Consul) Close() {
 	con.Delete("wing/binlog/keepalive/" + con.key)
