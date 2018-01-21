@@ -179,10 +179,6 @@ func main() {
 	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
 	defer clu.Close()
 
-	// register callback
-	//clu.RegisterOnLeaderCallback(blog.OnLeader)
-	//clu.RegisterOnPosChangeCallback(blog.OnPos)
-
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcpService)
 	blog.BinlogHandler.RegisterService("http", httpService)

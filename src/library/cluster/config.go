@@ -17,8 +17,6 @@ type Cluster interface{
 	Close()
 	Lock() bool
 	Write(data []byte) bool
-	//RegisterOnLeaderCallback(fun func())
-	//RegisterOnPosChangeCallback(fun func([]byte))
 }
 
 type ClusterMember struct {
@@ -53,8 +51,6 @@ type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
 	Consul *ConsulConfig
-	Redis *RedisConfig
-	Ssdb *SsdbConfig
 }
 
 func GetConfig() (*Config, error) {
