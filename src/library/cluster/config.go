@@ -17,6 +17,8 @@ type Cluster interface{
 	Close()
 	Lock() bool
 	Write(data []byte) bool
+	RegisterOnLeaderCallback(fun func())
+	RegisterOnPosChangeCallback(fun func([]byte))
 }
 
 type ClusterMember struct {
@@ -29,17 +31,17 @@ type ConsulConfig struct{
 	ServiceIp string `toml:"service_ip"`
 }
 type MysqlConfig struct {
-	Addr string//      = "127.0.0.1"
-	Port int//      = 3306
-	User string //      = "root"
-	Password string//  = "123456"
-	Database string//   = "wing-binlog-cluster"
-	Charset string//   = "utf8"
+	Addr string
+	Port int
+	User string
+	Password string
+	Database string
+	Charset string
 }
 
 type RedisConfig struct {
-	Addr string// = "127.0.0.1"
-	Port int// = 6379
+	Addr string
+	Port int
 }
 
 type SsdbConfig struct {
@@ -50,8 +52,7 @@ type SsdbConfig struct {
 type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
-	Consul *ConsulConfig //`toml:"consul"`
-	//Mysql *MysqlConfig
+	Consul *ConsulConfig
 	Redis *RedisConfig
 	Ssdb *SsdbConfig
 }
