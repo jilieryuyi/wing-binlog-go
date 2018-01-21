@@ -38,6 +38,7 @@ func (con *Consul) Lock() bool {
 		return false
 	}
 	log.Debugf("lock return: %s", string(res))
+	//con.startLock<-struct{}{}
 	if string(res) == "true" {
 		con.isLock = 1
 		return true
