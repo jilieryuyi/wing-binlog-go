@@ -17,6 +17,7 @@ The project is test with:
 * Mysql 5.5, 5.6 and 5.7
 * MariaDB 5.5, 10.0, 10.1 and 10.2
 * golang version 1.8+
+* consul v1.0.2
 
 Important Mysql server settings
 ```
