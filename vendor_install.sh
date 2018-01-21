@@ -42,6 +42,8 @@ echo "installing... github.com/coreos/etcd"
 go get github.com/coreos/etcd
 echo "installing... github.com/mattn/goreman"
 go get github.com/mattn/goreman
+echo "installing... github.com/armon/consul-kv"
+go get github.com/armon/consul-kv
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 ##cp -rf $vendor_path/src/* $vendor_path

@@ -4,11 +4,9 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 	"library/services"
-	wstring "library/string"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
@@ -276,21 +274,6 @@ func (h *binlogHandler) OnPosSynced(p mysql.Position, b bool) error {
 	return nil
 }
 
-func (h *binlogHandler) setCacheInfo(data string) {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-	res := strings.Split(data, ":")
-	if len(res) < 3 {
-		log.Errorf("setCacheInfo data error: %s", data)
-		return
-	}
-	h.lastBinFile = res[0]
-	wstr := wstring.WString{res[1]}
-	h.lastPos = uint32(wstr.ToInt64())
-	wstr = wstring.WString{res[2]}
-	h.EventIndex = wstr.ToInt64()
-}
-
 func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventIndex int64) {
 	res := []byte(binFile)
 	l := 16 + len(res)
@@ -308,8 +291,8 @@ func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventI
 	r[8] = byte(pos >> 48)
 	r[9] = byte(pos >> 56)
     // 8 bytes is event index
-	r[10]  = byte(eventIndex)
-	r[11]  = byte(eventIndex >> 8)
+	r[10] = byte(eventIndex)
+	r[11] = byte(eventIndex >> 8)
 	r[12] = byte(eventIndex >> 16)
 	r[13] = byte(eventIndex >> 24)
 	r[14] = byte(eventIndex >> 32)
@@ -320,6 +303,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventI
 	r = append(r[:18], res...)
 	log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
 	n, err := h.cacheHandler.WriteAt(r, 0)
+	h.binlog.drive.Write(r)
 	log.Debugf("%d , %+v", n, err)
 	if err != nil || n <= 0 {
 		log.Errorf("binlog写入缓存文件错误：%+v", err)
@@ -332,7 +316,7 @@ func (h *binlogHandler) getBinlogPositionCache() (string, int64, int64) {
 	l := make([]byte, 2)
 	n, err := h.cacheHandler.Read(l)
 	if n <= 0 || err != nil {
-		log.Errorf("read error: %+v", err)
+		//log.Errorf("read error: %+v", err)
 		return "", int64(0), int64(0)
 	}
 	// dl is file data length

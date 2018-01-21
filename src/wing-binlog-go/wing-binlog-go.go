@@ -172,20 +172,27 @@ func main() {
 	tcpService := services.NewTcpService(&ctx)
 	httpService := services.NewHttpService(&ctx)
 
+	clu := cluster.NewConsul()
+	defer clu.Close()
+
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
+
+	// register callback
+	clu.RegisterOnLeaderCallback(blog.OnLeader)
+	clu.RegisterOnPosChangeCallback(blog.OnPos)
+
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcpService)
 	blog.BinlogHandler.RegisterService("http", httpService)
+	// here can be any drive interface form library.Cluster
+	blog.RegisterDrive(clu)
 	blog.Start()
 
 	// unix socket服务，用户本地指令控制
 	server := unix.NewUnixServer()
 	server.Start(blog, &cancel, pid)
 	defer server.Close()
-
-	clu := cluster.NewMysql()
-	clu.Start()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
