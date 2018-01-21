@@ -17,6 +17,7 @@ type Consul struct {
 	onLeaderCallback func()
 	onPosChange func([]byte)
 	key string
+	enable bool
 	//startLock chan struct{}
 }
 const (
@@ -39,52 +40,59 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		//startLock:make(chan struct{}),
 		onLeaderCallback:onLeaderCallback,
 		onPosChange:onPosChange,
-	}
-	con.session, err = con.createSession()
-	if err != nil {
-		log.Panicf("create consul session with error: %+v", err)
-	}
-	//http.DefaultClient.Timeout = time.Second * 6
-	kvConfig := &consulkv.Config {
-		Address:    config.Consul.ServiceIp,
-		HTTPClient: http.DefaultClient,
-	}
-	con.client, err = consulkv.NewClient(kvConfig)
-	if err != nil {
-		log.Panicf("new consul client with error: %+v", err)
+		enable:config.Enable,
 	}
 
-	// check self is locked in start
-	// if is locked, try unlock
-	_, v, err := con.client.Get("wing/binlog/keepalive/" + con.key)
-	if err == nil && v != nil {
-		t := int64(v.Value[0]) | int64(v.Value[1]) << 8 |
-			int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
-			int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
-			int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
-		isLock := 0
-		if len(v.Value) > 8 {
-			isLock = int(v.Value[8])
+	if con.enable {
+		con.session, err = con.createSession()
+		if err != nil {
+			log.Panicf("create consul session with error: %+v", err)
 		}
-		if time.Now().Unix() - t > 3 && isLock == 1 {
-			con.Unlock()
-			con.Delete(LOCK)
-			con.Delete(v.Key)
+		//http.DefaultClient.Timeout = time.Second * 6
+		kvConfig := &consulkv.Config{
+			Address:    config.Consul.ServiceIp,
+			HTTPClient: http.DefaultClient,
 		}
-	}
+		con.client, err = consulkv.NewClient(kvConfig)
+		if err != nil {
+			log.Panicf("new consul client with error: %+v", err)
+		}
 
-	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
-	//如果当前不是leader，重新选leader。leader不需要check
-	//如果被选为leader，则还需要执行一个onLeader回调
-	go con.checkAlive()
-	//还需要一个keepalive
-	go con.keepalive()
-	//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
-	go con.watch()
+		// check self is locked in start
+		// if is locked, try unlock
+		_, v, err := con.client.Get("wing/binlog/keepalive/" + con.key)
+		if err == nil && v != nil {
+			t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+				int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+				int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+				int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+			isLock := 0
+			if len(v.Value) > 8 {
+				isLock = int(v.Value[8])
+			}
+			if time.Now().Unix()-t > 3 && isLock == 1 {
+				con.Unlock()
+				con.Delete(LOCK)
+				con.Delete(v.Key)
+			}
+		}
+
+		//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
+		//如果当前不是leader，重新选leader。leader不需要check
+		//如果被选为leader，则还需要执行一个onLeader回调
+		go con.checkAlive()
+		//还需要一个keepalive
+		go con.keepalive()
+		//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
+		go con.watch()
+	}
 	return con
 }
 
 func (con *Consul) keepalive() {
+	if !con.enable {
+		return
+	}
 	r := make([]byte, 9)
 	for {
 		t := time.Now().Unix()
@@ -106,6 +114,9 @@ func (con *Consul) keepalive() {
 }
 
 func (con *Consul) checkAlive() {
+	if !con.enable {
+		return
+	}
 	for {
 		con.lock.Lock()
 		if con.isLock == 1 {
@@ -169,6 +180,9 @@ func (con *Consul) checkAlive() {
 }
 
 func (con *Consul) watch() {
+	if !con.enable {
+		return
+	}
 	//select {
 	//	case <-con.startLock:
 	//}
@@ -230,6 +244,9 @@ func (con *Consul) watch() {
 //}
 
 func (con *Consul) Close() {
+	if !con.enable {
+		return
+	}
 	con.Delete("wing/binlog/keepalive/" + con.key)
 	log.Debugf("current is leader %d", con.isLock)
 	con.lock.Lock()
@@ -243,6 +260,9 @@ func (con *Consul) Close() {
 }
 
 func (con *Consul) Write(data []byte) bool {
+	if !con.enable {
+		return true
+	}
 	log.Debugf("write consul kv: %s, %v", POS_KEY, data)
 	err := con.client.Put(POS_KEY, data, 0)
 	if err != nil {
@@ -252,6 +272,9 @@ func (con *Consul) Write(data []byte) bool {
 }
 
 func (con *Consul) Read() []byte {
+	if !con.enable {
+		return nil
+	}
 	_ ,v, err := con.client.Get(POS_KEY)
 	if err != nil {
 		log.Errorf("write consul kv with error: %+v", err)

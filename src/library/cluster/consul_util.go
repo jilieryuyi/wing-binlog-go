@@ -9,6 +9,9 @@ import (
 var IDErr = errors.New("ID key does not exists")
 // create a session, use for lock a key
 func (con *Consul) createSession() (string, error) {
+	if !con.enable {
+		return "", nil
+	}
 	request := http.NewHttp("http://" + con.serviceIp + "/v1/session/create")
 	res, err := request.Put([]byte("{\"Name\": \"" + SESSION + "\"}"))
 	if err != nil {
@@ -30,6 +33,9 @@ func (con *Consul) createSession() (string, error) {
 
 // lock if success, the current will be a leader
 func (con *Consul) Lock() bool {
+	if !con.enable {
+		return true
+	}
 	lockApi := "http://" + con.serviceIp +"/v1/kv/" + LOCK + "?acquire=" + con.session
 	request := http.NewHttp(lockApi)
 	res, err := request.Put(nil)
@@ -48,6 +54,9 @@ func (con *Consul) Lock() bool {
 
 // unlock
 func (con *Consul) Unlock() (bool, error) {
+	if !con.enable {
+		return true, nil
+	}
 	unlockApi := "http://" + con.serviceIp +"/v1/kv/" + LOCK + "?release=" + con.session
 	request := http.NewHttp(unlockApi)
 	res, err := request.Put(nil)
@@ -65,6 +74,9 @@ func (con *Consul) Unlock() (bool, error) {
 
 // delete a lock
 func (con *Consul) Delete(key string) {
+	if !con.enable {
+		return
+	}
 	url := "http://" + con.serviceIp +"/v1/kv/" + key
 	request := http.NewHttp(url)
 	res, err := request.Delete()
