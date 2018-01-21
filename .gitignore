@@ -19,3 +19,4 @@
 /vendor/golang.org
 /vendor/github.com
 /tools
+/tests/bin/
