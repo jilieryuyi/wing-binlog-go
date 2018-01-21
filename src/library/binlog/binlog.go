@@ -151,14 +151,14 @@ func (h *Binlog) StartService() {
 }
 
 func (h *Binlog) RegisterDrive(drive cluster.Cluster) {
-	h.drive = drive
+	h.Drive = drive
 }
 
 func (h *Binlog) Start() {
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 	}
-	if h.drive.Lock() {
+	if h.Drive.Lock() {
 		log.Debugf("current run as leader")
 		h.StartService()
 	}
