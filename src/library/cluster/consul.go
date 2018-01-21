@@ -51,6 +51,26 @@ func NewConsul() *Consul{
 	if err != nil {
 		log.Panicf("new consul client with error: %+v", err)
 	}
+
+	// check self is locked in start
+	// if is locked, try unlock
+	_, v, err := con.client.Get("wing/binlog/keepalive/" + con.key)
+	if err == nil && v != nil {
+		t := int64(v.Value[0]) | int64(v.Value[1]) << 8 |
+			int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
+			int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
+			int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
+		isLock := 0
+		if len(v.Value) > 8 {
+			isLock = int(v.Value[8])
+		}
+		if time.Now().Unix() - t > 3 && isLock == 1 {
+			con.Unlock()
+			con.Delete(LOCK)
+			con.Delete(v.Key)
+		}
+	}
+
 	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
 	//如果当前不是leader，重新选leader。leader不需要check
 	//如果被选为leader，则还需要执行一个onLeader回调

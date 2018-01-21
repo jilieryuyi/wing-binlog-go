@@ -1,0 +1,9 @@
+##管理员web服务相关配置
+##admin功能使用http+websocket协议，所以这里需要两种配置
+[http]
+listen = "0.0.0.0"
+port = 10089
+
+[websocket]
+listen = "0.0.0.0"
+port = 10088
