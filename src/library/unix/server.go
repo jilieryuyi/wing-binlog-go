@@ -55,7 +55,30 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		case CMD_JOINTO:
 			log.Debugf("收到加入群集指令：%s", string(content))
 		case CMD_SHOW_MEMBERS:
-			c.Write([]byte(/*server.binlog.ShowMembers()*/""))
+			members := server.binlog.Drive.GetMembers()
+			if members != nil {
+				hostname, err := os.Hostname()
+				if err != nil {
+					hostname = ""
+				}
+				l := len(members)
+				res := fmt.Sprintf("current node: %s\r\n", hostname)
+				res += fmt.Sprintf("cluster size: %d node(s)\r\n", l)
+				res += fmt.Sprintf("======+=========================+==========+===============\r\n")
+				res += fmt.Sprintf("%-6s| %-23s | %-8s | %s\r\n", "index", "node", "role", "status")
+				res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
+				for i, member := range members {
+					role := "follower"
+					if member.IsLeader {
+						role = "leader"
+					}
+					res += fmt.Sprintf("%-6d| %-23s | %-8s | %s\r\n", i, member.Hostname, role, member.Status)
+				}
+				res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
+				c.Write([]byte(res))
+			} else {
+				c.Write([]byte("no members found"))
+			}
 		default:
 			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}

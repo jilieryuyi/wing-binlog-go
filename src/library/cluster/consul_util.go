@@ -36,6 +36,7 @@ func (con *Consul) Lock() bool {
 	if !con.enable {
 		return true
 	}
+	defer con.writeMember()
 	lockApi := "http://" + con.serviceIp +"/v1/kv/" + LOCK + "?acquire=" + con.session
 	request := http.NewHttp(lockApi)
 	res, err := request.Put(nil)
@@ -46,7 +47,9 @@ func (con *Consul) Lock() bool {
 	log.Debugf("lock return: %s", string(res))
 	//con.startLock<-struct{}{}
 	if string(res) == "true" {
+		con.lock.Lock()
 		con.isLock = 1
+		con.lock.Unlock()
 		return true
 	}
 	return false
@@ -57,6 +60,7 @@ func (con *Consul) Unlock() (bool, error) {
 	if !con.enable {
 		return true, nil
 	}
+	defer con.writeMember()
 	unlockApi := "http://" + con.serviceIp +"/v1/kv/" + LOCK + "?release=" + con.session
 	request := http.NewHttp(unlockApi)
 	res, err := request.Put(nil)
@@ -66,7 +70,9 @@ func (con *Consul) Unlock() (bool, error) {
 	}
 	log.Debugf("unlock return: %s", string(res))
 	if string(res) == "true" {
+		con.lock.Lock()
 		con.isLock = 0
+		con.lock.Unlock()
 		return true, nil
 	}
 	return false, nil
@@ -77,6 +83,7 @@ func (con *Consul) Delete(key string) {
 	if !con.enable {
 		return
 	}
+	defer con.writeMember()
 	url := "http://" + con.serviceIp +"/v1/kv/" + key
 	request := http.NewHttp(url)
 	res, err := request.Delete()

@@ -47,7 +47,7 @@ type Binlog struct {
 	lock          *sync.Mutex
 	isLeader      bool
 	members       map[string]*member
-	drive         cluster.Cluster
+	Drive         cluster.Cluster
 }
 
 type member struct {

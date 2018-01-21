@@ -6,6 +6,7 @@ import (
 	http "net/http"
 	"time"
 	"sync"
+	"os"
 )
 type Consul struct {
 	Cluster
@@ -85,8 +86,51 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		go con.keepalive()
 		//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 		go con.watch()
+		con.writeMember()
 	}
 	return con
+}
+
+func (con *Consul) writeMember() {
+	if !con.enable {
+		return
+	}
+	con.lock.Lock()
+	defer con.lock.Unlock()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = con.key
+	}
+	h := []byte(hostname)
+	hl := len(h)
+	d := make([]byte, 1 + 2 + hl)
+	d[0] = byte(con.isLock)
+	d[1] = byte(hl)
+	d[2] = byte(hl >> 8)
+	d = append(h[:3], h...)
+	k := []byte(con.key)
+	kl := len(k)
+	d[2+hl+1] = byte(kl)
+	d[2+hl+2] = byte(kl >> 8)
+	d = append(h[:2+hl+3], k...)
+	con.client.Put("wing/binlog/node/" + con.key, d, 0)
+}
+
+func (con *Consul) GetMembers() []*ClusterMember {
+	_, members, err := con.client.List("wing/binlog/node")
+	if err != nil {
+		return nil
+	}
+	m := make([]*ClusterMember, len(members))
+	for i, member := range members {
+		m[i].IsLeader = int(member.Value[0]) == 1
+		hl := int(member.Value[1]) | int(member.Value[2]) << 8
+		m[i].Hostname = string(member.Value[3:2+hl])
+		kl := int(member.Value[hl+3]) | int(member.Value[hl+4]) << 8
+		m[i].Session = string(member.Value[hl+5:4+hl+kl])
+		m[i].Status = "online"
+	}
+	return m
 }
 
 func (con *Consul) keepalive() {

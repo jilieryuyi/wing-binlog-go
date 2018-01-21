@@ -17,12 +17,14 @@ type Cluster interface{
 	Close()
 	Lock() bool
 	Write(data []byte) bool
+    GetMembers() []*ClusterMember
 }
 
 type ClusterMember struct {
 	Hostname string
 	IsLeader bool
-	Updated int64
+	Session string
+	Status string
 }
 
 type ConsulConfig struct{
