@@ -97,7 +97,7 @@ func usage() {
 	fmt.Println("wing-binlog-go -service-reload  tcp              --reload tcp service")
 	fmt.Println("wing-binlog-go -service-reload  websocket        --reload websocket service")
 	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
-	fmt.Println("wing-binlog-go -join-to  [serviceIp:servicePort] --join to cluster")
+	//fmt.Println("wing-binlog-go -join-to  [serviceIp:servicePort] --join to cluster")
 	fmt.Println("wing-binlog-go -members                          --show cluster members")
 	fmt.Println("*********************************************************************")
 }
@@ -144,10 +144,10 @@ func commandService() bool {
 		return true
 	}
 	// 加入集群
-	if *joinTo != "" {
-		command.JoinTo(*joinTo)
-		return true
-	}
+	//if *joinTo != "" {
+	//	command.JoinTo(*joinTo)
+	//	return true
+	//}
 	if *members {
 		command.ShowMembers()
 		return true
