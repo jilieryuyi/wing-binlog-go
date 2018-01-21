@@ -303,7 +303,7 @@ func (h *binlogHandler) SaveBinlogPostionCache(binFile string, pos int64, eventI
 	r = append(r[:18], res...)
 	log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
 	n, err := h.cacheHandler.WriteAt(r, 0)
-	h.binlog.drive.Write(r)
+	h.binlog.Drive.Write(r)
 	log.Debugf("%d , %+v", n, err)
 	if err != nil || n <= 0 {
 		log.Errorf("binlog写入缓存文件错误：%+v", err)

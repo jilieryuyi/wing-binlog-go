@@ -27,7 +27,7 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		ctx:      ctx,
 		isLeader: true,
 		members:  make(map[string]*member),
-		drive:    nil,
+		Drive:    nil,
 	}
 	binlog.BinlogHandler = &binlogHandler{
 		services:      make(map[string]services.Service),
