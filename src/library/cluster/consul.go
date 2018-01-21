@@ -122,6 +122,51 @@ func (con *Consul) writeMember() {
 	con.client.Put("wing/binlog/node/" + con.key, d, 0)
 }
 
+func (con *Consul) getMemberStatus(key string) string {
+
+	//_, av, _ := con.client.Get("wing/binlog/keepalive/" + key)
+	//log.Debugf("sss===%s==%+v\n%+v", key, av, []byte(key))
+	//
+	//_, pairs, err := con.client.List("wing/binlog/keepalive")
+	//if err != nil || pairs == nil {
+	//	return "offline"
+	//}
+	//for _, v := range pairs {
+	//
+	//	_,vv, _ := con.client.Get(v.Key)
+	//	log.Debugf("vvvvv===%+v", vv)
+	//
+	//	log.Debugf("===>%+v", v)
+	//	if v.Key == "wing/binlog/keepalive/" + key {
+	//		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+	//			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+	//			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+	//			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+	//		if time.Now().Unix()-t > 3 {
+	//			return "offline"
+	//		} else {
+	//			return "online"
+	//		}
+	//	}
+	//}
+	//return "offline"
+
+	d, v, err := con.client.Get("wing/binlog/keepalive/" + key)
+	log.Debugf("get %s status: %+v, %+v", key, v, d)
+	if err == nil && v != nil {
+		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+		if time.Now().Unix()-t > 3 {
+			return "offline"
+		} else {
+			return "online"
+		}
+	}
+	return "offline"
+}
+
 func (con *Consul) GetMembers() []*ClusterMember {
 	_, members, err := con.client.List("wing/binlog/node")
 	if err != nil {
@@ -129,20 +174,15 @@ func (con *Consul) GetMembers() []*ClusterMember {
 	}
 	m := make([]*ClusterMember, len(members))
 	for i, member := range members {
-		//if member == nil {
-		//	continue
-		//}
-		//if member.Value == nil {
-		//	continue
-		//}
 		log.Debugf("member: %+v", *member)
 		m[i] = &ClusterMember{}
 		m[i].IsLeader = int(member.Value[0]) == 1
 		hl := int(member.Value[1]) | int(member.Value[2]) << 8
 		m[i].Hostname = string(member.Value[3:2+hl])
 		kl := int(member.Value[hl+3]) | int(member.Value[hl+4]) << 8
-		m[i].Session = string(member.Value[hl+5:4+hl+kl])
-		m[i].Status = "online"
+		m[i].Session = string(member.Value[hl+5:5+hl+kl])
+		log.Debugf("con key === %+v", member.Value[hl+5:4+hl+kl])
+		m[i].Status = con.getMemberStatus(m[i].Session)
 	}
 	return m
 }
@@ -166,7 +206,7 @@ func (con *Consul) keepalive() {
 		r[8] = byte(con.isLock)
 		con.lock.Unlock()
 		con.client.Put("wing/binlog/keepalive/" + con.key, r, 0)
-		//log.Debugf("write keepalive %d", t)
+		//log.Debugf("write keepalive [%v] => %d", []byte(con.key), t)
 		time.Sleep(time.Second * 1)
 	}
 }
