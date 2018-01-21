@@ -172,15 +172,16 @@ func main() {
 	tcpService := services.NewTcpService(&ctx)
 	httpService := services.NewHttpService(&ctx)
 
-	clu := cluster.NewConsul()
-	defer clu.Close()
+
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
+	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
+	defer clu.Close()
 
 	// register callback
-	clu.RegisterOnLeaderCallback(blog.OnLeader)
-	clu.RegisterOnPosChangeCallback(blog.OnPos)
+	//clu.RegisterOnLeaderCallback(blog.OnLeader)
+	//clu.RegisterOnPosChangeCallback(blog.OnPos)
 
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcpService)
