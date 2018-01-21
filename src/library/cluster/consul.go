@@ -124,6 +124,8 @@ func (con *Consul) checkAlive() {
 			time.Sleep(time.Second * 3)
 			continue
 		}
+
+		reLeader := true
 		for _, v := range pairs {
 			if v.Value == nil {
 				log.Debugf("%+v", v)
@@ -134,21 +136,29 @@ func (con *Consul) checkAlive() {
 					int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
 					int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
 					int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
-
 			isLock := 0
 			if len(v.Value) > 8 {
 				isLock = int(v.Value[8])
 			}
+			if isLock == 1 {
+				//log.Debugf("find a leader")
+				reLeader = false
+			}
 			//log.Debugf("read keepalive %s=>%d", v.Key, t)
-			if time.Now().Unix() - t > 3 && con.onLeaderCallback != nil {
+			if time.Now().Unix() - t > 3 {
 				//todo create a new leader
 				//delete lock
 				con.Delete(v.Key)
 				if isLock == 1 {
-					log.Warnf("leader maybe leave, try to create a new leader")
-					if con.Lock() {
-						con.onLeaderCallback()
-					}
+					reLeader = true
+				}
+			}
+		}
+		if reLeader {
+			log.Warnf("leader maybe leave, try to create a new leader")
+			if con.Lock() {
+				if con.onLeaderCallback != nil {
+					con.onLeaderCallback()
 				}
 			}
 		}
