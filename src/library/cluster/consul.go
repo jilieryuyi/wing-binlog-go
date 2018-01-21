@@ -103,16 +103,22 @@ func (con *Consul) writeMember() {
 	}
 	h := []byte(hostname)
 	hl := len(h)
-	d := make([]byte, 1 + 2 + hl)
-	d[0] = byte(con.isLock)
-	d[1] = byte(hl)
-	d[2] = byte(hl >> 8)
-	d = append(h[:3], h...)
 	k := []byte(con.key)
 	kl := len(k)
-	d[2+hl+1] = byte(kl)
-	d[2+hl+2] = byte(kl >> 8)
-	d = append(h[:2+hl+3], k...)
+
+	d := make([]byte, 1 + 2 + hl + kl + 2)
+	i := 0
+	d[i] = byte(con.isLock);i++
+	d[i] = byte(hl);i++
+	d[i] = byte(hl >> 8);i++
+	for _, b := range h {
+		d[i] = b; i++
+	}
+	d[i] = byte(kl); i++
+	d[i] = byte(kl >> 8); i++
+	for _, b := range k {
+		d[i] = b; i++
+	}
 	con.client.Put("wing/binlog/node/" + con.key, d, 0)
 }
 
@@ -123,6 +129,14 @@ func (con *Consul) GetMembers() []*ClusterMember {
 	}
 	m := make([]*ClusterMember, len(members))
 	for i, member := range members {
+		//if member == nil {
+		//	continue
+		//}
+		//if member.Value == nil {
+		//	continue
+		//}
+		log.Debugf("member: %+v", *member)
+		m[i] = &ClusterMember{}
 		m[i].IsLeader = int(member.Value[0]) == 1
 		hl := int(member.Value[1]) | int(member.Value[2]) << 8
 		m[i].Hostname = string(member.Value[3:2+hl])
