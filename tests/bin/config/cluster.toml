@@ -1,0 +1,16 @@
+##cluster config
+enable = true
+##支持以consul、redis、ssdb方式进行集群控制
+##根据type配置的不同，以下配置可选其一
+type = "redis"
+
+[consul]
+service_ip = "127.0.0.1:8500"
+
+[redis]
+addr = "127.0.0.1"
+port = 6379
+
+[ssdb]
+addr = "127.0.0.1"
+port = 8888

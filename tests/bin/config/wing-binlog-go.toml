@@ -1,0 +1,12 @@
+##wing-binlog-go全局配置
+# 0 =	PanicLevel Level = iota
+# 1 =	FatalLevel
+# 2 =	ErrorLevel
+# 3 =	WarnLevel
+# 4 =	InfoLevel
+# 5 =	DebugLevel
+##log level, default is 5, show all logs
+log_level = 5
+##pprof tool, if empty, it will not start
+pprof_listen = "0.0.0.0:6061"
+time_zone = "Local"
