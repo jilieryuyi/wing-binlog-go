@@ -17,6 +17,7 @@ type Consul struct {
 	onLeaderCallback func()
 	onPosChange func([]byte)
 	key string
+	//startLock chan struct{}
 }
 const (
 	POS_KEY = "wing/binlog/pos"
@@ -35,6 +36,7 @@ func NewConsul() *Consul{
 		isLock:0,
 		lock:new(sync.Mutex),
 		key:GetSession(),
+		//startLock:make(chan struct{}),
 	}
 	con.session, err = con.createSession()
 	if err != nil {
@@ -49,7 +51,6 @@ func NewConsul() *Consul{
 	if err != nil {
 		log.Panicf("new consul client with error: %+v", err)
 	}
-
 	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
 	//如果当前不是leader，重新选leader。leader不需要check
 	//如果被选为leader，则还需要执行一个onLeader回调
@@ -136,8 +137,13 @@ func (con *Consul) checkAlive() {
 }
 
 func (con *Consul) watch() {
+	//select {
+	//	case <-con.startLock:
+	//}
+	//log.Debugf("watch start...")
 	for {
 		con.lock.Lock()
+		//log.Debugf("watch %d", con.isLock)
 		if con.isLock == 1 {
 			con.lock.Unlock()
 			// leader does not need watch
