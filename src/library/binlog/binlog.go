@@ -199,5 +199,8 @@ func (h *Binlog) OnPos(data []byte) {
 		int64(data[14]) << 32 | int64(data[15]) << 40 |
 		int64(data[16]) << 48 | int64(data[17]) << 56
 	log.Debugf("onPos %s, %d, %d", string(data[18:]), pos, eventIndex)
+    h.BinlogHandler.lastBinFile = string(data[18:])
+	h.BinlogHandler.lastPos = uint32(pos)
+	h.BinlogHandler.EventIndex = eventIndex
 	h.BinlogHandler.SaveBinlogPostionCache(string(data[18:]), pos, eventIndex)
 }
