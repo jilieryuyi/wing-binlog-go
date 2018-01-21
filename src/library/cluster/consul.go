@@ -54,13 +54,10 @@ func NewConsul() *Consul{
 	//如果当前不是leader，重新选leader。leader不需要check
 	//如果被选为leader，则还需要执行一个onLeader回调
 	go con.checkAlive()
-
 	//还需要一个keepalive
 	go con.keepalive()
-
 	//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 	go con.watch()
-
 	return con
 }
 
@@ -80,7 +77,7 @@ func (con *Consul) keepalive() {
 		r[8] = byte(con.isLock)
 		con.lock.Unlock()
 		con.client.Put("wing/binlog/keepalive/" + con.key, r, 0)
-		log.Debugf("write keepalive %d", t)
+		//log.Debugf("write keepalive %d", t)
 		time.Sleep(time.Second * 1)
 	}
 }
@@ -91,7 +88,7 @@ func (con *Consul) checkAlive() {
 		if con.isLock == 1 {
 			con.lock.Unlock()
 			// leader does not need check
-			log.Debugf("checkAlive is leader")
+			//log.Debugf("checkAlive is leader")
 			time.Sleep(time.Second * 3)
 			continue
 		}
@@ -121,7 +118,7 @@ func (con *Consul) checkAlive() {
 			if len(v.Value) > 8 {
 				isLock = int(v.Value[8])
 			}
-			log.Debugf("read keepalive %s=>%d", v.Key, t)
+			//log.Debugf("read keepalive %s=>%d", v.Key, t)
 			if time.Now().Unix() - t > 3 && con.onLeaderCallback != nil {
 				//todo create a new leader
 				//delete lock
@@ -150,13 +147,13 @@ func (con *Consul) watch() {
 		con.lock.Unlock()
 		meta, _, err := con.client.List("wing/binlog/pos")
 		if err != nil {
-			log.Errorf("监听变化发生错误：%#v", err)
+			log.Errorf("watch chang with error：%#v", err)
 			time.Sleep(time.Second)
 			continue
 		}
 		_, v, err := con.client.WatchGet("wing/binlog/pos", meta.ModifyIndex)
 		if err != nil {
-			log.Errorf("监听变化发生错误：%#v, %+v", err, v)
+			log.Errorf("watch chang with error：%#v, %+v", err, v)
 			time.Sleep(time.Second)
 			continue
 		}
@@ -165,8 +162,6 @@ func (con *Consul) watch() {
 			continue
 		}
 		if v.Value == nil {
-			log.Debugf("%+v", v)
-			log.Debug("监听变化value nil")
 			continue
 		}
 		con.onPosChange(v.Value)
@@ -193,7 +188,6 @@ func (con *Consul) Close() {
 		con.Unlock()
 		con.Delete(LOCK)
 	}
-
 }
 
 func (con *Consul) Write(data []byte) bool {
