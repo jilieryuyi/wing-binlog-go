@@ -49,7 +49,6 @@ Usage:
 * Show version information: ./wing-binlog-go -version
 * Stop service: ./wing-binlog-go -stop
 * Reload service: ./wing-binlog-go -service-reload all|http|tcp|websocket
-* Cluster: ./wing-binlog-go -join-to ip:port
 
 Known issues:
 1. The underlying package go-mysql does not support compressed binlog
