@@ -14,6 +14,7 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	log "github.com/sirupsen/logrus"
+	"library/cluster"
 )
 
 var (
@@ -46,6 +47,7 @@ type Binlog struct {
 	lock          *sync.Mutex
 	isLeader      bool
 	members       map[string]*member
+	drive         cluster.Cluster
 }
 
 type member struct {
@@ -97,6 +99,7 @@ type binlogHandler struct {
 	ctx           *context.Context
 	lastPos       uint32
 	lastBinFile   string
+	binlog *Binlog
 }
 
 type Pos struct {

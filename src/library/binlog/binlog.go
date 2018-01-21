@@ -11,6 +11,7 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	log "github.com/sirupsen/logrus"
+	"library/cluster"
 )
 
 func NewBinlog(ctx *context.Context) *Binlog {
@@ -26,12 +27,14 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		ctx:      ctx,
 		isLeader: true,
 		members:  make(map[string]*member),
+		drive:    nil,
 	}
 	binlog.BinlogHandler = &binlogHandler{
 		services:      make(map[string]services.Service),
 		servicesCount: 0,
 		lock:          new(sync.Mutex),
 		ctx:           ctx,
+		binlog:        binlog,
 	}
 	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
 	dir := file.WPath{mysqlBinlogCacheFile}
@@ -147,11 +150,18 @@ func (h *Binlog) StartService() {
 	}()
 }
 
+func (h *Binlog) RegisterDrive(drive cluster.Cluster) {
+	h.drive = drive
+}
+
 func (h *Binlog) Start() {
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 	}
-	h.StartService()
+	if h.drive.Lock() {
+		log.Debugf("current run as leader")
+		h.StartService()
+	}
 }
 
 func (h *Binlog) Reload(service string) {
@@ -172,4 +182,21 @@ func (h *Binlog) Reload(service string) {
 		h.BinlogHandler.services["tcp"].Reload()
 		h.BinlogHandler.services["http"].Reload()
 	}
+}
+
+func (h *Binlog) OnLeader() {
+	log.Debugf("current run as leader, start running")
+	h.StartService()
+}
+func (h *Binlog) OnPos(data []byte) {
+	log.Debugf("onPos")
+	pos := int64(data[0]) | int64(data[1]) << 8 | int64(data[2]) << 16 |
+		int64(data[3]) << 24 | int64(data[4]) << 32 | int64(data[5]) << 40 |
+		int64(data[6]) << 48 | int64(data[7]) << 56
+	eventIndex := int64(data[8]) | int64(data[9]) << 8 |
+		int64(data[10]) << 16 | int64(data[11]) << 24 |
+		int64(data[12]) << 32 | int64(data[13]) << 40 |
+		int64(data[14]) << 48 | int64(data[15]) << 56
+	log.Debugf("onPos %s, %d, %d", string(data[16:]), pos, eventIndex)
+	h.BinlogHandler.SaveBinlogPostionCache(string(data[16:]), pos, eventIndex)
 }

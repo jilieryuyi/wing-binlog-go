@@ -13,6 +13,12 @@ var (
 	ErrorFileParse    = errors.New("config parse error")
 )
 
+type Cluster interface{
+	Close()
+	Lock() bool
+	Write(data []byte) bool
+}
+
 type ClusterMember struct {
 	Hostname string
 	IsLeader bool
@@ -20,7 +26,7 @@ type ClusterMember struct {
 }
 
 type ConsulConfig struct{
-	ServiceIp string
+	ServiceIp string `toml:"service_ip"`
 }
 type MysqlConfig struct {
 	Addr string//      = "127.0.0.1"
@@ -45,7 +51,7 @@ type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
 	Consul *ConsulConfig //`toml:"consul"`
-	Mysql *MysqlConfig
+	//Mysql *MysqlConfig
 	Redis *RedisConfig
 	Ssdb *SsdbConfig
 }
