@@ -18,6 +18,7 @@ type Cluster interface{
 	Lock() bool
 	Write(data []byte) bool
     GetMembers() []*ClusterMember
+	ClearOfflineMembers()
 }
 
 type ClusterMember struct {

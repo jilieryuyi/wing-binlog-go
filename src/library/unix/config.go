@@ -11,6 +11,7 @@ const (
 	CMD_RELOAD       = 2
 	CMD_JOINTO       = 3
 	CMD_SHOW_MEMBERS = 4
+	CMD_CLEAR        = 5
 )
 
 type UnixClient struct {

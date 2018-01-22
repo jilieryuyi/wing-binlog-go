@@ -40,3 +40,14 @@ func ShowMembers() {
 	fmt.Println(string(buf))
 	client.Close()
 }
+
+func Clear() {
+	client := unix.NewUnixClient()
+	msg := client.Pack(unix.CMD_CLEAR, "")
+	client.Send(msg)
+	_, err := client.Read()
+	if err != nil {
+		log.Errorf("clear offline members with error: %+v", err)
+	}
+	client.Close()
+}

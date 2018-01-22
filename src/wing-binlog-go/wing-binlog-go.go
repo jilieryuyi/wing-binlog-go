@@ -36,8 +36,8 @@ var (
 	//-service-reload all ##重新加载全部服务
 	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
 	help           = flag.Bool("help", false, "help")
-	joinTo         = flag.String("join-to", "", "join to cluster")
 	members        = flag.Bool("members", false, "show members from current node")
+	clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
 )
 
 const (
@@ -97,8 +97,8 @@ func usage() {
 	fmt.Println("wing-binlog-go -service-reload  tcp              --reload tcp service")
 	fmt.Println("wing-binlog-go -service-reload  websocket        --reload websocket service")
 	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
-	//fmt.Println("wing-binlog-go -join-to  [serviceIp:servicePort] --join to cluster")
 	fmt.Println("wing-binlog-go -members                          --show cluster members")
+	fmt.Println("wing-binlog-go -clear                            --clear offline nodes from members, if need, it will auto register again")
 	fmt.Println("*********************************************************************")
 }
 
@@ -150,6 +150,10 @@ func commandService() bool {
 	//}
 	if *members {
 		command.ShowMembers()
+		return true
+	}
+	if *clear {
+		command.Clear()
 		return true
 	}
 	return false
