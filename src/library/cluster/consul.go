@@ -58,6 +58,7 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		con.Session = &Session {
 			Address:config.Consul.ServiceIp,
 			Client:con.Client,
+			ID:"",
 		}
 		con.Session.create()
 		con.Kv = con.Client.KV()
@@ -87,10 +88,16 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		go con.keepalive()
 		////还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 		go con.watch()
+		go con.refreshSession()
 	}
 	return con
 }
-
+func (con *Consul) refreshSession() {
+	for {
+		con.Session.renew()
+		time.Sleep(time.Second * 30)
+	}
+}
 func (con *Consul) keepalive() {
 	if !con.enable {
 		return
