@@ -155,6 +155,7 @@ func (h *Binlog) RegisterDrive(drive cluster.Cluster) {
 }
 
 func (h *Binlog) Start() {
+	log.Debugf("binlog start ... ")
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 	}

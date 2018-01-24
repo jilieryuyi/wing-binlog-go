@@ -1,26 +1,25 @@
 package cluster
 
 import (
-	consulkv "github.com/armon/consul-kv"
 	log "github.com/sirupsen/logrus"
-	http "net/http"
 	"time"
 	"sync"
 	"os"
 	"strings"
+	"github.com/hashicorp/consul/api"
 )
 type Consul struct {
 	Cluster
-	client *consulkv.Client
 	serviceIp string
-	session string
+	Session *Session
 	isLock int
 	lock *sync.Mutex
 	onLeaderCallback func()
 	onPosChange func([]byte)
-	key string
+	sessionId string
 	enable bool
-	//startLock chan struct{}
+	Client *api.Client
+	Kv *api.KV
 }
 const (
 	POS_KEY = "wing/binlog/pos"
@@ -33,6 +32,7 @@ const (
 )
 
 func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
+	log.Debugf("start cluster...")
 	config, err := GetConfig()
 	log.Debugf("cluster config: %+v", *config.Consul)
 	if err != nil {
@@ -42,29 +42,28 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		serviceIp:config.Consul.ServiceIp,
 		isLock:0,
 		lock:new(sync.Mutex),
-		key:GetSession(),
-		//startLock:make(chan struct{}),
+		sessionId:GetSession(),
 		onLeaderCallback:onLeaderCallback,
 		onPosChange:onPosChange,
 		enable:config.Enable,
 	}
 	if con.enable {
-		con.session, err = con.createSession()
+		ConsulConfig := api.DefaultConfig()
+		ConsulConfig.Address = config.Consul.ServiceIp
+		var err error
+		con.Client, err = api.NewClient(ConsulConfig)
 		if err != nil {
 			log.Panicf("create consul session with error: %+v", err)
 		}
-		//http.DefaultClient.Timeout = time.Second * 6
-		kvConfig := &consulkv.Config{
-			Address:    config.Consul.ServiceIp,
-			HTTPClient: http.DefaultClient,
+		con.Session = &Session {
+			Address:config.Consul.ServiceIp,
+			Client:con.Client,
 		}
-		con.client, err = consulkv.NewClient(kvConfig)
-		if err != nil {
-			log.Panicf("new consul client with error: %+v", err)
-		}
+		con.Session.create()
+		con.Kv = con.Client.KV()
 		// check self is locked in start
 		// if is locked, try unlock
-		_, v, err := con.client.Get(PREFIX_KEEPALIVE + con.key)
+		v, _, err := con.Kv.Get(PREFIX_KEEPALIVE + con.sessionId, nil)
 		if err == nil && v != nil {
 			t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
 				int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
@@ -84,59 +83,59 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		//如果当前不是leader，重新选leader。leader不需要check
 		//如果被选为leader，则还需要执行一个onLeader回调
 		go con.checkAlive()
-		//还需要一个keepalive
+		////还需要一个keepalive
 		go con.keepalive()
-		//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
+		////还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 		go con.watch()
-		con.writeMember()
 	}
 	return con
 }
 
-func (con *Consul) writeMember() {
+func (con *Consul) keepalive() {
 	if !con.enable {
 		return
 	}
-	con.lock.Lock()
-	defer con.lock.Unlock()
 	hostname, err := os.Hostname()
 	if err != nil {
-		hostname = con.key
+		hostname = con.sessionId
 	}
 	h  := []byte(hostname)
 	hl := len(h)
-	k  := []byte(con.key)
+	k  := []byte(con.sessionId)
 	kl := len(k)
-	d  := make([]byte, 1 + 2 + hl + kl + 2)
-	i  := 0
-	d[i] = byte(con.isLock);i++
-	d[i] = byte(hl);i++
-	d[i] = byte(hl >> 8);i++
-	for _, b := range h {
-		d[i] = b; i++
-	}
-	d[i] = byte(kl); i++
-	d[i] = byte(kl >> 8); i++
-	for _, b := range k {
-		d[i] = b; i++
-	}
-	con.client.Put(PREFIX_NODE + con.key, d, 0)
-}
+	//d  := make([]byte, 1 + 2 + hl + kl + 2)
+	r := make([]byte, 9 + 2 + hl + kl + 2)
+	for {
+		t := time.Now().Unix()
+		i := 0
+		//0-7 bytes
+		r[i] = byte(t); i++
+		r[i] = byte(t >> 8); i++
+		r[i] = byte(t >> 16); i++
+		r[i] = byte(t >> 24); i++
+		r[i] = byte(t >> 32); i++
+		r[i] = byte(t >> 40); i++
+		r[i] = byte(t >> 48); i++
+		r[i] = byte(t >> 56); i++
+		con.lock.Lock()
+		// 1 byte, index 8
+		r[i] = byte(con.isLock); i++
+		con.lock.Unlock()
 
-func (con *Consul) getMemberStatus(key string) string {
-	_, v, err := con.client.Get(PREFIX_KEEPALIVE + key)
-	if err == nil && v != nil {
-		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
-			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
-			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
-			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
-		if time.Now().Unix()-t > 3 {
-			return STATUS_OFFLINE
-		} else {
-			return STATUS_ONLINE
+		//2 bytes, index 9 -10
+		r[i] = byte(hl);i++
+		r[i] = byte(hl >> 8);i++
+		for _, b := range h {
+			r[i] = b; i++
 		}
+		r[i] = byte(kl); i++
+		r[i] = byte(kl >> 8); i++
+		for _, b := range k {
+			r[i] = b; i++
+		}
+		con.Kv.Put(&api.KVPair{Key: PREFIX_KEEPALIVE + con.sessionId, Value: r}, nil)//client.Put(PREFIX_KEEPALIVE + con.key, r, 0)
+		time.Sleep(time.Second * 1)
 	}
-	return STATUS_OFFLINE
 }
 
 func (con *Consul) ClearOfflineMembers() {
@@ -145,7 +144,7 @@ func (con *Consul) ClearOfflineMembers() {
 	//如果keepalive中没有或者超时的都要清理掉
 	members := con.GetMembers()
 	log.Debugf("ClearOfflineMembers called")
-	_, pairs, err := con.client.List(PREFIX_KEEPALIVE)
+	pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
 	if err != nil || pairs == nil {
 		log.Debugf("ClearOfflineMembers %+v,,%+v", pairs, err)
 		return
@@ -188,45 +187,34 @@ func (con *Consul) ClearOfflineMembers() {
 }
 
 func (con *Consul) GetMembers() []*ClusterMember {
-	_, members, err := con.client.List(PREFIX_NODE)
+	members,_, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
 	if err != nil {
 		return nil
 	}
+	_hostname, err := os.Hostname()
+	log.Debugf("hostname: ", _hostname)
 	m := make([]*ClusterMember, len(members))
-	for i, member := range members {
-		log.Debugf("key ==> %s", member.Key)
+	for i, v := range members {
+		log.Debugf("key ==> %s", v.Key)
 		m[i] = &ClusterMember{}
-		m[i].IsLeader = int(member.Value[0]) == 1
-		hl := int(member.Value[1]) | int(member.Value[2]) << 8
-		m[i].Hostname = string(member.Value[3:2+hl])
-		kl := int(member.Value[hl+3]) | int(member.Value[hl+4]) << 8
-		m[i].Session = string(member.Value[hl+5:5+hl+kl])
-		m[i].Status = con.getMemberStatus(m[i].Session)
+		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+		if time.Now().Unix()-t > 3 {
+			m[i].Status = STATUS_OFFLINE
+		} else {
+			m[i].Status = STATUS_ONLINE
+		}
+		m[i].IsLeader = int(v.Value[8]) == 1
+		//9 - 10 is hostname len
+		hl := int(v.Value[9]) | int(v.Value[10])<<8
+		//hl := int(member.Value[1]) | int(member.Value[2]) << 8
+		m[i].Hostname = string(v.Value[11:12+hl])
+		//kl := int(v.Value[hl+11]) | int(v.Value[hl+12]) << 8
+		m[i].Session = string(v.Value[hl+13:])
 	}
 	return m
-}
-
-func (con *Consul) keepalive() {
-	if !con.enable {
-		return
-	}
-	r := make([]byte, 9)
-	for {
-		t := time.Now().Unix()
-		r[0] = byte(t)
-		r[1] = byte(t >> 8)
-		r[2] = byte(t >> 16)
-		r[3] = byte(t >> 24)
-		r[4] = byte(t >> 32)
-		r[5] = byte(t >> 40)
-		r[6] = byte(t >> 48)
-		r[7] = byte(t >> 56)
-		con.lock.Lock()
-		r[8] = byte(con.isLock)
-		con.lock.Unlock()
-		con.client.Put(PREFIX_KEEPALIVE + con.key, r, 0)
-		time.Sleep(time.Second * 1)
-	}
 }
 
 func (con *Consul) checkAlive() {
@@ -242,7 +230,7 @@ func (con *Consul) checkAlive() {
 			continue
 		}
 		con.lock.Unlock()
-		_, pairs, err := con.client.List(PREFIX_KEEPALIVE)
+		pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
 		if err != nil {
 			log.Errorf("checkAlive with error：%#v", err)
 			time.Sleep(time.Second)
@@ -302,13 +290,13 @@ func (con *Consul) watch() {
 		if con.isLock == 1 {
 			con.lock.Unlock()
 			// leader does not need watch
-			time.Sleep(time.Second*3)
+			time.Sleep(time.Second * 3)
 			continue
 		}
 		con.lock.Unlock()
-		meta, _, err := con.client.List("wing/binlog/pos")
+		_, meta, err := con.Kv.Get(POS_KEY, nil)
 		if err != nil {
-			log.Errorf("watch chang with error：%#v", err)
+			log.Errorf("watch pos change with error：%#v", err)
 			time.Sleep(time.Second)
 			continue
 		}
@@ -316,7 +304,10 @@ func (con *Consul) watch() {
 			time.Sleep(time.Second)
 			continue
 		}
-		_, v, err := con.client.WatchGet("wing/binlog/pos", meta.ModifyIndex)
+		v, _, err := con.Kv.Get(POS_KEY, &api.QueryOptions{
+			WaitIndex : meta.LastIndex,
+			WaitTime : time.Second * 3,
+		})
 		if err != nil {
 			log.Errorf("watch chang with error：%#v, %+v", err, v)
 			time.Sleep(time.Second)
@@ -326,11 +317,8 @@ func (con *Consul) watch() {
 			time.Sleep(time.Second)
 			continue
 		}
-		if v.Value == nil {
-			continue
-		}
 		con.onPosChange(v.Value)
-		time.Sleep(time.Microsecond * 1)
+		time.Sleep(time.Millisecond * 10)
 	}
 }
 
@@ -338,7 +326,7 @@ func (con *Consul) Close() {
 	if !con.enable {
 		return
 	}
-	con.Delete(PREFIX_KEEPALIVE + con.key)
+	con.Delete(PREFIX_KEEPALIVE + con.sessionId)
 	log.Debugf("current is leader %d", con.isLock)
 	con.lock.Lock()
 	l := con.isLock
@@ -355,7 +343,7 @@ func (con *Consul) Write(data []byte) bool {
 		return true
 	}
 	log.Debugf("write consul kv: %s, %v", POS_KEY, data)
-	err := con.client.Put(POS_KEY, data, 0)
+	_, err := con.Kv.Put(&api.KVPair{Key: POS_KEY, Value: data}, nil)
 	if err != nil {
 		log.Errorf("write consul kv with error: %+v", err)
 	}
@@ -366,7 +354,7 @@ func (con *Consul) Read() []byte {
 	if !con.enable {
 		return nil
 	}
-	_ ,v, err := con.client.Get(POS_KEY)
+	v ,_, err := con.Kv.Get(POS_KEY, nil)
 	if err != nil {
 		log.Errorf("write consul kv with error: %+v", err)
 		return nil

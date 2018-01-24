@@ -16,6 +16,7 @@ var (
 )
 
 func init() {
+	return
 	fmt.Println("log init------------")
 	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:      true,
