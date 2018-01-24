@@ -43,6 +43,11 @@ func (con *Consul) Lock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
+	if success {
+		con.lock.Lock()
+		con.isLock = 1
+		con.lock.Unlock()
+	}
 	return success
 
 	//defer con.writeMember()
@@ -74,6 +79,11 @@ func (con *Consul) Unlock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
+	if success {
+		con.lock.Lock()
+		con.isLock = 0
+		con.lock.Unlock()
+	}
 	return success//err == nil && success, err
 
 	//defer con.writeMember()
@@ -100,6 +110,13 @@ func (con *Consul) Delete(key string) error {
 		return nil
 	}
 	_, err := con.Kv.Delete(key, nil)
+	if err == nil {
+		con.lock.Lock()
+		if key == LOCK && con.isLock == 1 {
+			con.isLock = 0
+		}
+		con.lock.Unlock()
+	}
 	return err
 
 	//defer con.writeMember()
