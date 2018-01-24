@@ -37,6 +37,13 @@ func (con *Consul) Lock() bool {
 	if !con.enable {
 		return true
 	}
+	if con.Session.ID == "" {
+		con.Session.create()
+	}
+	if con.Session.ID == "" {
+		log.Errorf("error: %v", ErrorSessionEmpty)
+		return false
+	}
 	//key string, value []byte, sessionID string
 	p := &api.KVPair{Key: LOCK, Value: nil, Session: con.Session.ID}
 	success, _, err := con.Kv.Acquire(p, nil)
@@ -74,6 +81,13 @@ func (con *Consul) Unlock() bool {
 	if !con.enable {
 		return true
 	}
+	if con.Session.ID == "" {
+		con.Session.create()
+	}
+	if con.Session.ID == "" {
+		log.Errorf("error: %v", ErrorSessionEmpty)
+		return false
+	}
 	p := &api.KVPair{Key: LOCK, Value: nil, Session: con.Session.ID}
 	success, _, err := con.Kv.Release(p, nil)
 	if err != nil {
@@ -107,6 +121,12 @@ func (con *Consul) Unlock() bool {
 // delete a lock
 func (con *Consul) Delete(key string) error {
 	if !con.enable {
+		return nil
+	}
+	if con.Session.ID == "" {
+		con.Session.create()
+	}
+	if con.Session.ID == "" {
 		return nil
 	}
 	_, err := con.Kv.Delete(key, nil)

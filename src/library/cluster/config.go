@@ -11,6 +11,7 @@ import (
 var (
 	ErrorFileNotFound = errors.New("config file not found")
 	ErrorFileParse    = errors.New("config parse error")
+	ErrorSessionEmpty = errors.New("session empty")
 )
 
 type Cluster interface{
