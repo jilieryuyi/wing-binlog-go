@@ -57,8 +57,8 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		}
 		con.Session = &Session {
 			Address:config.Consul.ServiceIp,
-			Client:con.Client,
 			ID:"",
+			s:con.Client.Session(),
 		}
 		con.Session.create()
 		con.Kv = con.Client.KV()
