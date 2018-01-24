@@ -336,6 +336,7 @@ func (con *Consul) Close() {
 		con.Unlock()
 		con.Delete(LOCK)
 	}
+	con.Session.delete()
 }
 
 func (con *Consul) Write(data []byte) bool {
