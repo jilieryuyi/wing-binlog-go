@@ -22,7 +22,12 @@ func (ses *Session) create() {
 	ses.ID = ID
 }
 
-func (ses *Session) Renew() (err error) {
+func (ses *Session) renew() (err error) {
 	_, _, err = ses.Client.Session().Renew(ses.ID, nil)
+	return err
+}
+
+func (ses *Session) delete() (err error) {
+	_, err = ses.Client.Session().Destroy(ses.ID, nil)
 	return err
 }
