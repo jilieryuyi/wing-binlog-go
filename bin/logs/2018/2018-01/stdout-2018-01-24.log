@@ -1,0 +1,348 @@
+[37mDEBU[0m[2018-01-24 19:27:34] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]}  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:27:34] create BinlogSyncer with config {9999 mysql 127.0.0.1 3306 root   utf8 false false <nil> false 0 30s 0s}  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:27:34] cluster config: {ServiceIp:127.0.0.1:8500}    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/cache/session  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:27:34] tcp service start with: 0.0.0.0:9998          [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:27:34] current run as leader                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:34] update master position (mysql-bin.000063, 4)  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:27:34] skip dump, use last binlog replication pos (mysql-bin.000063, 4) or GTID %!s(<nil>)  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:27:34] unix服务启动，等待新的连接...                            [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[36mINFO[0m[2018-01-24 19:27:34] begin to sync binlog from position (mysql-bin.000063, 4)  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[36mINFO[0m[2018-01-24 19:27:34] register slave for master server 127.0.0.1:3306  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[36mINFO[0m[2018-01-24 19:27:34] start sync binlog at binlog file (mysql-bin.000063, 4)  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[36mINFO[0m[2018-01-24 19:27:34] rotate to (mysql-bin.000063, 4)               [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[36mINFO[0m[2018-01-24 19:27:34] rotate binlog to (mysql-bin.000063, 4)        [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:27:34] OnRotate event fired, &{Position:4 NextLogName:[109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]}  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] update master position (mysql-bin.000063, 4)  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] binlog事件：OnPosSynced (mysql-bin.000063, 4) %!b(bool=true)  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:34] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:37] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:37] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:37] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:37] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:38] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:38] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:38] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:38] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:38] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:40] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:40] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:40] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:40] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:41] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:41] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:41] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:41] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:41] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:43] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:43] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:43] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:43] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:44] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:44] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:44] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:44] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:44] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:46] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:46] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:46] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:46] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:47] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:47] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:47] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:47] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:47] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:49] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:49] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:49] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:49] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:50] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:50] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:50] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:50] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:50] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:52] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:52] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:52] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:52] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:53] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:53] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:53] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:53] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:53] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:55] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:55] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:55] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:55] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:57] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:57] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:57] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:57] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:57] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:27:58] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:27:58] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:27:58] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:27:58] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:00] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:00] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:00] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:00] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:00] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:01] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:01] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:01] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:01] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:03] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:03] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:03] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:03] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:03] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:04] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:04] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:04] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:04] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:06] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:06] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:06] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:06] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:06] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:07] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:07] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:07] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:07] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:09] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:09] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:09] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:09] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:09] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:10] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:10] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:10] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:10] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:12] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:12] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:12] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:12] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:12] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:13] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:13] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:13] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:13] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:15] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:15] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:15] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:15] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:15] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:16] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:16] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:16] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:16] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:19] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:19] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:19] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:19] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:19] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:19] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:19] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:19] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:19] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:22] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:22] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:22] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:22] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:22] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:22] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:22] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:22] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:23] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:25] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:25] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:25] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:25] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:25] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:26] leader maybe leave, try to create a new leader  [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:26] current run as leader, start running          [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:26] binlog start service                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:26] binlog service is not in close status         [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[33mWARN[0m[2018-01-24 19:28:27] binlog service exit                           [33mfile[0m=logger.go [33mfunc[0m="logrus.(*Logger).Warn" [33mline[0m=203
+[37mDEBU[0m[2018-01-24 19:28:27] binlog service stop                           [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[36mINFO[0m[2018-01-24 19:28:27] closing canal                                 [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:28:27] syncer is closing...                          [36mfile[0m=logger.go [36mfunc[0m="logrus.(*Logger).Info" [36mline[0m=189
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[31mERRO[0m[2018-01-24 19:28:27] canal start sync binlog err: context canceled  [31mfile[0m=entry.go [31mfunc[0m="logrus.(*Entry).Errorf" [31mline[0m=208
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:27] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[33mWARN[0m[2018-01-24 19:28:27] binlog service exit: context canceled
+github.com/siddontang/go-mysql/canal/sync.go:54: 
+github.com/siddontang/go-mysql/canal/canal.go:203:   [33mfile[0m=entry.go [33mfunc[0m="logrus.(*Entry).Warnf" [33mline[0m=198
+[37mDEBU[0m[2018-01-24 19:28:28] http服务errorCheckService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] http服务errorCheckService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] http服务errorCheckService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] http服务errorCheckService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[31mERRO[0m[2018-01-24 19:28:28] connection was bad                            [31mfile[0m=logger.go [31mfunc[0m="logrus.(*Logger).Error" [31mline[0m=219
+[31mERRO[0m[2018-01-24 19:28:28] close sync with err: Sync was closed          [31mfile[0m=entry.go [31mfunc[0m="logrus.(*Entry).Errorf" [31mline[0m=208
+[36mINFO[0m[2018-01-24 19:28:28] syncer is closed                              [36mfile[0m=logger.go [36mfunc[0m="logrus.(*Logger).Info" [36mline[0m=189
+[37mDEBU[0m[2018-01-24 19:28:28] binlog事件：OnPosSynced (mysql-bin.000063, 4) %!b(bool=true)  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] onPos                                         [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] onPos mysql-bin.000063, 4, 38                 [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] tcp service exit                              [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] tcp service closing, waiting for buffer send complete.  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] tcp service closed.                           [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] http service exit                             [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] http service closing, waiting for buffer send complete.  [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:28] http service closed.                          [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[37mDEBU[0m[2018-01-24 19:28:28] 34 , <nil>                                    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:28] current is leader 0                           [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:29] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]}  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:28:29] create BinlogSyncer with config {9999 mysql 127.0.0.1 3306 root   utf8 false false <nil> false 0 30s 0s}  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:28:29] cluster config: {ServiceIp:127.0.0.1:8500}    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:29] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/cache/session  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:28:29] tcp service start with: 0.0.0.0:9998          [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:28:29] unix服务启动，等待新的连接...                            [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[33mWARN[0m[2018-01-24 19:28:30] binlog service exit                           [33mfile[0m=logger.go [33mfunc[0m="logrus.(*Logger).Warn" [33mline[0m=203
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:28:30] current is leader 0                           [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:29:20] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]} 
+[36mINFO[0m[2018-01-24 19:29:20] create BinlogSyncer with config {9999 mysql 127.0.0.1 3306 root   utf8 false false <nil> false 0 30s 0s} 
+[37mDEBU[0m[2018-01-24 19:29:20] cluster config: {ServiceIp:127.0.0.1:8500}   
+[37mDEBU[0m[2018-01-24 19:29:20] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/cache/session 
+[36mINFO[0m[2018-01-24 19:29:20] tcp service start with: 0.0.0.0:9998         
+[37mDEBU[0m[2018-01-24 19:29:20] unix服务启动，等待新的连接...                           
+[33mWARN[0m[2018-01-24 19:29:23] leader maybe leave, try to create a new leader 
+[37mDEBU[0m[2018-01-24 19:29:23] current run as leader, start running         
+[37mDEBU[0m[2018-01-24 19:29:23] binlog start service                         
+[37mDEBU[0m[2018-01-24 19:29:23] update master position (mysql-bin.000063, 4) 
+[36mINFO[0m[2018-01-24 19:29:23] skip dump, use last binlog replication pos (mysql-bin.000063, 4) or GTID %!s(<nil>) 
+[36mINFO[0m[2018-01-24 19:29:23] begin to sync binlog from position (mysql-bin.000063, 4) 
+[36mINFO[0m[2018-01-24 19:29:23] register slave for master server 127.0.0.1:3306 
+[36mINFO[0m[2018-01-24 19:29:23] start sync binlog at binlog file (mysql-bin.000063, 4) 
+[36mINFO[0m[2018-01-24 19:29:23] rotate to (mysql-bin.000063, 4)              
+[36mINFO[0m[2018-01-24 19:29:23] rotate binlog to (mysql-bin.000063, 4)       
+[37mDEBU[0m[2018-01-24 19:29:23] OnRotate event fired, &{Position:4 NextLogName:[109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51]} 
+[37mDEBU[0m[2018-01-24 19:29:23] update master position (mysql-bin.000063, 4) 
+[37mDEBU[0m[2018-01-24 19:29:23] binlog事件：OnPosSynced (mysql-bin.000063, 4) %!b(bool=true) 
+[37mDEBU[0m[2018-01-24 19:29:23] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:23] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:23] onPos                                        
+[37mDEBU[0m[2018-01-24 19:29:23] onPos mysql-bin.000063, 4, 38                
+[37mDEBU[0m[2018-01-24 19:29:23] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:23] 34 , <nil>                                   
+[37mDEBU[0m[2018-01-24 19:29:23] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:23] 34 , <nil>                                   
+[33mWARN[0m[2018-01-24 19:29:26] leader maybe leave, try to create a new leader 
+[37mDEBU[0m[2018-01-24 19:29:26] current run as leader, start running         
+[37mDEBU[0m[2018-01-24 19:29:26] binlog start service                         
+[37mDEBU[0m[2018-01-24 19:29:26] binlog service is not in close status        
+[37mDEBU[0m[2018-01-24 19:29:26] onPos                                        
+[37mDEBU[0m[2018-01-24 19:29:26] onPos mysql-bin.000063, 4, 38                
+[37mDEBU[0m[2018-01-24 19:29:26] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:26] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:26] 34 , <nil>                                   
+[33mWARN[0m[2018-01-24 19:29:27] binlog service exit                          
+[37mDEBU[0m[2018-01-24 19:29:27] binlog service stop                          
+[36mINFO[0m[2018-01-24 19:29:27] closing canal                                
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test4.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test2.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test1.php 
+[31mERRO[0m[2018-01-24 19:29:27] canal start sync binlog err: context canceled 
+[36mINFO[0m[2018-01-24 19:29:27] syncer is closing...                         
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test1.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test3.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test3.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test3.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test2.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test1.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test2.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test2.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test4.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test3.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test4.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test1.php 
+[37mDEBU[0m[2018-01-24 19:29:27] http服务clientSendService退出：http://test.com/test4.php 
+[33mWARN[0m[2018-01-24 19:29:27] binlog service exit: context canceled
+github.com/siddontang/go-mysql/canal/sync.go:54: 
+github.com/siddontang/go-mysql/canal/canal.go:203:  
+[31mERRO[0m[2018-01-24 19:29:27] connection was bad                           
+[31mERRO[0m[2018-01-24 19:29:27] close sync with err: Sync was closed         
+[36mINFO[0m[2018-01-24 19:29:27] syncer is closed                             
+[37mDEBU[0m[2018-01-24 19:29:27] binlog事件：OnPosSynced (mysql-bin.000063, 4) %!b(bool=true) 
+[37mDEBU[0m[2018-01-24 19:29:27] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:27] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:27] 34 , <nil>                                   
+[37mDEBU[0m[2018-01-24 19:29:27] onPos                                        
+[37mDEBU[0m[2018-01-24 19:29:27] onPos mysql-bin.000063, 4, 38                
+[37mDEBU[0m[2018-01-24 19:29:27] tcp service exit                             
+[37mDEBU[0m[2018-01-24 19:29:27] write binlog cache: mysql-bin.000063, 4, 38, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:27] write consul kv: wing/binlog/pos, [32 0 4 0 0 0 0 0 0 0 38 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 51] 
+[37mDEBU[0m[2018-01-24 19:29:27] tcp service closing, waiting for buffer send complete. 
+[37mDEBU[0m[2018-01-24 19:29:27] tcp service closed.                          
+[37mDEBU[0m[2018-01-24 19:29:27] http service exit                            
+[37mDEBU[0m[2018-01-24 19:29:27] http service closing, waiting for buffer send complete. 
+[37mDEBU[0m[2018-01-24 19:29:27] http service closed.                         
+[37mDEBU[0m[2018-01-24 19:29:27] 0 , write /Users/yuyi/Code/go/wing-binlog-go/bin/cache/mysql_binlog_position.pos: file already closed 
+[31mERRO[0m[2018-01-24 19:29:27] binlog写入缓存文件错误：write /Users/yuyi/Code/go/wing-binlog-go/bin/cache/mysql_binlog_position.pos: file already closed 
+[37mDEBU[0m[2018-01-24 19:29:27] current is leader 0                          
+[37mDEBU[0m[2018-01-24 19:31:05] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]}  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:31:05] create BinlogSyncer with config {9999 mysql 127.0.0.1 3306 root   utf8 false false <nil> false 0 30s 0s}  [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:31:05] cluster config: {ServiceIp:127.0.0.1:8500}    [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:05] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/cache/session  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:05] binlog start ...                              [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[36mINFO[0m[2018-01-24 19:31:05] tcp service start with: 0.0.0.0:9998          [36mfile[0m=entry.go [36mfunc[0m="logrus.(*Entry).Infof" [36mline[0m=188
+[37mDEBU[0m[2018-01-24 19:31:05] unix服务启动，等待新的连接...                            [37mfile[0m=logger.go [37mfunc[0m="logrus.(*Logger).Debug" [37mline[0m=181
+[33mWARN[0m[2018-01-24 19:31:08] binlog service exit                           [33mfile[0m=logger.go [33mfunc[0m="logrus.(*Logger).Warn" [33mline[0m=203
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test3.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test2.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test4.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] http服务clientSendService退出：http://test.com/test1.php  [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
+[37mDEBU[0m[2018-01-24 19:31:08] current is leader 0                           [37mfile[0m=entry.go [37mfunc[0m="logrus.(*Entry).Debugf" [37mline[0m=182
