@@ -23,7 +23,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 	"path"
-	"strings"
 )
 
 var (
@@ -130,13 +129,13 @@ func (hook ContextHook) Fire(entry *log.Entry) error {
 		fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
 
 		name := fu.Name()
-		if !strings.Contains(name, "github.com/Sirupsen/logrus") {
-			_file, line := fu.FileLine(pc[i] - 1)
+		//if !strings.Contains(name, "github.com/Sirupsen/logrus") {
+			_file, line = fu.FileLine(pc[i] - 1)
 			entry.Data["file"] = path.Base(_file)
 			entry.Data["func"] = path.Base(name)
 			entry.Data["line"] = line
 			break
-		}
+		//}
 	}
 	return nil
 }
