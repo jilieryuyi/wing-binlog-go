@@ -113,7 +113,6 @@ func (con *Consul) RegisterService(ip string, port int) {
 		hostname = ""//con.sessionId
 	}
 	name := hostname + con.sessionId
-
 	check := &api.AgentServiceCheck{
 		CheckID : con.sessionId,//          string              `json:",omitempty"`
 		Name : name,//            string              `json:",omitempty"`
@@ -165,11 +164,18 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 		log.Errorf("get service list error: %+v", err)
 		return nil
 	}
+	log.Debugf("services: %+v", ser)
+	//debug
+	for key, v := range ser {
+		log.Debugf("service %s: %+v", key, *v)
+	}
 	return ser
 }
 
 func (con *Consul) refreshSession() {
 	for {
+		//debug
+		con.GetServices()
 		con.Session.renew()
 		time.Sleep(time.Second * 30)
 	}
