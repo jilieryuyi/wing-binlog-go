@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"errors"
 	"library/file"
+	"github.com/hashicorp/consul/api"
 )
 
 var (
@@ -21,7 +22,7 @@ type Cluster interface{
     GetMembers() []*ClusterMember
 	ClearOfflineMembers()
 	RegisterService(ip string, port int)
-	GetServices()
+	GetServices() map[string]*api.AgentService
 }
 
 type ClusterMember struct {
