@@ -211,14 +211,17 @@ func main() {
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 各种通信服务
-	tcpService := services.NewTcpService(&ctx)
-	httpService := services.NewHttpService(&ctx)
+
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
 	defer clu.Close()
+
+	// 各种通信服务
+	tcpService := services.NewTcpService(&ctx)
+	tcpService.RegisterDrive(clu)
+	httpService := services.NewHttpService(&ctx)
 
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcpService)

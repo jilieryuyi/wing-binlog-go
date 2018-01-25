@@ -128,7 +128,8 @@ func (con *Consul) RegisterService(ip string, port int) {
 		//Header            map[string][]string `json:",omitempty"`
 		//Method            string              `json:",omitempty"`
 		TCP : fmt.Sprintf("%s:%d", ip, port),//               string              `json:",omitempty"`
-		Status : "online",//            string              `json:",omitempty"`
+		//'passing', 'warning', 'critical'
+		Status : "passing",//            string              `json:",omitempty"`
 		Notes : "wing binlog go healthy check",//             string              `json:",omitempty"`
 		//TLSSkipVerify     bool                `json:",omitempty"`
 

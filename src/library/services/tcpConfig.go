@@ -2,6 +2,7 @@ package services
 
 import (
 	"library/file"
+	"library/cluster"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"sync"
@@ -41,6 +42,8 @@ type TcpService struct {
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	agent            *Agent
+	Drive            cluster.Cluster
+	ServiceIp        string
 }
 
 type tcpGroupConfig struct { // group node in toml
@@ -52,6 +55,7 @@ type TcpConfig struct {
 	Listen string `toml:"listen"`
 	Port   int    `toml:"port"`
 	Enable bool   `toml:"enable"`
+	ServiceIp string `toml:"service_ip"`
 	Groups map[string]tcpGroupConfig
 }
 
