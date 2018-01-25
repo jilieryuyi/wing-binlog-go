@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"github.com/hashicorp/consul/api"
+	"fmt"
 )
 type Consul struct {
 	Cluster
@@ -96,12 +97,74 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 	return con
 }
 
-func (con *Consul) RegisterService(ip string, port int) {
+// 注册一个健康监测
+// 使用方案 http://blog.csdn.net/younger_china/article/details/52662637
+//func (con *Consul) check() {
+//	//注册的健康检测id 为
+//	//con.sessionId
+//	//还需要创建一个关联的session
+//	//TTL为10，每3秒renew一次
+//}
 
+// 注册服务
+func (con *Consul) RegisterService(ip string, port int) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""//con.sessionId
+	}
+	name := hostname + con.sessionId
+
+	check := &api.AgentServiceCheck{
+		CheckID : con.sessionId,//          string              `json:",omitempty"`
+		Name : name,//            string              `json:",omitempty"`
+		//Args:[]string{},              []string            `json:"ScriptArgs,omitempty"`
+		//Script            string              `json:",omitempty"` // Deprecated, use Args.
+		//DockerContainerID string              `json:",omitempty"`
+		//Shell             string              `json:",omitempty"` // Only supported for Docker.
+		Interval : "3s",//          string              `json:",omitempty"`
+		//Timeout           string              `json:",omitempty"`
+		//TTL               string              `json:",omitempty"`
+		//HTTP              string              `json:",omitempty"`
+		//Header            map[string][]string `json:",omitempty"`
+		//Method            string              `json:",omitempty"`
+		TCP : fmt.Sprintf("%s:%d", ip, port),//               string              `json:",omitempty"`
+		Status : "online",//            string              `json:",omitempty"`
+		Notes : "wing binlog go healthy check",//             string              `json:",omitempty"`
+		//TLSSkipVerify     bool                `json:",omitempty"`
+
+		// In Consul 0.7 and later, checks that are associated with a service
+		// may also contain this optional DeregisterCriticalServiceAfter field,
+		// which is a timeout in the same Go time format as Interval and TTL. If
+		// a check is in the critical state for more than this configured value,
+		// then its associated service (and all of its associated checks) will
+		// automatically be deregistered.
+		//DeregisterCriticalServiceAfter string `json:",omitempty"`
+	}
+
+	service := &api.AgentServiceRegistration{
+		ID:con.sessionId,//                string   `json:",omitempty"`
+		Name :name,//              string   `json:",omitempty"`
+		Tags:[]string{hostname, con.sessionId},//              []string `json:",omitempty"`
+		Port:port,//              int      `json:",omitempty"`
+		Address:ip,//           string   `json:",omitempty"`
+		EnableTagOverride:false,// bool     `json:",omitempty"`
+		Check:check,//             *api.AgentServiceCheck
+		Checks:nil,//            api.AgentServiceChecks
+	}
+	err = con.Client.Agent().ServiceRegister(service)
+	if err != nil {
+		log.Errorf("register service with error: %+v", err)
+	}
 }
 
-func (con *Consul) GetServices() {
-
+// 服务发现，获取服务列表
+func (con *Consul) GetServices() map[string]*api.AgentService {
+	ser, err := con.Client.Agent().Services()
+	if err != nil {
+		log.Errorf("get service list error: %+v", err)
+		return nil
+	}
+	return ser
 }
 
 func (con *Consul) refreshSession() {
