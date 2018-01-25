@@ -22,9 +22,9 @@ type tcpClientNode struct {
 }
 
 type tcpGroup struct {
-	name   string           //
-	filter []string         //
-	nodes  []*tcpClientNode //
+	name   string
+	filter []string
+	nodes  []*tcpClientNode
 }
 
 type TcpService struct {
@@ -40,6 +40,7 @@ type TcpService struct {
 	ctx              *context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
+	agent            *Agent
 }
 
 type tcpGroupConfig struct { // group node in toml

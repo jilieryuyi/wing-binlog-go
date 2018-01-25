@@ -26,6 +26,11 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		listener:         nil,
 		ctx:              ctx,
 	}
+
+	tcp.agent = &Agent{
+		tcp:tcp,
+	}
+	
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		tcp.groups[cgroup.Name] = &tcpGroup{

@@ -31,6 +31,9 @@ const (
 	STATUS_OFFLINE = "offline"
 )
 
+//todo 这里还缺一个服务注册与服务发现，健康检查
+//服务注册-把当前的tcp service的服务ip和端口注册到consul，并且启用健康检查
+//服务发现即，查询这些服务并且分辨出那个是leader，那些节点是健康的
 func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 	log.Debugf("start cluster...")
 	config, err := GetConfig()
@@ -92,6 +95,15 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 	}
 	return con
 }
+
+func (con *Consul) RegisterService(ip string, port int) {
+
+}
+
+func (con *Consul) GetServices() {
+
+}
+
 func (con *Consul) refreshSession() {
 	for {
 		con.Session.renew()

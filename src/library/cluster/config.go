@@ -20,6 +20,8 @@ type Cluster interface{
 	Write(data []byte) bool
     GetMembers() []*ClusterMember
 	ClearOfflineMembers()
+	RegisterService(ip string, port int)
+	GetServices()
 }
 
 type ClusterMember struct {
