@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"library/cluster"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"regexp"
@@ -25,12 +26,13 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
+		ServiceIp:        config.ServiceIp,
 	}
 
 	tcp.agent = &Agent{
 		tcp:tcp,
 	}
-	
+
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		tcp.groups[cgroup.Name] = &tcpGroup{
@@ -260,6 +262,7 @@ func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
+	go tcp.Drive.RegisterService(tcp.ServiceIp, tcp.Port)
 	go func() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		listen, err := net.Listen("tcp", dns)
@@ -306,6 +309,10 @@ func (tcp *TcpService) Close() {
 		}
 	}
 	log.Debugf("tcp service closed.")
+}
+
+func (h *TcpService) RegisterDrive(drive cluster.Cluster) {
+	h.Drive = drive
 }
 
 func (tcp *TcpService) Reload() {
