@@ -1,0 +1,72 @@
+[37mDEBU[0m[2018-01-26 08:47:22] start cluster...                             
+[37mDEBU[0m[2018-01-26 08:47:22] cluster config: {ServiceIp:127.0.0.1:8500}   
+[37mDEBU[0m[2018-01-26 08:47:22] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/cache/session 
+[37mDEBU[0m[2018-01-26 08:47:22] services: map[1516574111-0hWR-E6IN-lrsO:0xc42021c070] 
+[37mDEBU[0m[2018-01-26 08:47:22] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]} 
+[37mDEBU[0m[2018-01-26 08:47:22] service 1516574111-0hWR-E6IN-lrsO: {ID:1516574111-0hWR-E6IN-lrsO Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO Tags:[yuyideMacBook-Pro.local 1516574111-0hWR-E6IN-lrsO] Port:9998 Address:127.0.0.1 EnableTagOverride:false CreateIndex:0 ModifyIndex:0} 
+[37mDEBU[0m[2018-01-26 08:47:22] current run as leader, start running         
+[37mDEBU[0m[2018-01-26 08:47:22] binlog start service                         
+[37mDEBU[0m[2018-01-26 08:47:22] update master position (mysql-bin.000064, 3062) 
+[37mDEBU[0m[2018-01-26 08:47:22] current run as leader                        
+[37mDEBU[0m[2018-01-26 08:47:22] binlog start service                         
+[37mDEBU[0m[2018-01-26 08:47:22] binlog service is not in close status        
+[37mDEBU[0m[2018-01-26 08:47:22] unix服务启动，等待新的连接...                           
+[37mDEBU[0m[2018-01-26 08:47:22] OnRotate event fired, &{Position:3062 NextLogName:[109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 52]} 
+[37mDEBU[0m[2018-01-26 08:47:22] update master position (mysql-bin.000064, 3062) 
+[37mDEBU[0m[2018-01-26 08:47:22] binlog事件：OnPosSynced (mysql-bin.000064, 3062) %!b(bool=true) 
+[37mDEBU[0m[2018-01-26 08:47:22] write binlog cache: mysql-bin.000064, 3062, 43, [32 0 246 11 0 0 0 0 0 0 43 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 52] 
+[37mDEBU[0m[2018-01-26 08:47:22] write consul kv: wing/binlog/pos, [32 0 246 11 0 0 0 0 0 0 43 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 52] 
+[37mDEBU[0m[2018-01-26 08:47:22] 34 , <nil>                                   
+[37mDEBU[0m[2018-01-26 08:47:22] onPos                                        
+[37mDEBU[0m[2018-01-26 08:47:22] onPos mysql-bin.000064, 3062, 43             
+[37mDEBU[0m[2018-01-26 08:47:22] write binlog cache: mysql-bin.000064, 3062, 43, [32 0 246 11 0 0 0 0 0 0 43 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 52] 
+[37mDEBU[0m[2018-01-26 08:47:22] write consul kv: wing/binlog/pos, [32 0 246 11 0 0 0 0 0 0 43 0 0 0 0 0 0 0 109 121 115 113 108 45 98 105 110 46 48 48 48 48 54 52] 
+[37mDEBU[0m[2018-01-26 08:47:22] 34 , <nil>                                   
+[37mDEBU[0m[2018-01-26 08:47:22] tcp service, new connect: 127.0.0.1:50239    
+[37mDEBU[0m[2018-01-26 08:47:25] tcp service, new connect: 127.0.0.1:50240    
+[37mDEBU[0m[2018-01-26 08:47:28] tcp service, new connect: 127.0.0.1:50242    
+[37mDEBU[0m[2018-01-26 08:47:31] tcp service, new connect: 127.0.0.1:50243    
+[37mDEBU[0m[2018-01-26 08:47:34] tcp service, new connect: 127.0.0.1:50244    
+[37mDEBU[0m[2018-01-26 08:47:37] tcp service, new connect: 127.0.0.1:50246    
+[37mDEBU[0m[2018-01-26 08:47:40] tcp service, new connect: 127.0.0.1:50248    
+[37mDEBU[0m[2018-01-26 08:47:43] tcp service, new connect: 127.0.0.1:50249    
+[37mDEBU[0m[2018-01-26 08:47:46] tcp service, new connect: 127.0.0.1:50250    
+[37mDEBU[0m[2018-01-26 08:47:49] tcp service, new connect: 127.0.0.1:50252    
+[37mDEBU[0m[2018-01-26 08:47:52] services: map[1516574111-0hWR-E6IN-lrsO:0xc42020c0e0] 
+[37mDEBU[0m[2018-01-26 08:47:52] service 1516574111-0hWR-E6IN-lrsO: {ID:1516574111-0hWR-E6IN-lrsO Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO Tags:[yuyideMacBook-Pro.local 1516574111-0hWR-E6IN-lrsO] Port:9998 Address:127.0.0.1 EnableTagOverride:false CreateIndex:0 ModifyIndex:0} 
+[37mDEBU[0m[2018-01-26 08:47:52] tcp service, new connect: 127.0.0.1:50253    
+[37mDEBU[0m[2018-01-26 08:47:55] tcp service, new connect: 127.0.0.1:50254    
+[37mDEBU[0m[2018-01-26 08:47:58] tcp service, new connect: 127.0.0.1:50256    
+[37mDEBU[0m[2018-01-26 08:48:01] tcp service, new connect: 127.0.0.1:50257    
+[37mDEBU[0m[2018-01-26 08:48:04] tcp service, new connect: 127.0.0.1:50258    
+[37mDEBU[0m[2018-01-26 08:48:07] tcp service, new connect: 127.0.0.1:50259    
+[37mDEBU[0m[2018-01-26 08:48:10] tcp service, new connect: 127.0.0.1:50261    
+[37mDEBU[0m[2018-01-26 08:48:13] tcp service, new connect: 127.0.0.1:50262    
+[37mDEBU[0m[2018-01-26 08:48:16] tcp service, new connect: 127.0.0.1:50263    
+[37mDEBU[0m[2018-01-26 08:48:19] tcp service, new connect: 127.0.0.1:50265    
+[37mDEBU[0m[2018-01-26 08:48:22] services: map[1516574111-0hWR-E6IN-lrsO:0xc4201344d0] 
+[37mDEBU[0m[2018-01-26 08:48:22] service 1516574111-0hWR-E6IN-lrsO: {ID:1516574111-0hWR-E6IN-lrsO Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO Tags:[yuyideMacBook-Pro.local 1516574111-0hWR-E6IN-lrsO] Port:9998 Address:127.0.0.1 EnableTagOverride:false CreateIndex:0 ModifyIndex:0} 
+[37mDEBU[0m[2018-01-26 08:48:22] tcp service, new connect: 127.0.0.1:50266    
+[37mDEBU[0m[2018-01-26 08:48:25] tcp service, new connect: 127.0.0.1:50267    
+[37mDEBU[0m[2018-01-26 08:48:29] tcp service, new connect: 127.0.0.1:50270    
+[37mDEBU[0m[2018-01-26 08:48:32] tcp service, new connect: 127.0.0.1:50272    
+[37mDEBU[0m[2018-01-26 08:48:35] tcp service, new connect: 127.0.0.1:50273    
+[37mDEBU[0m[2018-01-26 08:48:38] tcp service, new connect: 127.0.0.1:50274    
+[37mDEBU[0m[2018-01-26 08:48:41] tcp service, new connect: 127.0.0.1:50276    
+[37mDEBU[0m[2018-01-26 08:48:44] tcp service, new connect: 127.0.0.1:50277    
+[37mDEBU[0m[2018-01-26 08:48:47] tcp service, new connect: 127.0.0.1:50278    
+[37mDEBU[0m[2018-01-26 08:48:50] tcp service, new connect: 127.0.0.1:50280    
+[37mDEBU[0m[2018-01-26 08:48:52] services: map[1516574111-0hWR-E6IN-lrsO:0xc42021c2a0] 
+[37mDEBU[0m[2018-01-26 08:48:52] service 1516574111-0hWR-E6IN-lrsO: {ID:1516574111-0hWR-E6IN-lrsO Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO Tags:[yuyideMacBook-Pro.local 1516574111-0hWR-E6IN-lrsO] Port:9998 Address:127.0.0.1 EnableTagOverride:false CreateIndex:0 ModifyIndex:0} 
+[37mDEBU[0m[2018-01-26 08:48:53] tcp service, new connect: 127.0.0.1:50281    
+[37mDEBU[0m[2018-01-26 08:48:56] tcp service, new connect: 127.0.0.1:50282    
+[37mDEBU[0m[2018-01-26 08:48:59] tcp service, new connect: 127.0.0.1:50283    
+[37mDEBU[0m[2018-01-26 08:49:02] tcp service, new connect: 127.0.0.1:50285    
+[37mDEBU[0m[2018-01-26 08:49:05] tcp service, new connect: 127.0.0.1:50287    
+[37mDEBU[0m[2018-01-26 08:49:08] tcp service, new connect: 127.0.0.1:50288    
+[37mDEBU[0m[2018-01-26 08:49:11] tcp service, new connect: 127.0.0.1:50290    
+[37mDEBU[0m[2018-01-26 08:49:14] tcp service, new connect: 127.0.0.1:50291    
+[37mDEBU[0m[2018-01-26 08:49:17] tcp service, new connect: 127.0.0.1:50292    
+[37mDEBU[0m[2018-01-26 08:49:20] tcp service, new connect: 127.0.0.1:50294    
+[37mDEBU[0m[2018-01-26 08:49:22] services: map[1516574111-0hWR-E6IN-lrsO:0xc420134230] 
+[37mDEBU[0m[2018-01-26 08:49:22] service 1516574111-0hWR-E6IN-lrsO: {ID:1516574111-0hWR-E6IN-lrsO Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO Tags:[yuyideMacBook-Pro.local 1516574111-0hWR-E6IN-lrsO] Port:9998 Address:127.0.0.1 EnableTagOverride:false CreateIndex:0 ModifyIndex:0} 
