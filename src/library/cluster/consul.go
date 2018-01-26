@@ -32,7 +32,7 @@ const (
 )
 
 //todo 这里还缺一个服务注册与服务发现，健康检查
-//服务注册-把当前的tcp service的服务ip和端口注册到consul，并且启用健康检查
+//服务注册-把当前的tcp service的服务ip和端口注册到consul
 //服务发现即，查询这些服务并且分辨出那个是leader，那些节点是健康的
 func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 	log.Debugf("start cluster...")
@@ -59,9 +59,9 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 			log.Panicf("create consul session with error: %+v", err)
 		}
 		con.Session = &Session {
-			Address:config.Consul.ServiceIp,
-			ID:"",
-			s:con.Client.Session(),
+			Address : config.Consul.ServiceIp,
+			ID : "",
+			s : con.Client.Session(),
 		}
 		con.Session.create()
 		con.Kv = con.Client.KV()

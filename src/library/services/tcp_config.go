@@ -8,6 +8,7 @@ import (
 	"sync"
 	"net"
 	"context"
+	"library/path"
 )
 
 type tcpClientNode struct {
@@ -61,7 +62,7 @@ type TcpConfig struct {
 
 func getTcpConfig() (*TcpConfig, error) {
 	var tcp_config TcpConfig
-	tcp_config_file := file.GetCurrentPath() + "/config/tcp.toml"
+	tcp_config_file := path.CurrentPath + "/config/tcp.toml"
 	wfile := file.WFile{tcp_config_file}
 	if !wfile.Exists() {
 		log.Warnf("配置文件%s不存在 %s", tcp_config_file)

@@ -5,7 +5,6 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-	"library/file"
 	"library/path"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
@@ -37,9 +36,12 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		binlog:        binlog,
 	}
 	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
-	dir := file.WPath{mysqlBinlogCacheFile}
-	dir = file.WPath{dir.GetParent()}
-	dir.Mkdir()
+	//dir := file.WPath{mysqlBinlogCacheFile}
+	//dir = file.WPath{dir.GetParent()}
+	//dir.Mkdir()
+
+	path.Mkdir(path.GetParent(mysqlBinlogCacheFile))
+
 	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
 	if err != nil {
