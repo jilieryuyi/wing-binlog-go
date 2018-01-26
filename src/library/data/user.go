@@ -15,8 +15,9 @@ func init() {
 	data_path := path.CurrentPath + "/data"
 
 	// 如果不存在，尝试创建
-	wpath := &file.WPath{data_path}
-	wpath.Mkdir()
+	//wpath := &file.WPath{data_path}
+	//wpath.Mkdir()
+	path.Mkdir(data_path)
 
 	// db文件
 	user_data_path = data_path + "/wing.db"

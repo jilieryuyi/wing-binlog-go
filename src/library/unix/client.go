@@ -5,10 +5,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"net"
+	"library/path"
 )
 
 func NewUnixClient() *UnixClient {
-	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
+	addr := path.CurrentPath + "/wing-binlog-go.sock"
 	client := &UnixClient{
 		addr: addr,
 	}

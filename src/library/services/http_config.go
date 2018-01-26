@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 	"library/file"
+	"library/path"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 )
@@ -55,7 +56,7 @@ type httpNode struct {
 
 func getHttpConfig() (*HttpConfig, error) {
 	var config HttpConfig
-	http_config_file := file.GetCurrentPath() + "/config/http.toml"
+	http_config_file := path.CurrentPath + "/config/http.toml"
 	wfile := file.WFile{http_config_file}
 	if !wfile.Exists() {
 		log.Warnf("配置文件%s不存在 %s", http_config_file)

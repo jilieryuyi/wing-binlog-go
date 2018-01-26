@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"library/file"
 	"library/time"
 	"os"
 	stime "time"
@@ -23,8 +22,8 @@ func getHandler(level log.Level) (*os.File, error) {
 	day      := fmt.Sprintf("%d-%02d-%02d", t.Year(), t.Month(), t.Day())
 	dir      := fmt.Sprintf("%s/logs/%d/%s", path.CurrentPath, year, month)
 	dfile    := fmt.Sprintf("%s/logs/%d/%s/%s-%s.log", path.CurrentPath, year, month, level.String(), day)
-	logsDir := &file.WPath{Dir:dir}
-	if !logsDir.Exists() {
+	//logsDir := &file.WPath{Dir:dir}
+	if !path.Exists(dir) {
 		os.MkdirAll(dir, 0755)
 	}
 	key := fmt.Sprintf("%s%d", day, level)

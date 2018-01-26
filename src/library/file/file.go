@@ -172,9 +172,9 @@ func (file *WFile) Delete() bool {
 }
 
 func (file *WFile) Write(data string, append bool) int {
-	dir := WPath{file.FilePath}
-	dir = WPath{dir.GetParent()}
-	dir.Mkdir()
+	//dir := WPath{file.FilePath}
+	//dir = WPath{dir.GetParent()}
+	//dir.Mkdir()
 
 	flag := os.O_WRONLY | os.O_CREATE | os.O_SYNC
 	if append {

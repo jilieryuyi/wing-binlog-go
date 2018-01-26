@@ -9,10 +9,11 @@ import (
 	"library/file"
 	"net"
 	"os"
+	"library/path"
 )
 
 func NewUnixServer() *UnixServer {
-	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
+	addr := path.CurrentPath + "/wing-binlog-go.sock"
 	server := &UnixServer{
 		addr: addr,
 	}

@@ -23,6 +23,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 	mlog "library/log"
+	"library/path"
 )
 
 var (
@@ -46,7 +47,7 @@ const (
 )
 
 var (
-	pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
+	pid = path.CurrentPath + "/wing-binlog-go.pid"
  	appConfig, _ = app.GetAppConfig()
 )
 // write pid file
