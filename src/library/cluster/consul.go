@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"github.com/hashicorp/consul/api"
-	"fmt"
 )
 type Consul struct {
 	Cluster
@@ -113,7 +112,9 @@ func (con *Consul) RegisterService(ip string, port int) {
 		hostname = ""//con.sessionId
 	}
 	name := hostname + con.sessionId
-	check := &api.AgentServiceCheck{
+	//consul的tcp健康检测是定期去连接服务器，然后关闭
+	//这种方式不好，这里去掉健康监测，选择其他方式自己实现，比如心跳设置kv
+	/*check := &api.AgentServiceCheck{
 		CheckID : con.sessionId,//          string              `json:",omitempty"`
 		Name : name,//            string              `json:",omitempty"`
 		//Args:[]string{},              []string            `json:"ScriptArgs,omitempty"`
@@ -139,7 +140,7 @@ func (con *Consul) RegisterService(ip string, port int) {
 		// then its associated service (and all of its associated checks) will
 		// automatically be deregistered.
 		//DeregisterCriticalServiceAfter string `json:",omitempty"`
-	}
+	}*/
 
 	service := &api.AgentServiceRegistration{
 		ID:con.sessionId,//                string   `json:",omitempty"`
@@ -148,7 +149,7 @@ func (con *Consul) RegisterService(ip string, port int) {
 		Port:port,//              int      `json:",omitempty"`
 		Address:ip,//           string   `json:",omitempty"`
 		EnableTagOverride:false,// bool     `json:",omitempty"`
-		Check:check,//             *api.AgentServiceCheck
+		Check:nil,//check,//             *api.AgentServiceCheck
 		Checks:nil,//            api.AgentServiceChecks
 	}
 	err = con.Client.Agent().ServiceRegister(service)
