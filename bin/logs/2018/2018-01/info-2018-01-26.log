@@ -1,0 +1,48 @@
+[36mINFO[0m[2018-01-26 08:47:22] create BinlogSyncer with config {9999 mysql 127.0.0.1 3306 root   utf8 false false <nil> false 0 30s 0s} 
+[36mINFO[0m[2018-01-26 08:47:22] skip dump, use last binlog replication pos (mysql-bin.000064, 3062) or GTID %!s(<nil>) 
+[36mINFO[0m[2018-01-26 08:47:22] begin to sync binlog from position (mysql-bin.000064, 3062) 
+[36mINFO[0m[2018-01-26 08:47:22] register slave for master server 127.0.0.1:3306 
+[36mINFO[0m[2018-01-26 08:47:22] tcp service start with: 0.0.0.0:9998         
+[36mINFO[0m[2018-01-26 08:47:22] start sync binlog at binlog file (mysql-bin.000064, 3062) 
+[36mINFO[0m[2018-01-26 08:47:22] rotate to (mysql-bin.000064, 3062)           
+[36mINFO[0m[2018-01-26 08:47:22] rotate binlog to (mysql-bin.000064, 3062)    
+[36mINFO[0m[2018-01-26 08:47:22] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:47:25] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:28] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:31] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:34] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:38] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:41] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:43] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:46] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:49] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:47:52] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:56] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:47:58] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:02] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:48:05] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:07] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:11] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:14] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:48:17] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:20] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:23] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:48:26] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:29] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:32] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:35] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:48:38] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:41] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:44] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:47] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:48:50] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:53] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:56] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:48:59] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:02] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:05] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:08] tcp service, clientSendService exit.         
+[36mINFO[0m[2018-01-26 08:49:11] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:14] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:17] tcp service, sendQueue channel closed.       
+[36mINFO[0m[2018-01-26 08:49:20] tcp service, clientSendService exit.         

@@ -5,203 +5,112 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/time"
-	"library/path"
-	syslog "log"
 	"os"
+	stime "time"
+	"library/path"
+	"sync"
 )
 
-var (
-	// std is the name of the standard logger in stdlib `log`
-	std = log.New()
-)
-
-func init() {
-	return
-	fmt.Println("log init------------")
-	log.SetFormatter(&log.TextFormatter{TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:      true,
-		QuoteEmptyFields: true, FullTimestamp: true})
-	ResetOutHandler()
-}
-
-var cache_log_daytime string = ""
-var cache_file *os.File = nil
-
-func ResetOutHandler() {
-	syslog.Println("=======>std.Out==", std.Out)
-	daytime := time.GetDayTime2()
-	if cache_log_daytime == daytime {
-		return
-	}
-	if cache_file != nil {
-		syslog.Println("close debug--------1")
-		cache_file.Close()
-	}
-	year := time.GetYear()
-	month := time.GetYearMonth()
-	dir := fmt.Sprintf("%s/logs/%d/%s", path.CurrentPath, year, month)
-	logs_dir := &file.WPath{dir}
-	syslog.Println("try to create dir ", dir)
-	if !logs_dir.Exists() {
+var logHandler = make(map[string] *os.File)
+var logLock = new(sync.Mutex)
+func getHandler(level log.Level) (*os.File, error) {
+	logLock.Lock()
+	defer logLock.Unlock()
+	//初始化当前，后天的文件句柄
+	year     := time.GetYear()
+	month    := time.GetYearMonth()
+	t        := stime.Now()
+	day      := fmt.Sprintf("%d-%02d-%02d", t.Year(), t.Month(), t.Day())
+	dir      := fmt.Sprintf("%s/logs/%d/%s", path.CurrentPath, year, month)
+	dfile    := fmt.Sprintf("%s/logs/%d/%s/%s-%s.log", path.CurrentPath, year, month, level.String(), day)
+	logsDir := &file.WPath{Dir:dir}
+	if !logsDir.Exists() {
 		os.MkdirAll(dir, 0755)
 	}
-	syslog.Println("debug--------1")
-	log_file := fmt.Sprintf(dir+"/stdout-%s.log", daytime)
-	syslog.Println("debug--------2")
-	handle, err := os.OpenFile(log_file, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
-	syslog.Println("debug--------3")
-	if err == nil {
-		cache_log_daytime = daytime
-		log.SetOutput(handle)
-		cache_file = handle
-		syslog.Println("debug--------4")
-
-	} else {
-		syslog.Println("open log file error ", err, log_file)
-		cache_log_daytime = ""
+	key := fmt.Sprintf("%s%d", day, level)
+	var err error
+	_, ok := logHandler[key]
+	if !ok {
+		//初始化当前，后天的文件句柄
+		logHandler[key], err = os.OpenFile(dfile, os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
+		if err != nil {
+			return nil, err
+		}
 	}
+	for _key, v := range logHandler{
+		if _key != key {
+			delete(logHandler, _key)
+			v.Close()
+		}
+	}
+	return logHandler[key], nil
 }
 
-// Debug logs a message at level Debug on the standard logger.
-func Debug(args ...interface{}) {
-	ResetOutHandler()
-	std.Debug(args...)
-}
 
-// Print logs a message at level Info on the standard logger.
-func Print(args ...interface{}) {
-	ResetOutHandler()
-	std.Print(args...)
+type ContextHook struct {}
+func (hook ContextHook) Levels() []log.Level {
+	return log.AllLevels
 }
+func (hook ContextHook) Fire(entry *log.Entry) error {
+	//todo 写入日志文件
+	line, err := entry.String()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
+		return err
+	}
+	//fmt.Println("log hook debug: ",line)
+	handler, err := getHandler(entry.Level)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get log handler error, %v", err)
+		return nil
+	}
+	handler.Write([]byte(line))
+	//switch entry.Level {
+	//case log.PanicLevel:
+	//	return hook.Writer.Crit(line)
+	//case log.FatalLevel:
+	//	return hook.Writer.Crit(line)
+	//case log.ErrorLevel:
+	//	return hook.Writer.Err(line)
+	//case log.WarnLevel:
+	//	return hook.Writer.Warning(line)
+	//case log.InfoLevel:
+	//	return hook.Writer.Info(line)
+	//case log.DebugLevel:
+	//	return hook.Writer.Debug(line)
+	//default:
+	//	return nil
+	//}
 
-// Info logs a message at level Info on the standard logger.
-func Info(args ...interface{}) {
-	ResetOutHandler()
-	std.Info(args...)
-}
 
-// Warn logs a message at level Warn on the standard logger.
-func Warn(args ...interface{}) {
-	ResetOutHandler()
-	std.Warn(args...)
-}
-
-// Warning logs a message at level Warn on the standard logger.
-func Warning(args ...interface{}) {
-	ResetOutHandler()
-	std.Warning(args...)
-}
-
-// Error logs a message at level Error on the standard logger.
-func Error(args ...interface{}) {
-	ResetOutHandler()
-	std.Error(args...)
-}
-
-// Panic logs a message at level Panic on the standard logger.
-func Panic(args ...interface{}) {
-	ResetOutHandler()
-	std.Panic(args...)
-}
-
-// Fatal logs a message at level Fatal on the standard logger.
-func Fatal(args ...interface{}) {
-	ResetOutHandler()
-	std.Fatal(args...)
-}
-
-// Debugf logs a message at level Debug on the standard logger.
-func Debugf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Debugf(format, args...)
-}
-
-// Printf logs a message at level Info on the standard logger.
-func Printf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Printf(format, args...)
-}
-
-// Infof logs a message at level Info on the standard logger.
-func Infof(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Infof(format, args...)
-}
-
-// Warnf logs a message at level Warn on the standard logger.
-func Warnf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Warnf(format, args...)
-}
-
-// Warningf logs a message at level Warn on the standard logger.
-func Warningf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Warningf(format, args...)
-}
-
-// Errorf logs a message at level Error on the standard logger.
-func Errorf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Errorf(format, args...)
-}
-
-// Panicf logs a message at level Panic on the standard logger.
-func Panicf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Panicf(format, args...)
-}
-
-// Fatalf logs a message at level Fatal on the standard logger.
-func Fatalf(format string, args ...interface{}) {
-	ResetOutHandler()
-	std.Fatalf(format, args...)
-}
-
-// Debugln logs a message at level Debug on the standard logger.
-func Debugln(args ...interface{}) {
-	ResetOutHandler()
-	std.Debugln(args...)
-}
-
-// Println logs a message at level Info on the standard logger.
-func Println(args ...interface{}) {
-	ResetOutHandler()
-	std.Println(args...)
-}
-
-// Infoln logs a message at level Info on the standard logger.
-func Infoln(args ...interface{}) {
-	ResetOutHandler()
-	std.Infoln(args...)
-}
-
-// Warnln logs a message at level Warn on the standard logger.
-func Warnln(args ...interface{}) {
-	ResetOutHandler()
-	std.Warnln(args...)
-}
-
-// Warningln logs a message at level Warn on the standard logger.
-func Warningln(args ...interface{}) {
-	ResetOutHandler()
-	std.Warningln(args...)
-}
-
-// Errorln logs a message at level Error on the standard logger.
-func Errorln(args ...interface{}) {
-	ResetOutHandler()
-	std.Errorln(args...)
-}
-
-// Panicln logs a message at level Panic on the standard logger.
-func Panicln(args ...interface{}) {
-	ResetOutHandler()
-	std.Panicln(args...)
-}
-
-// Fatalln logs a message at level Fatal on the standard logger.
-func Fatalln(args ...interface{}) {
-	ResetOutHandler()
-	std.Fatalln(args...)
+	//if pc, _file, line, ok := runtime.Caller(8); ok {
+	//	funcName := runtime.FuncForPC(pc).Name()
+	//	entry.Data["file"] = path.Base(_file)
+	//	entry.Data["func"] = path.Base(funcName)
+	//	entry.Data["line"] = line
+	//}
+	//pc := make([]uintptr, 3, 3)
+	//cnt := runtime.Callers(6, pc)
+	//fmt.Printf("\n\n====%+v====\n\n", cnt)
+	//for i := 0; i < cnt; i++ {
+	//	fu := runtime.FuncForPC(pc[i] - 1)
+	//	_file, line := fu.FileLine(pc[i] - 1)
+	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
+	//	fu = runtime.FuncForPC(pc[i] - 2)
+	//	_file, line = fu.FileLine(pc[i] - 2)
+	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
+	//	fu = runtime.FuncForPC(pc[i] - 3)
+	//	_file, line = fu.FileLine(pc[i] - 2)
+	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
+	//
+	//	name := fu.Name()
+	//	//if !strings.Contains(name, "github.com/Sirupsen/logrus") {
+	//	_file, line = fu.FileLine(pc[i] - 1)
+	//	entry.Data["file"] = path.Base(_file)
+	//	entry.Data["func"] = path.Base(name)
+	//	entry.Data["line"] = line
+	//	break
+	//	//}
+	//}
+	return nil
 }
