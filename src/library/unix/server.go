@@ -81,8 +81,8 @@ func (server *UnixServer) onConnect(c net.Conn) {
 				c.Write([]byte("no members found"))
 			}
 		case CMD_CLEAR:
-			server.binlog.Drive.ClearOfflineMembers()
-			c.Write([]byte("ok"))
+			//server.binlog.Drive.ClearOfflineMembers()
+			//c.Write([]byte("ok"))
 		default:
 			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}

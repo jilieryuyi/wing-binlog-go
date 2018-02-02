@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"library/cluster"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"regexp"
@@ -258,11 +257,15 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 	}
 }
 
+func (tcp *TcpService) GetIpAndPort() (string, int) {
+	return tcp.ServiceIp, tcp.Port
+}
+
 func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
-	go tcp.Drive.RegisterService(tcp.ServiceIp, tcp.Port)
+	//go tcp.Drive.RegisterService(tcp.ServiceIp, tcp.Port)
 	go func() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		listen, err := net.Listen("tcp", dns)
@@ -311,9 +314,9 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closed.")
 }
 
-func (h *TcpService) RegisterDrive(drive cluster.Cluster) {
-	h.Drive = drive
-}
+//func (h *TcpService) RegisterDrive(drive cluster.Cluster) {
+//	h.Drive = drive
+//}
 
 func (tcp *TcpService) Reload() {
 	config, err := getTcpConfig()
