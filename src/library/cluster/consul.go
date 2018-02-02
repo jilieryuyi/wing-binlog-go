@@ -5,7 +5,6 @@ import (
 	"time"
 	"sync"
 	"os"
-	"strings"
 	"github.com/hashicorp/consul/api"
 )
 type Consul struct {
@@ -20,6 +19,8 @@ type Consul struct {
 	enable bool
 	Client *api.Client
 	Kv *api.KV
+	TcpServiceIp string
+	TcpServicePort int
 }
 const (
 	POS_KEY = "wing/binlog/pos"
@@ -49,6 +50,8 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		onLeaderCallback:onLeaderCallback,
 		onPosChange:onPosChange,
 		enable:config.Enable,
+		TcpServiceIp:"",
+		TcpServicePort:0,
 	}
 	if con.enable {
 		ConsulConfig := api.DefaultConfig()
@@ -67,22 +70,22 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		con.Kv = con.Client.KV()
 		// check self is locked in start
 		// if is locked, try unlock
-		v, _, err := con.Kv.Get(PREFIX_KEEPALIVE + con.sessionId, nil)
-		if err == nil && v != nil {
-			t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
-				int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
-				int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
-				int64(v.Value[6])<<48 | int64(v.Value[7])<<56
-			isLock := 0
-			if len(v.Value) > 8 {
-				isLock = int(v.Value[8])
-			}
-			if time.Now().Unix()-t > 3 && isLock == 1 {
-				con.Unlock()
-				con.Delete(LOCK)
-				con.Delete(v.Key)
-			}
-		}
+		//v, _, err := con.Kv.Get(PREFIX_KEEPALIVE + con.sessionId, nil)
+		//if err == nil && v != nil {
+		//	t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+		//		int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+		//		int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+		//		int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+		//	isLock := 0
+		//	if len(v.Value) > 8 {
+		//		isLock = int(v.Value[8])
+		//	}
+		//	if time.Now().Unix()-t > 3 && isLock == 1 {
+		//		con.Unlock()
+		//		con.Delete(LOCK)
+		//		con.Delete(v.Key)
+		//	}
+		//}
 		//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
 		//如果当前不是leader，重新选leader。leader不需要check
 		//如果被选为leader，则还需要执行一个onLeader回调
@@ -90,10 +93,15 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		////还需要一个keepalive
 		go con.keepalive()
 		////还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
-		go con.watch()
-		go con.refreshSession()
+		//go con.watch()
+		//go con.refreshSession()
 	}
 	return con
+}
+
+func (con *Consul) SetService(ip string, port int) {
+	con.TcpServiceIp = ip
+	con.TcpServicePort = port
 }
 
 // 注册一个健康监测
@@ -106,10 +114,12 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 //}
 
 // 注册服务
-func (con *Consul) RegisterService(ip string, port int) {
+func (con *Consul) registerService() {
+	con.lock.Lock()
+	defer con.lock.Unlock()
 	hostname, err := os.Hostname()
 	if err != nil {
-		hostname = ""//con.sessionId
+		hostname = "" //con.sessionId
 	}
 	name := hostname + con.sessionId
 	//consul的tcp健康检测是定期去连接服务器，然后关闭
@@ -142,15 +152,25 @@ func (con *Consul) RegisterService(ip string, port int) {
 		//DeregisterCriticalServiceAfter string `json:",omitempty"`
 	}*/
 
+	t := time.Now().Unix()
+	r := make([]byte, 8)
+	r[0] = byte(t)
+	r[1] = byte(t >> 8)
+	r[2] = byte(t >> 16)
+	r[3] = byte(t >> 24)
+	r[4] = byte(t >> 32)
+	r[5] = byte(t >> 40)
+	r[6] = byte(t >> 48)
+	r[7] = byte(t >> 56)
 	service := &api.AgentServiceRegistration{
-		ID:con.sessionId,//                string   `json:",omitempty"`
-		Name :name,//              string   `json:",omitempty"`
-		Tags:[]string{hostname, con.sessionId},//              []string `json:",omitempty"`
-		Port:port,//              int      `json:",omitempty"`
-		Address:ip,//           string   `json:",omitempty"`
-		EnableTagOverride:false,// bool     `json:",omitempty"`
-		Check:nil,//check,//             *api.AgentServiceCheck
-		Checks:nil,//            api.AgentServiceChecks
+		ID:                con.sessionId,                                                       //                string   `json:",omitempty"`
+		Name:              name,                                                                //              string   `json:",omitempty"`
+		Tags:              []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname}, //              []string `json:",omitempty"`
+		Port:              con.TcpServicePort,                                                  //              int      `json:",omitempty"`
+		Address:           con.TcpServiceIp,                                                    //           string   `json:",omitempty"`
+		EnableTagOverride: false,                                                               // bool     `json:",omitempty"`
+		Check:             nil,                                                                 //check,//             *api.AgentServiceCheck
+		Checks:            nil,                                                                 //            api.AgentServiceChecks
 	}
 	err = con.Client.Agent().ServiceRegister(service)
 	if err != nil {
@@ -173,15 +193,21 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 	return ser
 }
 
-func (con *Consul) refreshSession() {
-	for {
-		//debug
-		con.GetServices()
-		con.Session.renew()
-		time.Sleep(time.Second * 30)
-	}
-}
+//func (con *Consul) refreshSession() {
+//	for {
+//		//debug
+//		//con.GetServices()
+//		con.Session.renew()
+//		time.Sleep(time.Second * 30)
+//	}
+//}
 func (con *Consul) keepalive() {
+	for {
+		con.Session.renew()
+		con.registerService()
+		time.Sleep(time.Second * 3)
+	}
+	/*return
 	if !con.enable {
 		return
 	}
@@ -225,56 +251,56 @@ func (con *Consul) keepalive() {
 		}
 		con.Kv.Put(&api.KVPair{Key: PREFIX_KEEPALIVE + con.sessionId, Value: r}, nil)//client.Put(PREFIX_KEEPALIVE + con.key, r, 0)
 		time.Sleep(time.Second * 1)
-	}
+	}*/
 }
 
-func (con *Consul) ClearOfflineMembers() {
-	//这里要先获取nodes
-	//然后再获取keelive
-	//如果keepalive中没有或者超时的都要清理掉
-	members := con.GetMembers()
-	log.Debugf("ClearOfflineMembers called")
-	pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
-	if err != nil || pairs == nil {
-		log.Debugf("ClearOfflineMembers %+v,,%+v", pairs, err)
-		return
-	}
-	if members != nil {
-		for _, member := range members {
-			find := false
-			for _, v := range pairs {
-				//key := "wing/binlog/keepalive/1516541226-7943-9879-4574"
-				i := strings.LastIndex(v.Key, "/")
-				if i > -1 {
-					if v.Key[i+1:] == member.Session {
-						//find
-						find = true
-					}
-				}
-			}
-			if !find {
-				log.Debugf("delete not in %s", member.Session)
-				con.Delete(PREFIX_NODE + member.Session)
-			}
-		}
-	}
-	for _, v := range pairs {
-		log.Debugf("key ==> %s", v.Key)
-		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
-			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
-			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
-			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
-		if time.Now().Unix()-t > 3 {
-			log.Debugf("delete key %s", v.Key)
-			con.Delete(v.Key)
-			i := strings.LastIndex(v.Key, "/")
-			if i > -1 {
-				log.Debugf("delete key %s", PREFIX_NODE + v.Key[i+1:])
-				con.Delete(PREFIX_NODE + v.Key[i+1:])
-			}
-		}
-	}
-}
+//func (con *Consul) ClearOfflineMembers() {
+//	//这里要先获取nodes
+//	//然后再获取keelive
+//	//如果keepalive中没有或者超时的都要清理掉
+//	members := con.GetMembers()
+//	log.Debugf("ClearOfflineMembers called")
+//	pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
+//	if err != nil || pairs == nil {
+//		log.Debugf("ClearOfflineMembers %+v,,%+v", pairs, err)
+//		return
+//	}
+//	if members != nil {
+//		for _, member := range members {
+//			find := false
+//			for _, v := range pairs {
+//				//key := "wing/binlog/keepalive/1516541226-7943-9879-4574"
+//				i := strings.LastIndex(v.Key, "/")
+//				if i > -1 {
+//					if v.Key[i+1:] == member.Session {
+//						//find
+//						find = true
+//					}
+//				}
+//			}
+//			if !find {
+//				log.Debugf("delete not in %s", member.Session)
+//				con.Delete(PREFIX_NODE + member.Session)
+//			}
+//		}
+//	}
+//	for _, v := range pairs {
+//		log.Debugf("key ==> %s", v.Key)
+//		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
+//			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
+//			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
+//			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+//		if time.Now().Unix()-t > 3 {
+//			log.Debugf("delete key %s", v.Key)
+//			con.Delete(v.Key)
+//			i := strings.LastIndex(v.Key, "/")
+//			if i > -1 {
+//				log.Debugf("delete key %s", PREFIX_NODE + v.Key[i+1:])
+//				con.Delete(PREFIX_NODE + v.Key[i+1:])
+//			}
+//		}
+//	}
+//}
 
 func (con *Consul) GetMembers() []*ClusterMember {
 	members,_, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
@@ -371,46 +397,46 @@ func (con *Consul) checkAlive() {
 	}
 }
 
-func (con *Consul) watch() {
-	if !con.enable {
-		return
-	}
-	for {
-		con.lock.Lock()
-		if con.isLock == 1 {
-			con.lock.Unlock()
-			// leader does not need watch
-			time.Sleep(time.Second * 3)
-			continue
-		}
-		con.lock.Unlock()
-		_, meta, err := con.Kv.Get(POS_KEY, nil)
-		if err != nil {
-			log.Errorf("watch pos change with error：%#v", err)
-			time.Sleep(time.Second)
-			continue
-		}
-		if meta == nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		v, _, err := con.Kv.Get(POS_KEY, &api.QueryOptions{
-			WaitIndex : meta.LastIndex,
-			WaitTime : time.Second * 3,
-		})
-		if err != nil {
-			log.Errorf("watch chang with error：%#v, %+v", err, v)
-			time.Sleep(time.Second)
-			continue
-		}
-		if v == nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		con.onPosChange(v.Value)
-		time.Sleep(time.Millisecond * 10)
-	}
-}
+//func (con *Consul) watch() {
+//	if !con.enable {
+//		return
+//	}
+//	for {
+//		con.lock.Lock()
+//		if con.isLock == 1 {
+//			con.lock.Unlock()
+//			// leader does not need watch
+//			time.Sleep(time.Second * 3)
+//			continue
+//		}
+//		con.lock.Unlock()
+//		_, meta, err := con.Kv.Get(POS_KEY, nil)
+//		if err != nil {
+//			log.Errorf("watch pos change with error：%#v", err)
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		if meta == nil {
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		v, _, err := con.Kv.Get(POS_KEY, &api.QueryOptions{
+//			WaitIndex : meta.LastIndex,
+//			WaitTime : time.Second * 3,
+//		})
+//		if err != nil {
+//			log.Errorf("watch chang with error：%#v, %+v", err, v)
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		if v == nil {
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		con.onPosChange(v.Value)
+//		time.Sleep(time.Millisecond * 10)
+//	}
+//}
 
 func (con *Consul) Close() {
 	if !con.enable {

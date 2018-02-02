@@ -21,7 +21,7 @@ type Cluster interface{
 	Write(data []byte) bool
     GetMembers() []*ClusterMember
 	ClearOfflineMembers()
-	RegisterService(ip string, port int)
+	//RegisterService(ip string, port int)
 	GetServices() map[string]*api.AgentService
 }
 

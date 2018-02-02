@@ -8,25 +8,25 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var user_data_path string
+var userDataPath string
 
 func init() {
 	// 默认的数据目录
-	data_path := path.CurrentPath + "/data"
+	dataPath := path.CurrentPath + "/data"
 
 	// 如果不存在，尝试创建
 	//wpath := &file.WPath{data_path}
 	//wpath.Mkdir()
-	path.Mkdir(data_path)
+	path.Mkdir(dataPath)
 
 	// db文件
-	user_data_path = data_path + "/wing.db"
-	wfile := &file.WFile{user_data_path}
+	userDataPath = dataPath + "/wing.db"
+	wfile := &file.WFile{userDataPath}
 
 	// 如果不存在，尝试创建
 	if !wfile.Exists() {
 		create := "CREATE TABLE `userinfo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT,`username` VARCHAR(64) NULL,`password` VARCHAR(64) NULL,`created` TIMESTAMP default (datetime('now', 'localtime')));"
-		db, err := sql.Open("sqlite3", data_path+"/wing.db")
+		db, err := sql.Open("sqlite3", dataPath+"/wing.db")
 		defer db.Close()
 		if err != nil {
 			log.Errorf("sqlite3 open error %v", err)
@@ -54,7 +54,7 @@ func (user *User) Add() bool {
 		log.Println("用户已存在", user.Name)
 		return false
 	}
-	db, err := sql.Open("sqlite3", user_data_path)
+	db, err := sql.Open("sqlite3", userDataPath)
 	if err != nil {
 		log.Errorf("2-open sqlite3 error %v", err)
 		return false
@@ -89,7 +89,7 @@ func (user *User) Add() bool {
 // 存在返回true，不存在返回false
 func (user *User) Get() bool {
 
-	db, err := sql.Open("sqlite3", user_data_path)
+	db, err := sql.Open("sqlite3", userDataPath)
 	if err != nil {
 		log.Errorf("2-open sqlite3 error %v", err)
 		return false
@@ -128,7 +128,7 @@ func (user *User) Update(id int64) bool {
 		return false
 	}
 
-	db, err := sql.Open("sqlite3", user_data_path)
+	db, err := sql.Open("sqlite3", userDataPath)
 	if err != nil {
 		log.Errorf("2-open sqlite3 error %v", err)
 		return false
@@ -165,7 +165,7 @@ func (user *User) Delete() bool {
 		return false
 	}
 
-	db, err := sql.Open("sqlite3", user_data_path)
+	db, err := sql.Open("sqlite3", userDataPath)
 	if err != nil {
 		log.Errorf("2-open sqlite3 error %v", err)
 		return false

@@ -2,7 +2,6 @@ package services
 
 import (
 	"library/file"
-	"library/cluster"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"sync"
@@ -43,7 +42,7 @@ type TcpService struct {
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	agent            *Agent
-	Drive            cluster.Cluster
+	//Drive            cluster.Cluster
 	ServiceIp        string
 }
 
