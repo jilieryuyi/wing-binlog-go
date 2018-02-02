@@ -142,7 +142,7 @@ func (con *Consul) registerService() {
 
 // 服务发现，获取服务列表
 func (con *Consul) GetServices() map[string]*api.AgentService {
-	ser, err := con.Client.Agent().Services()
+	ser, err := con.agent.Services()
 	if err != nil {
 		log.Errorf("get service list error: %+v", err)
 		return nil
@@ -199,63 +199,93 @@ func (con *Consul) checkAlive() {
 		return
 	}
 	for {
-		con.lock.Lock()
-		if con.isLock == 1 {
-			con.lock.Unlock()
-			// leader does not need check
-			time.Sleep(time.Second * 3)
+		//获取所有的服务
+		//判断服务的心跳时间是否超时
+		//如果超时，更新状态为
+		services := con.GetServices()
+		if services == nil {
+			time.Sleep(time.Second * 1)
 			continue
 		}
-		con.lock.Unlock()
-		pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
-		if err != nil {
-			log.Errorf("checkAlive with error：%#v", err)
-			time.Sleep(time.Second)
-			continue
+		//Tags: []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname},
+		for _, v := range services {
+			//v0 := []byte(v.Tags[0])
+			//isLock := int(v0[0]) == 1
+			//sessionId := v.Tags[1]
+			v2 := []byte(v.Tags[2])
+			t := int64(v2[0]) | int64(v2[1])<<8 |
+				int64(v2[2])<<16 | int64(v2[3])<<24 |
+				int64(v2[4])<<32 | int64(v2[5])<<40 |
+				int64(v2[6])<<48 | int64(v2[7])<<56
+			if time.Now().Unix()-t > 3 {
+				//m[i].Status = STATUS_OFFLINE
+				//con.agent.ForceLeave()
+			} //else {
+			//m[i].Status = STATUS_ONLINE
+			//}
+			//hostName := v.Tags[3]
 		}
-		if pairs == nil {
-			time.Sleep(time.Second * 3)
-			continue
-		}
-		reLeader := true
-		leaderCount := 0
-		for _, v := range pairs {
-			if v.Value == nil {
-				log.Debugf("%+v", v)
-				log.Debug("checkAlive value nil")
-				continue
-			}
-			t := int64(v.Value[0]) | int64(v.Value[1]) << 8 |
-					int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
-					int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
-					int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
-			isLock := 0
-			if len(v.Value) > 8 {
-				isLock = int(v.Value[8])
-			}
-			if isLock == 1 {
-				reLeader = false
-				leaderCount++
-			}
-			if time.Now().Unix() - t > 3 {
-				con.Delete(v.Key)
-				if isLock == 1 {
-					reLeader = true
-				}
-			}
-		}
-		if reLeader || leaderCount > 1 {
-			log.Warnf("leader maybe leave, try to create a new leader")
-			//con.Unlock()
-			con.Delete(LOCK)
-			if con.Lock() {
-				if con.onLeaderCallback != nil {
-					con.onLeaderCallback()
-				}
-			}
-		}
-		time.Sleep(time.Second * 3)
+		time.Sleep(time.Second * 1)
 	}
+
+	//for {
+	//	con.lock.Lock()
+	//	if con.isLock == 1 {
+	//		con.lock.Unlock()
+	//		// leader does not need check
+	//		time.Sleep(time.Second * 3)
+	//		continue
+	//	}
+	//	con.lock.Unlock()
+	//	pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
+	//	if err != nil {
+	//		log.Errorf("checkAlive with error：%#v", err)
+	//		time.Sleep(time.Second)
+	//		continue
+	//	}
+	//	if pairs == nil {
+	//		time.Sleep(time.Second * 3)
+	//		continue
+	//	}
+	//	reLeader := true
+	//	leaderCount := 0
+	//	for _, v := range pairs {
+	//		if v.Value == nil {
+	//			log.Debugf("%+v", v)
+	//			log.Debug("checkAlive value nil")
+	//			continue
+	//		}
+	//		t := int64(v.Value[0]) | int64(v.Value[1]) << 8 |
+	//				int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
+	//				int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
+	//				int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
+	//		isLock := 0
+	//		if len(v.Value) > 8 {
+	//			isLock = int(v.Value[8])
+	//		}
+	//		if isLock == 1 {
+	//			reLeader = false
+	//			leaderCount++
+	//		}
+	//		if time.Now().Unix() - t > 3 {
+	//			con.Delete(v.Key)
+	//			if isLock == 1 {
+	//				reLeader = true
+	//			}
+	//		}
+	//	}
+	//	if reLeader || leaderCount > 1 {
+	//		log.Warnf("leader maybe leave, try to create a new leader")
+	//		//con.Unlock()
+	//		con.Delete(LOCK)
+	//		if con.Lock() {
+	//			if con.onLeaderCallback != nil {
+	//				con.onLeaderCallback()
+	//			}
+	//		}
+	//	}
+	//	time.Sleep(time.Second * 3)
+	//}
 }
 
 func (con *Consul) watch() {
