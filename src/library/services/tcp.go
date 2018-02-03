@@ -28,7 +28,7 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		ServiceIp:        config.ServiceIp,
 	}
 
-	tcp.agent = &Agent{
+	tcp.Agent = &Agent{
 		tcp:tcp,
 	}
 
@@ -426,4 +426,12 @@ func (tcp *TcpService) Reload() {
 		tcp.Close()
 		tcp.Start()
 	}
+}
+
+func (tcp *TcpService)  AgentStart() {
+	tcp.Agent.Start()
+}
+
+func (tcp *TcpService)  AgentAtop() {
+	tcp.Agent.Close()
 }

@@ -163,6 +163,9 @@ func (h *Binlog) Start() {
 	if h.Drive.Lock() {
 		log.Debugf("current run as leader")
 		h.StartService()
+	} else {
+		//todo agent connect to leader
+		h.BinlogHandler.services["tcp"].AgentStart()
 	}
 }
 
@@ -189,6 +192,8 @@ func (h *Binlog) Reload(service string) {
 func (h *Binlog) OnLeader() {
 	log.Debugf("current run as leader, start running")
 	h.StartService()
+	//todo agent disconnect
+	h.BinlogHandler.services["tcp"].AgentStop()
 }
 func (h *Binlog) OnPos(data []byte) {
 	if data == nil {
@@ -212,3 +217,5 @@ func (h *Binlog) OnPos(data []byte) {
 	h.BinlogHandler.EventIndex = eventIndex
 	h.BinlogHandler.SaveBinlogPostionCache(string(data[18:]), pos, eventIndex)
 }
+
+
