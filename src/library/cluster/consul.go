@@ -149,7 +149,9 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 	// Tags:[ 1516574111-0hWR-E6IN-lrsO /7tZ yuyideMacBook-Pro.local]
 	// Port:9998 Address:127.0.0.1
 	// EnableTagOverride:false
-	// CreateIndex:0 ModifyIndex:0}
+	// CreateIndex:0 
+	// ModifyIndex:0
+	// }
 	ser, err := con.agent.Services()
 	if err != nil {
 		log.Errorf("get service list error: %+v", err)
