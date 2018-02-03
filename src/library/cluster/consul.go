@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 )
+
 type Consul struct {
 	Cluster
 	serviceIp string
@@ -24,39 +25,32 @@ type Consul struct {
 	TcpServiceIp string
 	TcpServicePort int
 	agent *api.Agent
-	timeCache []byte
 }
+
 const (
-	POS_KEY = "wing/binlog/pos"
-	LOCK = "wing/binlog/lock"
-	SESSION = "wing/binlog/session"
+	POS_KEY          = "wing/binlog/pos"
+	LOCK             = "wing/binlog/lock"
 	PREFIX_KEEPALIVE = "wing/binlog/keepalive/"
-	PREFIX_NODE = "wing/binlog/node/"
-	STATUS_ONLINE = "online"
-	STATUS_OFFLINE = "offline"
+	STATUS_ONLINE    = "online"
+	STATUS_OFFLINE   = "offline"
 )
 
-//todo 这里还缺一个服务注册与服务发现，健康检查
-//服务注册-把当前的tcp service的服务ip和端口注册到consul
-//服务发现即，查询这些服务并且分辨出那个是leader，那些节点是健康的
 func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
-	log.Debugf("start cluster...")
 	config, err := GetConfig()
-	log.Debugf("cluster config: %+v", *config.Consul)
 	if err != nil {
 		log.Panicf("new consul client with error: %+v", err)
 	}
-	con := &Consul{
-		serviceIp:config.Consul.ServiceIp,
-		isLock:0,
-		lock:new(sync.Mutex),
-		sessionId:GetSession(),
-		onLeaderCallback:onLeaderCallback,
-		onPosChange:onPosChange,
-		enable:config.Enable,
-		TcpServiceIp:"",
-		TcpServicePort:0,
-		timeCache:make([]byte, 8),
+	log.Debugf("cluster start with config: %+v", *config.Consul)
+	con := &Consul {
+		serviceIp        : config.Consul.ServiceIp,
+		isLock           : 0,
+		lock             : new(sync.Mutex),
+		sessionId        : GetSession(),
+		onLeaderCallback : onLeaderCallback,
+		onPosChange      : onPosChange,
+		enable           : config.Enable,
+		TcpServiceIp     : "",
+		TcpServicePort   : 0,
 	}
 	if con.enable {
 		ConsulConfig := api.DefaultConfig()
@@ -68,36 +62,18 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		}
 		con.Session = &Session {
 			Address : config.Consul.ServiceIp,
-			ID : "",
-			s : con.Client.Session(),
+			ID      : "",
+			s       : con.Client.Session(),
 		}
 		con.Session.create()
 		con.Kv = con.Client.KV()
 		con.agent = con.Client.Agent()
 		// check self is locked in start
 		// if is locked, try unlock
-		//v, _, err := con.Kv.Get(PREFIX_KEEPALIVE + con.sessionId, nil)
-		//if err == nil && v != nil {
-		//	t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
-		//		int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
-		//		int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
-		//		int64(v.Value[6])<<48 | int64(v.Value[7])<<56
-		//	isLock := 0
-		//	if len(v.Value) > 8 {
-		//		isLock = int(v.Value[8])
-		//	}
-		//	if time.Now().Unix()-t > 3 && isLock == 1 {
-		//		con.Unlock()
-		//		con.Delete(LOCK)
-		//		con.Delete(v.Key)
-		//	}
-		//}
-
 		m := con.getService()
 		if m != nil {
-			log.Debugf("start==========>%+v", *m)
 			if m.IsLeader && m.Status == STATUS_OFFLINE {
-				log.Debugf("unlock in start")
+				log.Warnf("current node is lock in start, try to unlock")
 				con.Unlock()
 				con.Delete(LOCK)
 			}
@@ -130,7 +106,7 @@ func (con *Consul) getService() *ClusterMember{
 	return nil
 }
 
-// 注册服务
+// register service
 func (con *Consul) registerService() {
 	con.lock.Lock()
 	defer con.lock.Unlock()
@@ -140,19 +116,7 @@ func (con *Consul) registerService() {
 	}
 	name := hostname + con.sessionId
 	t := time.Now().Unix()
-	//r := make([]byte, 8)
-	con.timeCache[0] = byte(t)
-	con.timeCache[1] = byte(t >> 8)
-	con.timeCache[2] = byte(t >> 16)
-	con.timeCache[3] = byte(t >> 24)
-	con.timeCache[4] = byte(t >> 32)
-	con.timeCache[5] = byte(t >> 40)
-	con.timeCache[6] = byte(t >> 48)
-	con.timeCache[7] = byte(t >> 56)
-	log.Debugf("register==============================")
-	log.Debugf("register time: %v, %d", con.timeCache, t)
 	il := []byte{byte(con.isLock)}
-	log.Debugf("isLock: %v", il)
 	service := &api.AgentServiceRegistration{
 		ID:                con.sessionId,
 		Name:              name,
@@ -167,7 +131,6 @@ func (con *Consul) registerService() {
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
 	}
-	log.Debugf("register============================== end")
 }
 
 // 服务发现，获取服务列表
@@ -186,11 +149,6 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 		log.Errorf("get service list error: %+v", err)
 		return nil
 	}
-	//log.Debugf("services: %+v", ser)
-	//debug
-	//for key, v := range ser {
-	//	log.Debugf("service %s: %+v", key, *v)
-	//}
 	return ser
 }
 
@@ -198,56 +156,34 @@ func (con *Consul) keepalive() {
 	for {
 		con.Session.renew()
 		con.registerService()
-		//debug
-		m := con.getService()
-		if m != nil {
-			log.Debugf("start==========>%+v", *m)
-		}
 		time.Sleep(time.Second * 3)
 	}
 }
 
 func (con *Consul) GetMembers() []*ClusterMember {
-	members := con.GetServices()//,_, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
+	members := con.GetServices()
 	if members == nil {
 		return nil
 	}
-	//_hostname, err := os.Hostname()
-	//log.Debugf("hostname: ", _hostname)
 	m := make([]*ClusterMember, len(members))
 	var i int = 0
 	for _, v := range members {
-		//log.Debugf("key ==> %s", v.Key)
 		m[i] = &ClusterMember{}
-		//v2 := []byte(v.Tags[2])
-		//log.Debugf("time: %v", v2)
 		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
-		//t:= int64(v2[0]) | int64(v2[1])<<8 |
-		//	int64(v2[2])<<16 | int64(v2[3])<<24 |
-		//	int64(v2[4])<<32 | int64(v2[5])<<40 |
-		//	int64(v2[6])<<48 | int64(v2[7])<<56
-		log.Debugf("start====%d---%d", time.Now().Unix(), t)
+		m[i].Status = STATUS_ONLINE
 		if time.Now().Unix()-t > 3 {
 			m[i].Status = STATUS_OFFLINE
-		} else {
-			m[i].Status = STATUS_ONLINE
 		}
-		log.Debugf("member is leader: %+v", []byte(v.Tags[0]))
 		m[i].IsLeader = int([]byte(v.Tags[0])[0]) == 1
-		//9 - 10 is hostname len
-		//Tags: []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname},
-		//hl := int(v.Value[9]) | int(v.Value[10])<<8
-		//hl := int(member.Value[1]) | int(member.Value[2]) << 8
-		m[i].Hostname = v.Tags[3]//string(v.Value[11:12+hl])
-		//kl := int(v.Value[hl+11]) | int(v.Value[hl+12]) << 8
-		m[i].Session = v.Tags[1]//string(v.Value[hl+13:])
+		m[i].Hostname = v.Tags[3]
+		m[i].Session = v.Tags[1]
 		m[i].ServiceIp = v.Address
 		m[i].Port = v.Port
-		log.Debugf("====>%+v", *m[i])
 	}
 	return m
 }
 
+// check service is alive, is leader is not alive, try to select a new one
 func (con *Consul) checkAlive() {
 	if !con.enable {
 		return
@@ -261,28 +197,23 @@ func (con *Consul) checkAlive() {
 			time.Sleep(time.Second * 1)
 			continue
 		}
-		//Tags: []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname},
 		for _, v := range services {
-			//v0 := []byte(v.Tags[0])
-			//isLock := int(v0[0]) == 1
-			//sessionId := v.Tags[1]
-			//v2 := []byte(v.Tags[2])
-			//log.Debugf("time: %v", v2)
+			isLock := int([]byte(v.Tags[0])[0]) == 1
 			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
-			//int64(v2[0]) | int64(v2[1])<<8 |
-			//	int64(v2[2])<<16 | int64(v2[3])<<24 |
-			//	int64(v2[4])<<32 | int64(v2[5])<<40 |
-			//	int64(v2[6])<<48 | int64(v2[7])<<56
-			//log.Debugf("now - t : %v - %v", time.Now().Unix(), t)
 			if time.Now().Unix()-t > 3 {
-				//m[i].Status = STATUS_OFFLINE
-				//con.agent.ForceLeave()
 				log.Warnf("%s is timeout, will be deregister", v.ID)
 				con.agent.ServiceDeregister(v.ID)
-			} //else {
-			//m[i].Status = STATUS_ONLINE
-			//}
-			//hostName := v.Tags[3]
+				// if is leader, try delete lock and reselect a new leader
+				if isLock {
+					con.Delete(LOCK)
+					if con.Lock() {
+						log.Debugf("current is the new leader")
+						if con.onLeaderCallback != nil {
+							con.onLeaderCallback()
+						}
+					}
+				}
+			}
 		}
 		time.Sleep(time.Second * 1)
 	}
