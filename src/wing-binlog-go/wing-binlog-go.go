@@ -175,8 +175,6 @@ func main() {
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
-
-
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
