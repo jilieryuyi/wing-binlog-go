@@ -124,7 +124,7 @@ func (con *Consul) registerService() {
 	r[5] = byte(t >> 40)
 	r[6] = byte(t >> 48)
 	r[7] = byte(t >> 56)
-	log.Debugf("register time: %v", r)
+	//log.Debugf("register time: %v", r)
 	service := &api.AgentServiceRegistration{
 		ID:                con.sessionId,
 		Name:              name,
@@ -149,7 +149,7 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 	// Tags:[ 1516574111-0hWR-E6IN-lrsO /7tZ yuyideMacBook-Pro.local]
 	// Port:9998 Address:127.0.0.1
 	// EnableTagOverride:false
-	// CreateIndex:0 
+	// CreateIndex:0
 	// ModifyIndex:0
 	// }
 	ser, err := con.agent.Services()
@@ -223,15 +223,17 @@ func (con *Consul) checkAlive() {
 			//isLock := int(v0[0]) == 1
 			//sessionId := v.Tags[1]
 			v2 := []byte(v.Tags[2])
-			log.Debugf("time: %v", v2)
+			//log.Debugf("time: %v", v2)
 			t := int64(v2[0]) | int64(v2[1])<<8 |
 				int64(v2[2])<<16 | int64(v2[3])<<24 |
 				int64(v2[4])<<32 | int64(v2[5])<<40 |
 				int64(v2[6])<<48 | int64(v2[7])<<56
-			log.Debugf("now - t : %v - %v", time.Now().Unix(), t)
+			//log.Debugf("now - t : %v - %v", time.Now().Unix(), t)
 			if time.Now().Unix()-t > 3 {
 				//m[i].Status = STATUS_OFFLINE
 				//con.agent.ForceLeave()
+				log.Warnf("%s is timeout, will be deregister", v.ID)
+				con.agent.ServiceDeregister(v.ID)
 			} //else {
 			//m[i].Status = STATUS_ONLINE
 			//}
