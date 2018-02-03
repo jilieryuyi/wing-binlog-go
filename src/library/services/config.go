@@ -9,6 +9,8 @@ type Service interface {
 	Start()
 	Close()
 	Reload()
+	AgentStart()
+	AgentStop()
 }
 
 var (

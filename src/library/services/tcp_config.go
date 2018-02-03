@@ -41,7 +41,7 @@ type TcpService struct {
 	ctx              *context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
-	agent            *Agent
+	Agent            *Agent
 	//Drive            cluster.Cluster
 	ServiceIp        string
 }
