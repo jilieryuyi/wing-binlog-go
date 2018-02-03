@@ -174,32 +174,38 @@ func (con *Consul) keepalive() {
 }
 
 func (con *Consul) GetMembers() []*ClusterMember {
-	members,_, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
-	if err != nil {
+	members := con.GetServices()//,_, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
+	if members == nil {
 		return nil
 	}
-	_hostname, err := os.Hostname()
-	log.Debugf("hostname: ", _hostname)
+	//_hostname, err := os.Hostname()
+	//log.Debugf("hostname: ", _hostname)
 	m := make([]*ClusterMember, len(members))
-	for i, v := range members {
-		log.Debugf("key ==> %s", v.Key)
+	var i int = 0
+	for _, v := range members {
+		//log.Debugf("key ==> %s", v.Key)
 		m[i] = &ClusterMember{}
-		t := int64(v.Value[0]) | int64(v.Value[1])<<8 |
-			int64(v.Value[2])<<16 | int64(v.Value[3])<<24 |
-			int64(v.Value[4])<<32 | int64(v.Value[5])<<40 |
-			int64(v.Value[6])<<48 | int64(v.Value[7])<<56
+		v2 := []byte(v.Tags[2])
+		//log.Debugf("time: %v", v2)
+		t := int64(v2[0]) | int64(v2[1])<<8 |
+			int64(v2[2])<<16 | int64(v2[3])<<24 |
+			int64(v2[4])<<32 | int64(v2[5])<<40 |
+			int64(v2[6])<<48 | int64(v2[7])<<56
 		if time.Now().Unix()-t > 3 {
 			m[i].Status = STATUS_OFFLINE
 		} else {
 			m[i].Status = STATUS_ONLINE
 		}
-		m[i].IsLeader = int(v.Value[8]) == 1
+		m[i].IsLeader = int([]byte(v.Tags[0])[0]) == 1
 		//9 - 10 is hostname len
-		hl := int(v.Value[9]) | int(v.Value[10])<<8
+		//Tags: []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname},
+		//hl := int(v.Value[9]) | int(v.Value[10])<<8
 		//hl := int(member.Value[1]) | int(member.Value[2]) << 8
-		m[i].Hostname = string(v.Value[11:12+hl])
+		m[i].Hostname = v.Tags[3]//string(v.Value[11:12+hl])
 		//kl := int(v.Value[hl+11]) | int(v.Value[hl+12]) << 8
-		m[i].Session = string(v.Value[hl+13:])
+		m[i].Session = v.Tags[1]//string(v.Value[hl+13:])
+		m[i].ServiceIp = v.Address
+		m[i].Port = v.Port
 	}
 	return m
 }

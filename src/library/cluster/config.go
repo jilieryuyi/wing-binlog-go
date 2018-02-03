@@ -30,6 +30,8 @@ type ClusterMember struct {
 	IsLeader bool
 	Session string
 	Status string
+	ServiceIp string
+	Port int
 }
 
 type ConsulConfig struct{
