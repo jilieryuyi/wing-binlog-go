@@ -6,6 +6,8 @@ import (
 	"sync"
 	"os"
 	"github.com/hashicorp/consul/api"
+	"fmt"
+	"strconv"
 )
 type Consul struct {
 	Cluster
@@ -22,6 +24,7 @@ type Consul struct {
 	TcpServiceIp string
 	TcpServicePort int
 	agent *api.Agent
+	timeCache []byte
 }
 const (
 	POS_KEY = "wing/binlog/pos"
@@ -53,6 +56,7 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		enable:config.Enable,
 		TcpServiceIp:"",
 		TcpServicePort:0,
+		timeCache:make([]byte, 8),
 	}
 	if con.enable {
 		ConsulConfig := api.DefaultConfig()
@@ -88,13 +92,24 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 		//		con.Delete(v.Key)
 		//	}
 		//}
+
+		m := con.getService()
+		if m != nil {
+			log.Debugf("start==========>%+v", *m)
+			if m.IsLeader && m.Status == STATUS_OFFLINE {
+				log.Debugf("unlock in start")
+				con.Unlock()
+				con.Delete(LOCK)
+			}
+		}
+
 		//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
 		//如果当前不是leader，重新选leader。leader不需要check
 		//如果被选为leader，则还需要执行一个onLeader回调
 		go con.checkAlive()
-		////还需要一个keepalive
+		//////还需要一个keepalive
 		go con.keepalive()
-		//还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
+		////还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 		go con.watch()
 	}
 	return con
@@ -103,6 +118,16 @@ func NewConsul(onLeaderCallback func(), onPosChange func([]byte)) *Consul{
 func (con *Consul) SetService(ip string, port int) {
 	con.TcpServiceIp = ip
 	con.TcpServicePort = port
+}
+
+func (con *Consul) getService() *ClusterMember{
+	members := con.GetMembers()
+	for _, v := range members {
+		if v.Session == con.sessionId {
+			return v
+		}
+	}
+	return nil
 }
 
 // 注册服务
@@ -115,20 +140,23 @@ func (con *Consul) registerService() {
 	}
 	name := hostname + con.sessionId
 	t := time.Now().Unix()
-	r := make([]byte, 8)
-	r[0] = byte(t)
-	r[1] = byte(t >> 8)
-	r[2] = byte(t >> 16)
-	r[3] = byte(t >> 24)
-	r[4] = byte(t >> 32)
-	r[5] = byte(t >> 40)
-	r[6] = byte(t >> 48)
-	r[7] = byte(t >> 56)
-	//log.Debugf("register time: %v", r)
+	//r := make([]byte, 8)
+	con.timeCache[0] = byte(t)
+	con.timeCache[1] = byte(t >> 8)
+	con.timeCache[2] = byte(t >> 16)
+	con.timeCache[3] = byte(t >> 24)
+	con.timeCache[4] = byte(t >> 32)
+	con.timeCache[5] = byte(t >> 40)
+	con.timeCache[6] = byte(t >> 48)
+	con.timeCache[7] = byte(t >> 56)
+	log.Debugf("register==============================")
+	log.Debugf("register time: %v, %d", con.timeCache, t)
+	il := []byte{byte(con.isLock)}
+	log.Debugf("isLock: %v", il)
 	service := &api.AgentServiceRegistration{
 		ID:                con.sessionId,
 		Name:              name,
-		Tags:              []string{string([]byte{byte(con.isLock)}), con.sessionId, string(r), hostname},
+		Tags:              []string{string(il), con.sessionId, fmt.Sprintf("%d", t), hostname},
 		Port:              con.TcpServicePort,
 		Address:           con.TcpServiceIp,
 		EnableTagOverride: false,
@@ -139,6 +167,7 @@ func (con *Consul) registerService() {
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
 	}
+	log.Debugf("register============================== end")
 }
 
 // 服务发现，获取服务列表
@@ -169,6 +198,11 @@ func (con *Consul) keepalive() {
 	for {
 		con.Session.renew()
 		con.registerService()
+		//debug
+		m := con.getService()
+		if m != nil {
+			log.Debugf("start==========>%+v", *m)
+		}
 		time.Sleep(time.Second * 3)
 	}
 }
@@ -185,17 +219,20 @@ func (con *Consul) GetMembers() []*ClusterMember {
 	for _, v := range members {
 		//log.Debugf("key ==> %s", v.Key)
 		m[i] = &ClusterMember{}
-		v2 := []byte(v.Tags[2])
+		//v2 := []byte(v.Tags[2])
 		//log.Debugf("time: %v", v2)
-		t := int64(v2[0]) | int64(v2[1])<<8 |
-			int64(v2[2])<<16 | int64(v2[3])<<24 |
-			int64(v2[4])<<32 | int64(v2[5])<<40 |
-			int64(v2[6])<<48 | int64(v2[7])<<56
+		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
+		//t:= int64(v2[0]) | int64(v2[1])<<8 |
+		//	int64(v2[2])<<16 | int64(v2[3])<<24 |
+		//	int64(v2[4])<<32 | int64(v2[5])<<40 |
+		//	int64(v2[6])<<48 | int64(v2[7])<<56
+		log.Debugf("start====%d---%d", time.Now().Unix(), t)
 		if time.Now().Unix()-t > 3 {
 			m[i].Status = STATUS_OFFLINE
 		} else {
 			m[i].Status = STATUS_ONLINE
 		}
+		log.Debugf("member is leader: %+v", []byte(v.Tags[0]))
 		m[i].IsLeader = int([]byte(v.Tags[0])[0]) == 1
 		//9 - 10 is hostname len
 		//Tags: []string{string([]byte{byte(con.isLock)}), con.sessionId, string(t), hostname},
@@ -206,6 +243,7 @@ func (con *Consul) GetMembers() []*ClusterMember {
 		m[i].Session = v.Tags[1]//string(v.Value[hl+13:])
 		m[i].ServiceIp = v.Address
 		m[i].Port = v.Port
+		log.Debugf("====>%+v", *m[i])
 	}
 	return m
 }
@@ -228,12 +266,13 @@ func (con *Consul) checkAlive() {
 			//v0 := []byte(v.Tags[0])
 			//isLock := int(v0[0]) == 1
 			//sessionId := v.Tags[1]
-			v2 := []byte(v.Tags[2])
+			//v2 := []byte(v.Tags[2])
 			//log.Debugf("time: %v", v2)
-			t := int64(v2[0]) | int64(v2[1])<<8 |
-				int64(v2[2])<<16 | int64(v2[3])<<24 |
-				int64(v2[4])<<32 | int64(v2[5])<<40 |
-				int64(v2[6])<<48 | int64(v2[7])<<56
+			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
+			//int64(v2[0]) | int64(v2[1])<<8 |
+			//	int64(v2[2])<<16 | int64(v2[3])<<24 |
+			//	int64(v2[4])<<32 | int64(v2[5])<<40 |
+			//	int64(v2[6])<<48 | int64(v2[7])<<56
 			//log.Debugf("now - t : %v - %v", time.Now().Unix(), t)
 			if time.Now().Unix()-t > 3 {
 				//m[i].Status = STATUS_OFFLINE
