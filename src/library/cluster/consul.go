@@ -416,15 +416,3 @@ func (con *Consul) Write(data []byte) bool {
 	}
 	return nil == err
 }
-
-func (con *Consul) Read() []byte {
-	if !con.enable {
-		return nil
-	}
-	v ,_, err := con.Kv.Get(POS_KEY, nil)
-	if err != nil {
-		log.Errorf("write consul kv with error: %+v", err)
-		return nil
-	}
-	return v.Value
-}
