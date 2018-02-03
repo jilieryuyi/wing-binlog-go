@@ -14,34 +14,59 @@ import (
 
 type Agent struct {
 	tcp *TcpService
+	nodes []*agentNode
+	serviceIp string
+	servicePort int
+}
+
+type agentNode struct {
 	conn *net.TCPConn
 	isConnect bool
 }
+
 // return leader tcp service ip and port, like "127.0.0.1:9989"
 //func (ag *Agent) getLeader() string {
 //	return ""
 //}
 
+func newAgent(tcp *TcpService) *Agent{
+	agent := &Agent{
+		tcp:tcp,
+		nodes:make([]*agentNode, 4),
+	}
+
+	//todo get service ip and port
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", agent.serviceIp, agent.servicePort))
+	if err != nil {
+		log.Panicf("start agent with error: %+v", err)
+	}
+	//connect pool
+	for i := 0; i < 4; i++ {
+		conn, err := net.DialTCP("tcp", nil, tcpAddr)
+		agent.nodes[i] = &agentNode{
+			conn:conn,
+			isConnect:true,
+		}
+		if err != nil {
+			log.Errorf("start agent with error: %+v", err)
+			agent.nodes[i].isConnect = false
+		}
+	}
+	return agent
+}
+
+func (ag *Agent) getConn() *agentNode {
+	for i := 0; i < 4; i++ {
+		if ag.nodes[i].isConnect {
+			return ag.nodes[i]//.conn
+		}
+	}
+	return nil
+}
+
 func (ag *Agent) Start() {
-	if ag.isConnect {
-		ag.Close()
-	}
-	ag.isConnect = false
-	//todo get leader service ip and port, connect to it
-	leaderIp := ""
-	leaderPort := 0
-	if leaderIp == "" || leaderPort == 0 {
-		return
-	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", leaderIp, leaderPort))
-	if err != nil {
-		log.Panicf("start agent with error: %+v", err)
-	}
-	ag.conn, err = net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		log.Panicf("start agent with error: %+v", err)
-	}
-	ag.isConnect = true
+	node := ag.getConn()
 	var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 	for {
 		buf := readBuffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
@@ -49,10 +74,10 @@ func (ag *Agent) Start() {
 		for i := range buf {
 			buf[i] = byte(0)
 		}
-		size, err := ag.conn.Read(buf[0:])
+		size, err := node.conn.Read(buf[0:])
 		if err != nil {
 			log.Warnf("agent error: %+v", err)
-			ag.Close()
+			ag.Close(node)
 			return
 		}
 		log.Debugf("agent receive: %+v, %s", buf[:size], string(buf))
@@ -66,13 +91,13 @@ func (ag *Agent) Start() {
 	}
 }
 
-func (ag *Agent) Close() {
-	if !ag.isConnect {
+func (ag *Agent) Close(node *agentNode) {
+	if !node.isConnect {
 		return
 	}
 	//todo disconnect
-	ag.conn.Close()
-	ag.isConnect = false
+	node.conn.Close()
+	node.isConnect = false
 }
 
 func (ag *Agent) onMessage(msg []byte) {
