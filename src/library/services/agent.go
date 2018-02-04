@@ -4,6 +4,7 @@ import (
 	"net"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"sync"
 )
 
 //如果当前客户端为follower
@@ -14,9 +15,11 @@ import (
 
 type Agent struct {
 	tcp *TcpService
-	nodes []*agentNode
+	node *agentNode
 	serviceIp string
 	servicePort int
+	isClose bool
+	lock *sync.Mutex
 }
 
 type agentNode struct {
@@ -24,80 +27,96 @@ type agentNode struct {
 	isConnect bool
 }
 
-// return leader tcp service ip and port, like "127.0.0.1:9989"
-//func (ag *Agent) getLeader() string {
-//	return ""
-//}
-
 func newAgent(tcp *TcpService) *Agent{
 	agent := &Agent{
 		tcp:tcp,
-		nodes:make([]*agentNode, 4),
+		isClose:false,
+		lock:new(sync.Mutex),
 	}
 
 	//todo get service ip and port
+	//agent.serviceIp, agent.servicePort = tcp.
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", agent.serviceIp, agent.servicePort))
+	agent.nodeInit()
+	return agent
+}
+
+func (ag *Agent) nodeInit() {
+	ag.lock.Lock()
+	defer ag.lock.Unlock()
+	if ag.node.isConnect {
+		ag.Close()
+	}
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ag.serviceIp, ag.servicePort))
 	if err != nil {
 		log.Panicf("start agent with error: %+v", err)
 	}
 	//connect pool
-	for i := 0; i < 4; i++ {
-		conn, err := net.DialTCP("tcp", nil, tcpAddr)
-		agent.nodes[i] = &agentNode{
-			conn:conn,
-			isConnect:true,
-		}
-		if err != nil {
-			log.Errorf("start agent with error: %+v", err)
-			agent.nodes[i].isConnect = false
-		}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	ag.node = &agentNode{
+		conn:conn,
+		isConnect:true,
 	}
-	return agent
-}
-
-func (ag *Agent) getConn() *agentNode {
-	for i := 0; i < 4; i++ {
-		if ag.nodes[i].isConnect {
-			return ag.nodes[i]//.conn
-		}
+	if err != nil {
+		log.Errorf("start agent with error: %+v", err)
+		ag.node.isConnect = false
 	}
-	return nil
 }
 
 func (ag *Agent) Start() {
-	node := ag.getConn()
-	var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
-	for {
-		buf := readBuffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
-		//清空旧数据 memset
-		for i := range buf {
-			buf[i] = byte(0)
+	go func() {
+		var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+		for {
+			if !ag.node.isConnect {
+				ag.nodeInit()
+			}
+			for {
+				ag.lock.Lock()
+				if ag.isClose {
+					ag.lock.Unlock()
+					return
+				}
+				ag.lock.Unlock()
+				buf := readBuffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+				//清空旧数据 memset
+				for i := range buf {
+					buf[i] = byte(0)
+				}
+				size, err := ag.node.conn.Read(buf[0:])
+				if err != nil {
+					log.Warnf("agent error: %+v", err)
+					ag.disconnect()
+					break
+				}
+				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf))
+				ag.onMessage(buf[:size])
+				select {
+				case <-(*ag.tcp.ctx).Done():
+					log.Warnf("agent context quit")
+					return
+				default:
+				}
+			}
 		}
-		size, err := node.conn.Read(buf[0:])
-		if err != nil {
-			log.Warnf("agent error: %+v", err)
-			ag.Close(node)
-			return
-		}
-		log.Debugf("agent receive: %+v, %s", buf[:size], string(buf))
-		ag.onMessage(buf[:size])
-		select {
-		case <-(*ag.tcp.ctx).Done():
-			log.Warnf("agent context quit")
-			return
-		default:
-		}
-	}
+	}()
 }
 
-func (ag *Agent) Close(node *agentNode) {
-	if !node.isConnect {
+func (ag *Agent) disconnect() {
+	if !ag.node.isConnect {
 		return
 	}
 	//todo disconnect
-	node.conn.Close()
-	node.isConnect = false
+	ag.node.conn.Close()
+	ag.lock.Lock()
+	ag.node.isConnect = false
+	ag.lock.Unlock()
+}
+
+func (ag *Agent) Close() {
+	ag.disconnect()
+	ag.lock.Lock()
+	ag.isClose = true
+	ag.lock.Unlock()
 }
 
 func (ag *Agent) onMessage(msg []byte) {
