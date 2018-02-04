@@ -12,7 +12,7 @@ import (
 	"library/cluster"
 )
 
-func NewTcpService(ctx *context.Context) *TcpService {
+func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
 		Ip:               config.Listen,
@@ -27,6 +27,7 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		listener:         nil,
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
+		Drive:            drive,
 	}
 	tcp.Agent = newAgent(tcp)
 	for _, cgroup := range config.Groups {
