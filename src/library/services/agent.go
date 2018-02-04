@@ -31,6 +31,7 @@ func newAgent(tcp *TcpService) *Agent{
 	agent := &Agent{
 		tcp:tcp,
 		isClose:false,
+		node:nil,
 		lock:new(sync.Mutex),
 	}
 
@@ -44,7 +45,7 @@ func newAgent(tcp *TcpService) *Agent{
 func (ag *Agent) nodeInit() {
 	ag.lock.Lock()
 	defer ag.lock.Unlock()
-	if ag.node.isConnect {
+	if ag.node != nil && ag.node.isConnect {
 		ag.Close()
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ag.serviceIp, ag.servicePort))

@@ -179,7 +179,6 @@ func main() {
 	blog := binlog.NewBinlog(&ctx)
 	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
 	defer clu.Close()
-
 	// 各种通信服务
 	tcpService := services.NewTcpService(&ctx)
 	//tcpService.RegisterDrive(clu)
