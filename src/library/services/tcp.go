@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"library/cluster"
 )
 
 func NewTcpService(ctx *context.Context) *TcpService {
@@ -38,6 +39,10 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		tcp.groups[cgroup.Name].filter = append(tcp.groups[cgroup.Name].filter[:0], cgroup.Filter...)
 	}
 	return tcp
+}
+
+func (tcp *TcpService) RegisterDrive(drive cluster.Cluster) {
+	tcp.Drive = drive
 }
 
 // 对外的广播发送接口

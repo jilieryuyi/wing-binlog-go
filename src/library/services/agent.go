@@ -36,7 +36,7 @@ func newAgent(tcp *TcpService) *Agent{
 	}
 
 	//todo get service ip and port
-	//agent.serviceIp, agent.servicePort = tcp.
+	agent.serviceIp, agent.servicePort = tcp.Drive.GetLeader()
 
 	agent.nodeInit()
 	return agent

@@ -319,6 +319,16 @@ func (con *Consul) watch() {
 	}
 }
 
+func (con *Consul) GetLeader() (string, int) {
+	members := con.GetMembers()
+	for _, v := range members {
+		if v.IsLeader {
+			return v.ServiceIp, v.Port
+		}
+	}
+	return "", 0
+}
+
 func (con *Consul) Close() {
 	if !con.enable {
 		return
