@@ -22,6 +22,7 @@ type Cluster interface{
     GetMembers() []*ClusterMember
 	ClearOfflineMembers()
 	GetServices() map[string]*api.AgentService
+	GetLeader() (string, int)
 }
 
 type ClusterMember struct {

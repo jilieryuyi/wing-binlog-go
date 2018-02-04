@@ -8,6 +8,7 @@ import (
 	"net"
 	"context"
 	"library/path"
+	"library/cluster"
 )
 
 type tcpClientNode struct {
@@ -42,7 +43,7 @@ type TcpService struct {
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	Agent            *Agent
-	//Drive            cluster.Cluster
+	Drive            cluster.Cluster
 	ServiceIp        string
 }
 
