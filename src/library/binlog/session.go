@@ -1,4 +1,4 @@
-package cluster
+package binlog
 
 import (
 	"github.com/hashicorp/consul/api"

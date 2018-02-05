@@ -1,9 +1,9 @@
 package unix
 
 import (
-	"context"
-	"library/binlog"
 	"net"
+	"library/app"
+	"library/binlog"
 )
 
 const (
@@ -21,7 +21,8 @@ type UnixClient struct {
 
 type UnixServer struct {
 	addr    string
-	cancel  *context.CancelFunc
+	//cancel  *context.CancelFunc
 	binlog  *binlog.Binlog
-	pidFile string
+	//pidFile string
+	ctx *app.Context
 }

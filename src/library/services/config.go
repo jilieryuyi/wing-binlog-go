@@ -9,7 +9,7 @@ type Service interface {
 	Start()
 	Close()
 	Reload()
-	AgentStart()
+	AgentStart(serviceIp string, port int)
 	AgentStop()
 }
 

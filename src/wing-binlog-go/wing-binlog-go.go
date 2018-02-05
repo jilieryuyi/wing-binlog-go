@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
+	//"strconv"
 	"syscall"
 	"time"
 	"library/app"
@@ -19,7 +18,6 @@ import (
 	"library/file"
 	"library/services"
 	"library/unix"
-	"library/cluster"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 	mlog "library/log"
@@ -33,13 +31,11 @@ var (
 	stop    = flag.Bool("stop", false, "stop service")
 	//-service-reload http
 	//-service-reload tcp
-	//-service-reload websocket
-	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
-	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
+	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp")
 	help           = flag.Bool("help", false, "help")
 	members        = flag.Bool("members", false, "show members from current node")
-	clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
+	//clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
 )
 
 const (
@@ -50,25 +46,28 @@ var (
 	pid = path.CurrentPath + "/wing-binlog-go.pid"
  	appConfig, _ = app.GetAppConfig()
 )
+
 // write pid file
 func writePid() {
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
 	ioutil.WriteFile(pid, data, 0777)
 }
+
 // delete pid file
 func clearPid() {
-	f := file.WFile{pid}
-	f.Delete()
+	file.Delete(pid)
 }
+
 // kill process by pid file
-func killPid() {
-	dat, _ := ioutil.ReadFile(pid)
-	fmt.Print(string(dat))
-	pid, _ := strconv.Atoi(string(dat))
-	log.Debugf("try to kill process: %d", pid)
-	//err := syscall.Kill(pid, syscall.SIGTERM)
-	//log.Println(err)
-}
+//func killPid() {
+//	dat, _ := ioutil.ReadFile(pid)
+//	fmt.Print(string(dat))
+//	pid, _ := strconv.Atoi(string(dat))
+//	log.Debugf("try to kill process: %d", pid)
+//	//err := syscall.Kill(pid, syscall.SIGTERM)
+//	//log.Println(err)
+//}
+
 // pprof tool support
 func pprofService() {
 	go func() {
@@ -155,10 +154,10 @@ func commandService() bool {
 		command.ShowMembers()
 		return true
 	}
-	if *clear {
-		command.Clear()
-		return true
-	}
+	//if *clear {
+	//	command.Clear()
+	//	return true
+	//}
 	return false
 }
 
@@ -167,33 +166,33 @@ func main() {
 	if commandService() {
 		return
 	}
+	app.DEBUG = *debug
 	// 退出程序时删除pid文件
 	defer clearPid()
 	// 性能测试
 	pprofService()
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
-	ctx, cancel := context.WithCancel(context.Background())
+
+	appContext := app.NewContext()
+	appContext.PidFile = pid
+
+	// 各种通信服务
+	httpService := services.NewHttpService(appContext)
+	tcpService  := services.NewTcpService(appContext)
 
 	// 核心binlog服务
-	blog := binlog.NewBinlog(&ctx)
-	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
-	defer clu.Close()
-	// 各种通信服务
-	tcpService := services.NewTcpService(&ctx, clu)
-	httpService := services.NewHttpService(&ctx)
-	clu.SetService(tcpService.GetIpAndPort())
-
+	blog := binlog.NewBinlog(appContext)
 	// 注册tcp、http、websocket服务
-	blog.BinlogHandler.RegisterService("tcp", tcpService)
-	blog.BinlogHandler.RegisterService("http", httpService)
+	blog.RegisterService("tcp", tcpService)
+	blog.RegisterService("http", httpService)
 	// here can be any drive interface form library.Cluster
-	blog.RegisterDrive(clu)
+	//blog.RegisterDrive(clu)
 	blog.Start()
 
 	// unix socket服务，用户本地指令控制
-	server := unix.NewUnixServer()
-	server.Start(blog, &cancel, pid)
+	server := unix.NewUnixServer(appContext, blog)
+	server.Start()
 	defer server.Close()
 
 	sc := make(chan os.Signal, 1)
@@ -206,7 +205,7 @@ func main() {
 		syscall.SIGQUIT)
 	<-sc
 	// 优雅的退出程序
-	cancel()
+	appContext.Cancel()
 	blog.Close()
 	fmt.Println("wing binlog service exit...")
 }

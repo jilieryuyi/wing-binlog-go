@@ -6,9 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sync"
 	"net"
-	"context"
 	"library/path"
-	"library/cluster"
+	"library/app"
 )
 
 type tcpClientNode struct {
@@ -40,11 +39,10 @@ type TcpService struct {
 	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
 	groups           map[string]*tcpGroup //
 	enable           bool                 //
-	ctx              *context.Context     //
+	ctx              *app.Context//*context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	Agent            *Agent
-	Drive            cluster.Cluster
 	ServiceIp        string
 	Agents           []*tcpClientNode
 }
@@ -62,7 +60,7 @@ type TcpConfig struct {
 	Groups map[string]tcpGroupConfig
 }
 
-func getTcpConfig() (*TcpConfig, error) {
+func GetTcpConfig() (*TcpConfig, error) {
 	var tcp_config TcpConfig
 	tcp_config_file := path.CurrentPath + "/config/tcp.toml"
 	wfile := file.WFile{tcp_config_file}
