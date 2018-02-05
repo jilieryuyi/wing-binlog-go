@@ -33,13 +33,11 @@ var (
 	stop    = flag.Bool("stop", false, "stop service")
 	//-service-reload http
 	//-service-reload tcp
-	//-service-reload websocket
-	//-service-reload kafka ##暂时去掉了，暂时不支持kafka
 	//-service-reload all ##重新加载全部服务
-	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp|websocket")
+	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp")
 	help           = flag.Bool("help", false, "help")
 	members        = flag.Bool("members", false, "show members from current node")
-	clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
+	//clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
 )
 
 const (
@@ -50,16 +48,19 @@ var (
 	pid = path.CurrentPath + "/wing-binlog-go.pid"
  	appConfig, _ = app.GetAppConfig()
 )
+
 // write pid file
 func writePid() {
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
 	ioutil.WriteFile(pid, data, 0777)
 }
+
 // delete pid file
 func clearPid() {
 	f := file.WFile{pid}
 	f.Delete()
 }
+
 // kill process by pid file
 func killPid() {
 	dat, _ := ioutil.ReadFile(pid)
@@ -69,6 +70,7 @@ func killPid() {
 	//err := syscall.Kill(pid, syscall.SIGTERM)
 	//log.Println(err)
 }
+
 // pprof tool support
 func pprofService() {
 	go func() {
@@ -155,10 +157,10 @@ func commandService() bool {
 		command.ShowMembers()
 		return true
 	}
-	if *clear {
-		command.Clear()
-		return true
-	}
+	//if *clear {
+	//	command.Clear()
+	//	return true
+	//}
 	return false
 }
 
