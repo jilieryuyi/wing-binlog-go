@@ -42,6 +42,7 @@ func (h *Binlog) consulInit() {
 			log.Warnf("current node is lock in start, try to unlock")
 			h.Unlock()
 			h.Delete(LOCK)
+			h.isLock = 0
 		}
 	}
 	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
@@ -93,7 +94,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	log.Debugf("register service %+v", *service)
+	//log.Debugf("register service %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -157,7 +158,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m[i].Session   = v.Tags[1]
 		m[i].ServiceIp = v.Address
 		m[i].Port      = v.Port
-		log.Debugf("member=>%+v", *m[i])
+		//log.Debugf("member=>%+v", *m[i])
 		i++
 	}
 	return m
@@ -187,6 +188,7 @@ func (h *Binlog) checkAlive() {
 				// if is leader, try delete lock and reselect a new leader
 				if isLock {
 					h.Delete(LOCK)
+					h.isLock = 0
 					if h.Lock() {
 						log.Debugf("current is the new leader")
 						//if h.onLeaderCallback != nil {
@@ -283,6 +285,7 @@ func (h *Binlog) closeConsul() {
 		log.Debugf("delete lock %s", LOCK)
 		h.Unlock()
 		h.Delete(LOCK)
+		h.isLock = 0
 	}
 	h.Session.delete()
 }
