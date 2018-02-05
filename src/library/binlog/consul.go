@@ -42,7 +42,6 @@ func (h *Binlog) consulInit() {
 			log.Warnf("current node is lock in start, try to unlock")
 			h.Unlock()
 			h.Delete(LOCK)
-			h.isLock = 0
 		}
 	}
 	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
@@ -188,7 +187,6 @@ func (h *Binlog) checkAlive() {
 				// if is leader, try delete lock and reselect a new leader
 				if isLock {
 					h.Delete(LOCK)
-					h.isLock = 0
 					if h.Lock() {
 						log.Debugf("current is the new leader")
 						//if h.onLeaderCallback != nil {
@@ -285,7 +283,6 @@ func (h *Binlog) closeConsul() {
 		log.Debugf("delete lock %s", LOCK)
 		h.Unlock()
 		h.Delete(LOCK)
-		h.isLock = 0
 	}
 	h.Session.delete()
 }
