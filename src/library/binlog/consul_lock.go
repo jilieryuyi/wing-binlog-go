@@ -69,7 +69,7 @@ func (h *Binlog) Delete(key string) error {
 	_, err := h.Kv.Delete(key, nil)
 	if err == nil {
 		h.lock.Lock()
-		if key == LOCK && h.isLock == 1 {
+		if key == LOCK {
 			h.isLock = 0
 		}
 		h.lock.Unlock()
