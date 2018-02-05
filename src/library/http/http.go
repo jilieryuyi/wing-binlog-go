@@ -64,7 +64,7 @@ func onUserLogin(w http.ResponseWriter, req *http.Request) {
 	user := data.User{username[0], password[0]}
 	if ok1 && ok2 && user.Get() {
 		log.Infof("http服务，用户 %s 登陆成功", username[0])
-		user_sign := util.RandString()
+		user_sign := util.RandString(32)
 		online_users_lock.Lock()
 		online_users[user_sign] = &OnLineUser{
 			Name:         username[0],

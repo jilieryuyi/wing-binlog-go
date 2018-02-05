@@ -5,6 +5,7 @@ import (
 	"os"
 )
 
+// test SaveBinlogPostionCache api
 func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	binfile := "mysql-bin.000059"
 	pos := int64(123456)

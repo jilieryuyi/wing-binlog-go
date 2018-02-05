@@ -22,7 +22,8 @@ import (
 	"library/cluster"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
-	"path"
+	mlog "library/log"
+	"library/path"
 )
 
 var (
@@ -46,7 +47,7 @@ const (
 )
 
 var (
-	pid = file.GetCurrentPath() + "/wing-binlog-go.pid"
+	pid = path.CurrentPath + "/wing-binlog-go.pid"
  	appConfig, _ = app.GetAppConfig()
 )
 // write pid file
@@ -103,43 +104,6 @@ func usage() {
 	fmt.Println("*********************************************************************")
 }
 
-type ContextHook struct {}
-func (hook ContextHook) Levels() []log.Level {
-	return log.AllLevels
-}
-func (hook ContextHook) Fire(entry *log.Entry) error {
-	//if pc, _file, line, ok := runtime.Caller(8); ok {
-	//	funcName := runtime.FuncForPC(pc).Name()
-	//	entry.Data["file"] = path.Base(_file)
-	//	entry.Data["func"] = path.Base(funcName)
-	//	entry.Data["line"] = line
-	//}
-	pc := make([]uintptr, 3, 3)
-	cnt := runtime.Callers(6, pc)
-	fmt.Printf("\n\n====%+v====\n\n", cnt)
-	for i := 0; i < cnt; i++ {
-		fu := runtime.FuncForPC(pc[i] - 1)
-		_file, line := fu.FileLine(pc[i] - 1)
-		fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-		fu = runtime.FuncForPC(pc[i] - 2)
-		_file, line = fu.FileLine(pc[i] - 2)
-		fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-		fu = runtime.FuncForPC(pc[i] - 3)
-		_file, line = fu.FileLine(pc[i] - 2)
-		fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-
-		name := fu.Name()
-		//if !strings.Contains(name, "github.com/Sirupsen/logrus") {
-			_file, line = fu.FileLine(pc[i] - 1)
-			entry.Data["file"] = path.Base(_file)
-			entry.Data["func"] = path.Base(name)
-			entry.Data["line"] = line
-			break
-		//}
-	}
-	return nil
-}
-
 func init() {
 	time.LoadLocation(appConfig.TimeZone)
 	log.SetFormatter(&log.TextFormatter{
@@ -148,7 +112,7 @@ func init() {
 		QuoteEmptyFields: true,
 		FullTimestamp:    true,
 	})
-	//log.AddHook(ContextHook{})
+	log.AddHook(mlog.ContextHook{})
 	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
 	//log.Debugf("wing-binlog-go基础配置：%+v\n", app_config)
 	//log.ResetOutHandler()
@@ -211,14 +175,14 @@ func main() {
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 各种通信服务
-	tcpService := services.NewTcpService(&ctx)
-	httpService := services.NewHttpService(&ctx)
-
 	// 核心binlog服务
 	blog := binlog.NewBinlog(&ctx)
 	clu := cluster.NewConsul(blog.OnLeader, blog.OnPos)
 	defer clu.Close()
+	// 各种通信服务
+	tcpService := services.NewTcpService(&ctx, clu)
+	httpService := services.NewHttpService(&ctx)
+	clu.SetService(tcpService.GetIpAndPort())
 
 	// 注册tcp、http、websocket服务
 	blog.BinlogHandler.RegisterService("tcp", tcpService)

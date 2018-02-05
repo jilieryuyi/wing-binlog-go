@@ -5,7 +5,6 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-	"library/file"
 	"library/path"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
@@ -37,9 +36,12 @@ func NewBinlog(ctx *context.Context) *Binlog {
 		binlog:        binlog,
 	}
 	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
-	dir := file.WPath{mysqlBinlogCacheFile}
-	dir = file.WPath{dir.GetParent()}
-	dir.Mkdir()
+	//dir := file.WPath{mysqlBinlogCacheFile}
+	//dir = file.WPath{dir.GetParent()}
+	//dir.Mkdir()
+
+	path.Mkdir(path.GetParent(mysqlBinlogCacheFile))
+
 	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	binlog.BinlogHandler.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
 	if err != nil {
@@ -155,13 +157,15 @@ func (h *Binlog) RegisterDrive(drive cluster.Cluster) {
 }
 
 func (h *Binlog) Start() {
-	log.Debugf("binlog start ... ")
 	for _, service := range h.BinlogHandler.services {
 		service.Start()
 	}
 	if h.Drive.Lock() {
 		log.Debugf("current run as leader")
 		h.StartService()
+	} else {
+		//todo agent connect to leader
+		h.BinlogHandler.services["tcp"].AgentStart()
 	}
 }
 
@@ -188,6 +192,12 @@ func (h *Binlog) Reload(service string) {
 func (h *Binlog) OnLeader() {
 	log.Debugf("current run as leader, start running")
 	h.StartService()
+	//todo agent disconnect
+	tcp, ok := h.BinlogHandler.services["tcp"]
+	log.Debugf("tcp---%+v, %+v", tcp, ok)
+	if ok && tcp != nil {
+		tcp.AgentStop()
+	}
 }
 func (h *Binlog) OnPos(data []byte) {
 	if data == nil {
@@ -211,3 +221,5 @@ func (h *Binlog) OnPos(data []byte) {
 	h.BinlogHandler.EventIndex = eventIndex
 	h.BinlogHandler.SaveBinlogPostionCache(string(data[18:]), pos, eventIndex)
 }
+
+

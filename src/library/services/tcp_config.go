@@ -7,6 +7,8 @@ import (
 	"sync"
 	"net"
 	"context"
+	"library/path"
+	"library/cluster"
 )
 
 type tcpClientNode struct {
@@ -19,12 +21,13 @@ type tcpClientNode struct {
 	recvBytes        int         // 收到的待处理字节数量
 	connectTime      int64       // 连接成功的时间戳
 	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
+	isAgent          bool
 }
 
 type tcpGroup struct {
-	name   string           //
-	filter []string         //
-	nodes  []*tcpClientNode //
+	name   string
+	filter []string
+	nodes  []*tcpClientNode
 }
 
 type TcpService struct {
@@ -40,6 +43,10 @@ type TcpService struct {
 	ctx              *context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
+	Agent            *Agent
+	Drive            cluster.Cluster
+	ServiceIp        string
+	Agents           []*tcpClientNode
 }
 
 type tcpGroupConfig struct { // group node in toml
@@ -51,12 +58,13 @@ type TcpConfig struct {
 	Listen string `toml:"listen"`
 	Port   int    `toml:"port"`
 	Enable bool   `toml:"enable"`
+	ServiceIp string `toml:"service_ip"`
 	Groups map[string]tcpGroupConfig
 }
 
 func getTcpConfig() (*TcpConfig, error) {
 	var tcp_config TcpConfig
-	tcp_config_file := file.GetCurrentPath() + "/config/tcp.toml"
+	tcp_config_file := path.CurrentPath + "/config/tcp.toml"
 	wfile := file.WFile{tcp_config_file}
 	if !wfile.Exists() {
 		log.Warnf("配置文件%s不存在 %s", tcp_config_file)
