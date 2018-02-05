@@ -119,19 +119,19 @@ func (ag *Agent) Start() {
 }
 
 func (ag *Agent) disconnect() {
-	log.Warnf("---------------agent close---------------1")
-	if !ag.node.isConnect {
+	ag.lock.Lock()
+	defer ag.lock.Unlock()
+	log.Warnf("---------------agent disconnect---------------")
+	if ag.node == nil || !ag.node.isConnect {
 		return
 	}
 	//todo disconnect
 	ag.node.conn.Close()
-	ag.lock.Lock()
 	ag.node.isConnect = false
-	ag.lock.Unlock()
 }
 
 func (ag *Agent) Close() {
-	log.Warnf("---------------agent close---------------2")
+	log.Warnf("---------------agent close---------------")
 	ag.disconnect()
 	ag.lock.Lock()
 	ag.isClose = true

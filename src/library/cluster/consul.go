@@ -117,11 +117,11 @@ func (con *Consul) registerService() {
 	if err != nil {
 		hostname = ""
 	}
-	name := hostname + con.sessionId
+	//name := hostname + con.sessionId
 	t := time.Now().Unix()
 	service := &api.AgentServiceRegistration{
 		ID:                con.sessionId,
-		Name:              name,
+		Name:              con.sessionId,
 		Tags:              []string{fmt.Sprintf("%d", con.isLock), con.sessionId, fmt.Sprintf("%d", t), hostname},
 		Port:              con.TcpServicePort,
 		Address:           con.TcpServiceIp,
