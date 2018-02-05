@@ -28,6 +28,7 @@ func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
 		Drive:            drive,
+		Agents:           make([]*tcpClientNode, 0),
 	}
 	tcp.Agent = newAgent(tcp)
 	for _, cgroup := range config.Groups {
@@ -56,6 +57,12 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 	table    := string(msg[2:tableLen + 2])
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
+
+	//send agent
+	for _, agent := range tcp.Agents {
+		agent.sendQueue <- tcp.pack(CMD_EVENT, string(msg[tableLen + 2:]))
+	}
+
 	for _, cgroup := range tcp.groups {
 		if cgroup.nodes == nil {
 			continue
@@ -119,6 +126,15 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	defer tcp.lock.Unlock()
 	close(node.sendQueue)
 	node.isConnected = false
+	if node.isAgent {
+		for index, n := range tcp.Agents {
+			if n == node {
+				tcp.Agents = append(tcp.Agents[:index], tcp.Agents[index+1:]...)
+				break
+			}
+		}
+		return
+	}
 	if node.group != "" {
 		// remove node if exists
 		if group, found := tcp.groups[node.group]; found {
@@ -177,6 +193,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
 		recvBytes:        0,
 		group:            "",
+		isAgent:          false,
 	}
 	go tcp.clientSendService(cnode)
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
@@ -250,6 +267,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
 			//心跳包
+		case CMD_AGENT:
+			tcp.lock.Lock()
+			node.isAgent = true
+			(*node.conn).SetReadDeadline(time.Time{})
+			tcp.Agents = append(tcp.Agents, node)
+			tcp.lock.Unlock()
 		default:
 			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 		}

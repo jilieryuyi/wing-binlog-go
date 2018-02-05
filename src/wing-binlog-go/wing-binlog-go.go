@@ -181,7 +181,6 @@ func main() {
 	defer clu.Close()
 	// 各种通信服务
 	tcpService := services.NewTcpService(&ctx, clu)
-	//tcpService.RegisterDrive(clu)
 	httpService := services.NewHttpService(&ctx)
 	clu.SetService(tcpService.GetIpAndPort())
 

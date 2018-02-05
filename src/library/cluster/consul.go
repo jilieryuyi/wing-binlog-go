@@ -98,8 +98,11 @@ func (con *Consul) SetService(ip string, port int) {
 
 func (con *Consul) getService() *ClusterMember{
 	members := con.GetMembers()
+	if members == nil {
+		return nil
+	}
 	for _, v := range members {
-		if v.Session == con.sessionId {
+		if v != nil && v.Session == con.sessionId {
 			return v
 		}
 	}
@@ -116,11 +119,10 @@ func (con *Consul) registerService() {
 	}
 	name := hostname + con.sessionId
 	t := time.Now().Unix()
-	il := []byte{byte(con.isLock)}
 	service := &api.AgentServiceRegistration{
 		ID:                con.sessionId,
 		Name:              name,
-		Tags:              []string{string(il), con.sessionId, fmt.Sprintf("%d", t), hostname},
+		Tags:              []string{fmt.Sprintf("%d", con.isLock), con.sessionId, fmt.Sprintf("%d", t), hostname},
 		Port:              con.TcpServicePort,
 		Address:           con.TcpServiceIp,
 		EnableTagOverride: false,
@@ -152,6 +154,7 @@ func (con *Consul) GetServices() map[string]*api.AgentService {
 	return ser
 }
 
+// keepalive
 func (con *Consul) keepalive() {
 	for {
 		con.Session.renew()
@@ -160,6 +163,7 @@ func (con *Consul) keepalive() {
 	}
 }
 
+// get all members nodes
 func (con *Consul) GetMembers() []*ClusterMember {
 	members := con.GetServices()
 	if members == nil {
@@ -174,7 +178,7 @@ func (con *Consul) GetMembers() []*ClusterMember {
 		if time.Now().Unix()-t > 3 {
 			m[i].Status = STATUS_OFFLINE
 		}
-		m[i].IsLeader = int([]byte(v.Tags[0])[0]) == 1
+		m[i].IsLeader = v.Tags[0] == "1"
 		m[i].Hostname = v.Tags[3]
 		m[i].Session = v.Tags[1]
 		m[i].ServiceIp = v.Address
@@ -183,7 +187,8 @@ func (con *Consul) GetMembers() []*ClusterMember {
 	return m
 }
 
-// check service is alive, is leader is not alive, try to select a new one
+// check service is alive
+// if leader is not alive, try to select a new one
 func (con *Consul) checkAlive() {
 	if !con.enable {
 		return
@@ -198,7 +203,7 @@ func (con *Consul) checkAlive() {
 			continue
 		}
 		for _, v := range services {
-			isLock := int([]byte(v.Tags[0])[0]) == 1
+			isLock := v.Tags[0] == "1"
 			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
 			if time.Now().Unix()-t > 3 {
 				log.Warnf("%s is timeout, will be deregister", v.ID)
@@ -217,67 +222,11 @@ func (con *Consul) checkAlive() {
 		}
 		time.Sleep(time.Second * 1)
 	}
-
-	//for {
-	//	con.lock.Lock()
-	//	if con.isLock == 1 {
-	//		con.lock.Unlock()
-	//		// leader does not need check
-	//		time.Sleep(time.Second * 3)
-	//		continue
-	//	}
-	//	con.lock.Unlock()
-	//	pairs, _, err := con.Kv.List(PREFIX_KEEPALIVE, nil)
-	//	if err != nil {
-	//		log.Errorf("checkAlive with error：%#v", err)
-	//		time.Sleep(time.Second)
-	//		continue
-	//	}
-	//	if pairs == nil {
-	//		time.Sleep(time.Second * 3)
-	//		continue
-	//	}
-	//	reLeader := true
-	//	leaderCount := 0
-	//	for _, v := range pairs {
-	//		if v.Value == nil {
-	//			log.Debugf("%+v", v)
-	//			log.Debug("checkAlive value nil")
-	//			continue
-	//		}
-	//		t := int64(v.Value[0]) | int64(v.Value[1]) << 8 |
-	//				int64(v.Value[2]) << 16 | int64(v.Value[3]) << 24 |
-	//				int64(v.Value[4]) << 32 | int64(v.Value[5]) << 40 |
-	//				int64(v.Value[6]) << 48 | int64(v.Value[7]) << 56
-	//		isLock := 0
-	//		if len(v.Value) > 8 {
-	//			isLock = int(v.Value[8])
-	//		}
-	//		if isLock == 1 {
-	//			reLeader = false
-	//			leaderCount++
-	//		}
-	//		if time.Now().Unix() - t > 3 {
-	//			con.Delete(v.Key)
-	//			if isLock == 1 {
-	//				reLeader = true
-	//			}
-	//		}
-	//	}
-	//	if reLeader || leaderCount > 1 {
-	//		log.Warnf("leader maybe leave, try to create a new leader")
-	//		//con.Unlock()
-	//		con.Delete(LOCK)
-	//		if con.Lock() {
-	//			if con.onLeaderCallback != nil {
-	//				con.onLeaderCallback()
-	//			}
-	//		}
-	//	}
-	//	time.Sleep(time.Second * 3)
-	//}
 }
 
+// watch pos change
+// if pos write by other node
+// all nodes will get change
 func (con *Consul) watch() {
 	if !con.enable {
 		return
@@ -303,7 +252,7 @@ func (con *Consul) watch() {
 		}
 		v, _, err := con.Kv.Get(POS_KEY, &api.QueryOptions{
 			WaitIndex : meta.LastIndex,
-			WaitTime : time.Second * 3,
+			WaitTime : time.Second * 3600,
 		})
 		if err != nil {
 			log.Errorf("watch chang with error：%#v, %+v", err, v)
@@ -319,16 +268,23 @@ func (con *Consul) watch() {
 	}
 }
 
+// get leader service ip and port
+// if not found or some error happened
+// return empty string and 0
 func (con *Consul) GetLeader() (string, int) {
 	members := con.GetMembers()
+	if members == nil {
+		return "", 0
+	}
 	for _, v := range members {
-		if v.IsLeader {
+		if v != nil && v.IsLeader {
 			return v.ServiceIp, v.Port
 		}
 	}
 	return "", 0
 }
 
+// if app is close, it will be call for clear some source
 func (con *Consul) Close() {
 	if !con.enable {
 		return
@@ -346,14 +302,16 @@ func (con *Consul) Close() {
 	con.Session.delete()
 }
 
+// write pos kv to consul
+// use by src/library/binlog/handler.go SaveBinlogPostionCache
 func (con *Consul) Write(data []byte) bool {
 	if !con.enable {
 		return true
 	}
-	log.Debugf("write consul kv: %s, %v", POS_KEY, data)
+	log.Debugf("write consul pos kv: %s, %v", POS_KEY, data)
 	_, err := con.Kv.Put(&api.KVPair{Key: POS_KEY, Value: data}, nil)
 	if err != nil {
-		log.Errorf("write consul kv with error: %+v", err)
+		log.Errorf("write consul pos kv with error: %+v", err)
 	}
 	return nil == err
 }

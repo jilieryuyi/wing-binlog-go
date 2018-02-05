@@ -25,6 +25,7 @@ const (
 	CMD_ERROR   = 4 // 错误响应
 	CMD_TICK    = 5 // 心跳包
 	CMD_EVENT   = 6 // 事件
+	CMD_AGENT   = 7
 
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64

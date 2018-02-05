@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 //如果当前客户端为follower
@@ -34,11 +35,6 @@ func newAgent(tcp *TcpService) *Agent{
 		node:nil,
 		lock:new(sync.Mutex),
 	}
-
-	//todo get service ip and port
-	agent.serviceIp, agent.servicePort = tcp.Drive.GetLeader()
-
-	agent.nodeInit()
 	return agent
 }
 
@@ -52,7 +48,6 @@ func (ag *Agent) nodeInit() {
 	if err != nil {
 		log.Panicf("start agent with error: %+v", err)
 	}
-	//connect pool
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	ag.node = &agentNode{
 		conn:conn,
@@ -61,16 +56,31 @@ func (ag *Agent) nodeInit() {
 	if err != nil {
 		log.Errorf("start agent with error: %+v", err)
 		ag.node.isConnect = false
+		ag.node.conn = nil
 	}
 }
 
 func (ag *Agent) Start() {
+	//todo get service ip and port
+	ag.serviceIp, ag.servicePort = ag.tcp.Drive.GetLeader()
+	if ag.serviceIp == "" || ag.servicePort == 0 {
+		return
+	}
+	ag.nodeInit()
+	log.Debugf("====================agent start====================")
+	agentH := ag.tcp.pack(CMD_AGENT, "")
 	go func() {
 		var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
 			if !ag.node.isConnect {
 				ag.nodeInit()
 			}
+			if ag.node.conn == nil {
+				time.Sleep(time.Second * 1)
+				continue
+			}
+			//握手
+			ag.node.conn.Write(agentH)
 			for {
 				ag.lock.Lock()
 				if ag.isClose {
@@ -84,12 +94,12 @@ func (ag *Agent) Start() {
 					buf[i] = byte(0)
 				}
 				size, err := ag.node.conn.Read(buf[0:])
-				if err != nil {
-					log.Warnf("agent error: %+v", err)
+				if err != nil || size <= 0 {
+					log.Warnf("agent read with error: %+v", err)
 					ag.disconnect()
 					break
 				}
-				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf))
+				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
 				ag.onMessage(buf[:size])
 				select {
 				case <-(*ag.tcp.ctx).Done():
@@ -103,6 +113,7 @@ func (ag *Agent) Start() {
 }
 
 func (ag *Agent) disconnect() {
+	log.Warnf("---------------agent close---------------1")
 	if !ag.node.isConnect {
 		return
 	}
@@ -114,6 +125,7 @@ func (ag *Agent) disconnect() {
 }
 
 func (ag *Agent) Close() {
+	log.Warnf("---------------agent close---------------2")
 	ag.disconnect()
 	ag.lock.Lock()
 	ag.isClose = true

@@ -193,7 +193,10 @@ func (h *Binlog) OnLeader() {
 	log.Debugf("current run as leader, start running")
 	h.StartService()
 	//todo agent disconnect
-	h.BinlogHandler.services["tcp"].AgentStop()
+	tcp, ok := h.BinlogHandler.services["tcp"]
+	if ok && tcp != nil {
+		tcp.AgentStop()
+	}
 }
 func (h *Binlog) OnPos(data []byte) {
 	if data == nil {

@@ -21,6 +21,7 @@ type tcpClientNode struct {
 	recvBytes        int         // 收到的待处理字节数量
 	connectTime      int64       // 连接成功的时间戳
 	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
+	isAgent          bool
 }
 
 type tcpGroup struct {
@@ -45,6 +46,7 @@ type TcpService struct {
 	Agent            *Agent
 	Drive            cluster.Cluster
 	ServiceIp        string
+	Agents           []*tcpClientNode
 }
 
 type tcpGroupConfig struct { // group node in toml
