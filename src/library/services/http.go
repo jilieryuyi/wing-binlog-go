@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	log "github.com/sirupsen/logrus"
 	"library/http"
 	"regexp"
@@ -9,10 +8,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"library/app"
 )
 
 // 创建一个新的http服务
-func NewHttpService(ctx *context.Context) *HttpService {
+func NewHttpService(ctx *app.Context) *HttpService {
 	config, _ := getHttpConfig()
 	log.Debugf("start http service with config: %+v", config)
 	if !config.Enable {
@@ -148,7 +148,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		node.lock.Unlock()
 		time.Sleep(sleepTime)
 		select {
-		case <-(*client.ctx).Done():
+		case <-client.ctx.Ctx.Done():
 			log.Debugf("http服务errorCheckService退出：%s", node.url)
 			return
 		default:
@@ -208,7 +208,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				// 保持最新的10000条
 				client.addCache(node, []byte(msg))
 			}
-		case <-(*client.ctx).Done():
+		case <-client.ctx.Ctx.Done():
 			if len(node.sendQueue) <= 0 {
 				log.Debugf("http服务clientSendService退出：%s", node.url)
 				return
@@ -307,4 +307,11 @@ func (client *HttpService) Reload() {
 		client.groups[cgroup.Name] = group
 	}
 	log.Debug("http service reloaded.")
+}
+
+func (client *HttpService) AgentStart(serviceIp string, port int) {
+
+}
+func (client *HttpService) AgentStop() {
+
 }

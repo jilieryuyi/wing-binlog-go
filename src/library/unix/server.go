@@ -2,20 +2,22 @@ package unix
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"library/binlog"
 	"library/file"
 	"net"
 	"os"
 	"library/path"
+	"library/app"
+	"library/binlog"
 )
 
-func NewUnixServer() *UnixServer {
+func NewUnixServer(ctx *app.Context, binlog *binlog.Binlog) *UnixServer {
 	addr := path.CurrentPath + "/wing-binlog-go.sock"
 	server := &UnixServer{
 		addr: addr,
+		ctx : ctx,
+		binlog:binlog,
 	}
 	return server
 }
@@ -28,35 +30,29 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			return
 		}
 		data := buf[0:nr]
-
 		length := int(data[0]) +
 			int(data[1] << 8) +
 			int(data[2] << 16) +
 			int(data[3] << 24)
 		cmd := 	int(data[4]) +
 			int(data[5] << 8)
-
 		content := bytes.ToLower(data[6:])
-
-		log.Debugf("unix服务收到消息：%s, %+v, %d", string(data), data, length)
-
+		log.Debugf("unix receive：%s, %+v, %d", string(data), data, length)
 		switch cmd {
 		case CMD_STOP:
-			log.Debug("收到退出指令，程序即将退出")
+			log.Debug("get stop cmd, app will stop later")
 			server.clear()
-			(*server.cancel)()
+			server.ctx.Cancel()
 			server.binlog.Close()
-			fmt.Println("服务退出...")
+			fmt.Println("service exit...")
 			os.Exit(0)
 		case CMD_RELOAD:
-			{
-				log.Debugf("收到重新加载指令：%s", string(content))
-				server.binlog.Reload(string(content))
-			}
+			log.Debugf("收到重新加载指令：%s", string(content))
+			server.binlog.Reload(string(content))
 		case CMD_JOINTO:
 			log.Debugf("收到加入群集指令：%s", string(content))
 		case CMD_SHOW_MEMBERS:
-			members := server.binlog.Drive.GetMembers()
+			members := server.binlog.GetMembers()
 			if members != nil {
 				hostname, err := os.Hostname()
 				if err != nil {
@@ -98,7 +94,7 @@ func (server *UnixServer) clear() {
 	if f.Exists() {
 		f.Delete()
 	}
-	f = file.WFile{server.pidFile}
+	f = file.WFile{server.ctx.PidFile}
 	if f.Exists() {
 		f.Delete()
 	}
@@ -108,10 +104,7 @@ func (server *UnixServer) Close() {
 	server.clear()
 }
 
-func (server *UnixServer) Start(binlog *binlog.Binlog, cancel *context.CancelFunc, pid string) {
-	server.cancel = cancel
-	server.binlog = binlog
-	server.pidFile = pid
+func (server *UnixServer) Start() {
 	server.clear()
 	go func() {
 		log.Debug("unix服务启动，等待新的连接...")

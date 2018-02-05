@@ -79,3 +79,8 @@ func Write(filePath string, data string, append bool) int {
 	return n
 }
 
+func Delete(filePath string) bool {
+	err := os.Remove(filePath)
+	return err == nil
+}
+

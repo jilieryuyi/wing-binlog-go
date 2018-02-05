@@ -1,13 +1,13 @@
 package services
 
 import (
-	"context"
 	"sync"
 	"time"
 	"library/file"
 	"library/path"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
+	"library/app"
 )
 
 type httpNodeConfig struct {
@@ -29,7 +29,7 @@ type HttpService struct {
 	sendFailureTimes int64                 // 发送失败次数
 	enable           bool                  //
 	timeTick         time.Duration         // 故障检测的时间间隔
-	ctx              *context.Context      //
+	ctx              *app.Context//*context.Context      //
 	wg               *sync.WaitGroup       //
 }
 
@@ -56,13 +56,12 @@ type httpNode struct {
 
 func getHttpConfig() (*HttpConfig, error) {
 	var config HttpConfig
-	http_config_file := path.CurrentPath + "/config/http.toml"
-	wfile := file.WFile{http_config_file}
-	if !wfile.Exists() {
-		log.Warnf("配置文件%s不存在 %s", http_config_file)
+	configFile := path.CurrentPath + "/config/http.toml"
+	if !file.Exists(configFile) {
+		log.Warnf("config file %s does not exists", configFile)
 		return nil, ErrorFileNotFound
 	}
-	if _, err := toml.DecodeFile(http_config_file, &config); err != nil {
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
 		log.Println(err)
 		return nil, ErrorFileParse
 	}
