@@ -25,6 +25,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		//tcp service ip and port
 		ServiceIp   : ctx.ServiceIp,
 		ServicePort : ctx.ServicePort,
+		isClosed    : true,
 	}
 
 	//init consul
