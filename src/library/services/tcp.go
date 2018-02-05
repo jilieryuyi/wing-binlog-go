@@ -9,9 +9,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"library/cluster"
 )
 
-func NewTcpService(ctx *context.Context) *TcpService {
+func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
 	config, _ := getTcpConfig()
 	tcp := &TcpService {
 		Ip:               config.Listen,
@@ -25,7 +26,11 @@ func NewTcpService(ctx *context.Context) *TcpService {
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
+		ServiceIp:        config.ServiceIp,
+		Drive:            drive,
+		Agents:           make([]*tcpClientNode, 0),
 	}
+	tcp.Agent = newAgent(tcp)
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		tcp.groups[cgroup.Name] = &tcpGroup{
@@ -38,6 +43,10 @@ func NewTcpService(ctx *context.Context) *TcpService {
 	return tcp
 }
 
+func (tcp *TcpService) RegisterDrive(drive cluster.Cluster) {
+	tcp.Drive = drive
+}
+
 // 对外的广播发送接口
 func (tcp *TcpService) SendAll(msg []byte) bool {
 	if !tcp.enable {
@@ -48,6 +57,12 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 	table    := string(msg[2:tableLen + 2])
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
+
+	//send agent
+	for _, agent := range tcp.Agents {
+		agent.sendQueue <- tcp.pack(CMD_EVENT, string(msg[tableLen + 2:]))
+	}
+
 	for _, cgroup := range tcp.groups {
 		if cgroup.nodes == nil {
 			continue
@@ -111,6 +126,15 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	defer tcp.lock.Unlock()
 	close(node.sendQueue)
 	node.isConnected = false
+	if node.isAgent {
+		for index, n := range tcp.Agents {
+			if n == node {
+				tcp.Agents = append(tcp.Agents[:index], tcp.Agents[index+1:]...)
+				break
+			}
+		}
+		return
+	}
 	if node.group != "" {
 		// remove node if exists
 		if group, found := tcp.groups[node.group]; found {
@@ -169,6 +193,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
 		recvBytes:        0,
 		group:            "",
+		isAgent:          false,
 	}
 	go tcp.clientSendService(cnode)
 	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
@@ -242,6 +267,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		case CMD_TICK:
 			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
 			//心跳包
+		case CMD_AGENT:
+			tcp.lock.Lock()
+			node.isAgent = true
+			(*node.conn).SetReadDeadline(time.Time{})
+			tcp.Agents = append(tcp.Agents, node)
+			tcp.lock.Unlock()
 		default:
 			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 		}
@@ -251,10 +282,15 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 	}
 }
 
+func (tcp *TcpService) GetIpAndPort() (string, int) {
+	return tcp.ServiceIp, tcp.Port
+}
+
 func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
+	//go tcp.Drive.RegisterService(tcp.ServiceIp, tcp.Port)
 	go func() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		listen, err := net.Listen("tcp", dns)
@@ -302,6 +338,10 @@ func (tcp *TcpService) Close() {
 	}
 	log.Debugf("tcp service closed.")
 }
+
+//func (h *TcpService) RegisterDrive(drive cluster.Cluster) {
+//	h.Drive = drive
+//}
 
 func (tcp *TcpService) Reload() {
 	config, err := getTcpConfig()
@@ -411,4 +451,12 @@ func (tcp *TcpService) Reload() {
 		tcp.Close()
 		tcp.Start()
 	}
+}
+
+func (tcp *TcpService)  AgentStart() {
+	tcp.Agent.Start()
+}
+
+func (tcp *TcpService)  AgentStop() {
+	tcp.Agent.Close()
 }

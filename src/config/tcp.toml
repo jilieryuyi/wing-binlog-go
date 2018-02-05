@@ -1,5 +1,6 @@
 listen = "0.0.0.0"
 port   = 9998
+service_ip = "127.0.0.1" #注册服务发现使用ip，后续访问也将通过此ip访问，必须绑定设置
 
 ##enable tcp service
 enable = true

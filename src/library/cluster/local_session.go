@@ -3,12 +3,11 @@ package cluster
 import (
 	"library/path"
 	"library/file"
+	"library/util"
 	"fmt"
 	"time"
 	log "github.com/sirupsen/logrus"
 )
-
-
 
 func GetSession() string {
 	sessionFile := path.CurrentPath + "/cache/session"
@@ -20,8 +19,7 @@ func GetSession() string {
 		}
 	}
 	//write a new session
-	session := fmt.Sprintf("%d-%s-%s-%s", time.Now().Unix(),
-		GetRandomString(4), GetRandomString(4), GetRandomString(4))
+	session := fmt.Sprintf("%d-%s", time.Now().Unix(), util.RandString(64))
 	dir := path.GetParent(sessionFile)
 	path.Mkdir(dir)
 	n := file.Write(sessionFile, session, false)

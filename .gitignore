@@ -11,6 +11,7 @@
 /bin/web
 /bin/wing-binlog-go
 /bin/wing-binlog-go.pid
+/bin/logs/
 /pkg
 /vendor/pkg/
 /*.pid

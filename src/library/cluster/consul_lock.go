@@ -57,6 +57,9 @@ func (con *Consul) Lock() bool {
 	}
 	return success
 
+	//l,_:=con.Client.LockKey("a")
+	//l.Lock()
+
 	//defer con.writeMember()
 	//lockApi := "http://" + con.serviceIp +"/v1/kv/" + LOCK + "?acquire=" + con.session
 	//request := http.NewHttp(lockApi)

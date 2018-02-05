@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"errors"
 	"library/file"
+	"github.com/hashicorp/consul/api"
 )
 
 var (
@@ -20,6 +21,8 @@ type Cluster interface{
 	Write(data []byte) bool
     GetMembers() []*ClusterMember
 	ClearOfflineMembers()
+	GetServices() map[string]*api.AgentService
+	GetLeader() (string, int)
 }
 
 type ClusterMember struct {
@@ -27,6 +30,8 @@ type ClusterMember struct {
 	IsLeader bool
 	Session string
 	Status string
+	ServiceIp string
+	Port int
 }
 
 type ConsulConfig struct{

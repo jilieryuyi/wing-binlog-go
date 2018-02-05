@@ -9,10 +9,11 @@ import (
 	"library/file"
 	"net"
 	"os"
+	"library/path"
 )
 
 func NewUnixServer() *UnixServer {
-	addr := file.GetCurrentPath() + "/wing-binlog-go.sock"
+	addr := path.CurrentPath + "/wing-binlog-go.sock"
 	server := &UnixServer{
 		addr: addr,
 	}
@@ -64,24 +65,24 @@ func (server *UnixServer) onConnect(c net.Conn) {
 				l := len(members)
 				res := fmt.Sprintf("current node: %s\r\n", hostname)
 				res += fmt.Sprintf("cluster size: %d node(s)\r\n", l)
-				res += fmt.Sprintf("======+=========================+================================+===============\r\n")
-				res += fmt.Sprintf("%-6s| %-23s | %-30s | %-8s | %s\r\n", "index", "node", "session", "role", "status")
-				res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
+				res += fmt.Sprintf("======+==========================================+==========+===============\r\n")
+				res += fmt.Sprintf("%-6s| %-40s | %-8s | %s\r\n", "index", "node", "role", "status")
+				res += fmt.Sprintf("------+------------------------------------------+----------+---------------\r\n")
 				for i, member := range members {
 					role := "follower"
 					if member.IsLeader {
 						role = "leader"
 					}
-					res += fmt.Sprintf("%-6d| %-23s | %-30s | %-8s | %s\r\n", i, member.Hostname, member.Session, role, member.Status)
+					res += fmt.Sprintf("%-6d| %-40s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", member.Hostname, member.ServiceIp, member.Port), role, member.Status)
 				}
-				res += fmt.Sprintf("------+-------------------------+----------+---------------\r\n")
+				res += fmt.Sprintf("------+------------------------------------------+----------+---------------\r\n")
 				c.Write([]byte(res))
 			} else {
 				c.Write([]byte("no members found"))
 			}
 		case CMD_CLEAR:
-			server.binlog.Drive.ClearOfflineMembers()
-			c.Write([]byte("ok"))
+			//server.binlog.Drive.ClearOfflineMembers()
+			//c.Write([]byte("ok"))
 		default:
 			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}
