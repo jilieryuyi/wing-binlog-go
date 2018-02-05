@@ -194,6 +194,7 @@ func (h *Binlog) OnLeader() {
 	h.StartService()
 	//todo agent disconnect
 	tcp, ok := h.BinlogHandler.services["tcp"]
+	log.Debugf("tcp---%+v, %+v", tcp, ok)
 	if ok && tcp != nil {
 		tcp.AgentStop()
 	}
