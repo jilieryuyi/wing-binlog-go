@@ -38,12 +38,6 @@ echo "installing... golang.org/x/text/transform"
 go get golang.org/x/text/transform
 echo "installing... github.com/axgle/mahonia"
 go get github.com/axgle/mahonia
-echo "installing... github.com/coreos/etcd"
-go get github.com/coreos/etcd
-echo "installing... github.com/mattn/goreman"
-go get github.com/mattn/goreman
-echo "installing... github.com/armon/consul-kv"
-go get github.com/armon/consul-kv
 echo "installing... github.com/hashicorp/consul"
 go get github.com/hashicorp/consul
 
