@@ -60,10 +60,12 @@ func (ag *Agent) nodeInit() {
 	}
 }
 
-func (ag *Agent) Start() {
+func (ag *Agent) Start(serviceIp string, port int) {
 	//todo get service ip and port
-	ag.serviceIp, ag.servicePort = ag.tcp.Drive.GetLeader()
+	ag.serviceIp = serviceIp
+	ag.servicePort = port//ag.tcp.GetLeader()
 	if ag.serviceIp == "" || ag.servicePort == 0 {
+		log.Warnf("ip ang port empty")
 		return
 	}
 	ag.nodeInit()
@@ -108,7 +110,7 @@ func (ag *Agent) Start() {
 				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
 				ag.onMessage(buf[:size])
 				select {
-				case <-(*ag.tcp.ctx).Done():
+				case <-ag.tcp.ctx.Ctx.Done():
 					log.Warnf("agent context quit")
 					return
 				default:

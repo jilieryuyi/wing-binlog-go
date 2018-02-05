@@ -10,7 +10,7 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	binfile := "mysql-bin.000059"
 	pos := int64(123456)
 	eventIndex := int64(20)
-	h := &binlogHandler{}
+	h := &Binlog{}
 	var err error
 	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC
 	h.cacheHandler, err = os.OpenFile("/tmp/cache_test.pos", flag, 0755)

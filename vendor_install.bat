@@ -34,5 +34,13 @@ echo "installing... mattn/go-sqlite3"
 call go get github.com/mattn/go-sqlite3
 echo "installing... segmentio/kafka-go"
 call go get github.com/segmentio/kafka-go
+echo "installing... golang.org/x/text/encoding/simplifiedchinese"
+call go get golang.org/x/text/encoding/simplifiedchinese
+echo "installing... golang.org/x/text/transform"
+call go get golang.org/x/text/transform
+echo "installing... github.com/axgle/mahonia"
+call go get github.com/axgle/mahonia
+echo "installing... github.com/hashicorp/consul"
+call go get github.com/hashicorp/consul
 
 ::xcopy  %vendor_path%\src\*.* %vendor_path% /s /e /y /q
