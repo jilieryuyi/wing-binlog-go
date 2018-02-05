@@ -457,6 +457,6 @@ func (tcp *TcpService)  AgentStart() {
 	tcp.Agent.Start()
 }
 
-func (tcp *TcpService)  AgentAtop() {
+func (tcp *TcpService)  AgentStop() {
 	tcp.Agent.Close()
 }
