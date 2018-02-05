@@ -1,13 +1,39 @@
 package cluster
 
 import (
-	"library/path"
-	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
 	"errors"
-	"library/file"
 	"github.com/hashicorp/consul/api"
+	"sync"
 )
+
+const (
+	TIMEOUT  = 9 // timeout, unit is second
+	CHECK_ALIVE_INTERVAL = 1 // interval for checkalive
+	KEEPALIVE_INTERVAL = 3 // interval for keepalive
+
+	POS_KEY          = "wing/binlog/pos"
+	LOCK             = "wing/binlog/lock"
+	PREFIX_KEEPALIVE = "wing/binlog/keepalive/"
+	STATUS_ONLINE    = "online"
+	STATUS_OFFLINE   = "offline"
+)
+
+type Consul struct {
+	Cluster
+	serviceIp string
+	Session *Session
+	isLock int
+	lock *sync.Mutex
+	onLeaderCallback func()
+	onPosChange func([]byte)
+	sessionId string
+	enable bool
+	Client *api.Client
+	Kv *api.KV
+	TcpServiceIp string
+	TcpServicePort int
+	agent *api.Agent
+}
 
 var (
 	ErrorFileNotFound = errors.New("config file not found")
@@ -37,6 +63,7 @@ type ClusterMember struct {
 type ConsulConfig struct{
 	ServiceIp string `toml:"service_ip"`
 }
+
 type MysqlConfig struct {
 	Addr string
 	Port int
@@ -62,17 +89,4 @@ type Config struct {
 	Consul *ConsulConfig
 }
 
-func GetConfig() (*Config, error) {
-	var config Config
-	configFile := path.CurrentPath + "/config/cluster.toml"
-	wfile := file.WFile{configFile}
-	if !wfile.Exists() {
-		log.Errorf("config file not found: %s", configFile)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	return &config, nil
-}
+
