@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -9,11 +8,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"library/cluster"
+	"library/app"
 )
 
-func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
-	config, _ := getTcpConfig()
+func NewTcpService(ctx *app.Context) *TcpService {
+	config, _ := GetTcpConfig()
 	tcp := &TcpService {
 		Ip:               config.Listen,
 		Port:             config.Port,
@@ -27,7 +26,6 @@ func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
 		listener:         nil,
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
-		Drive:            drive,
 		Agents:           make([]*tcpClientNode, 0),
 	}
 	tcp.Agent = newAgent(tcp)
@@ -41,10 +39,6 @@ func NewTcpService(ctx *context.Context, drive cluster.Cluster) *TcpService {
 		tcp.groups[cgroup.Name].filter = append(tcp.groups[cgroup.Name].filter[:0], cgroup.Filter...)
 	}
 	return tcp
-}
-
-func (tcp *TcpService) RegisterDrive(drive cluster.Cluster) {
-	tcp.Drive = drive
 }
 
 // 对外的广播发送接口
@@ -171,7 +165,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
 				log.Warnf("tcp service, %s failure times: %d", (*node.conn).RemoteAddr().String(), node.sendFailureTimes)
 			}
-		case <-(*tcp.ctx).Done():
+		case <-tcp.ctx.Ctx.Done():
 			if len(node.sendQueue) <= 0 {
 				log.Info("tcp service, clientSendService exit.")
 				return
@@ -218,7 +212,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		tcp.onMessage(cnode, buf, size)
 
 		select {
-		case <-(*tcp.ctx).Done():
+		case <-tcp.ctx.Ctx.Done():
 			log.Debugf("tcp服务-onConnect退出")
 			return
 		default:
@@ -282,9 +276,9 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 	}
 }
 
-func (tcp *TcpService) GetIpAndPort() (string, int) {
-	return tcp.ServiceIp, tcp.Port
-}
+//func (tcp *TcpService) GetIpAndPort() (string, int) {
+//	return tcp.ServiceIp, tcp.Port
+//}
 
 func (tcp *TcpService) Start() {
 	if !tcp.enable {
@@ -303,7 +297,7 @@ func (tcp *TcpService) Start() {
 		for {
 			conn, err := listen.Accept()
 			select {
-			case <-(*tcp.ctx).Done():
+			case <-tcp.ctx.Ctx.Done():
 				return
 			default:
 			}
@@ -344,7 +338,7 @@ func (tcp *TcpService) Close() {
 //}
 
 func (tcp *TcpService) Reload() {
-	config, err := getTcpConfig()
+	config, err := GetTcpConfig()
 	if err != nil {
 		log.Errorf("tcp service reload get config with error: %+v", err)
 		return
@@ -453,10 +447,10 @@ func (tcp *TcpService) Reload() {
 	}
 }
 
-func (tcp *TcpService)  AgentStart() {
-	tcp.Agent.Start()
+func (tcp *TcpService) AgentStart(serviceIp string, port int) {
+	tcp.Agent.Start(serviceIp, port)
 }
 
-func (tcp *TcpService)  AgentStop() {
+func (tcp *TcpService) AgentStop() {
 	tcp.Agent.Close()
 }
