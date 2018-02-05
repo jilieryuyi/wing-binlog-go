@@ -72,6 +72,12 @@ func (ag *Agent) Start() {
 	go func() {
 		var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
 		for {
+			ag.lock.Lock()
+			if ag.isClose {
+				ag.lock.Unlock()
+				return
+			}
+			ag.lock.Unlock()
 			if !ag.node.isConnect {
 				ag.nodeInit()
 			}
