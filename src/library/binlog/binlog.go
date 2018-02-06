@@ -119,38 +119,28 @@ func (h *Binlog) Start() {
 				log.Debugf("==%s %d==", serviceIp, port)
 				break
 			}
-			h.services["tcp"].AgentStart(serviceIp, port)
+			for _, s := range h.services {
+				s.AgentStart(serviceIp, port)
+			}
 		}()
 	}
 }
 
 func (h *Binlog) Reload(service string) {
-	var (
-		tcp  = "tcp"
-		http = "http"
-		all  = "all"
-	)
-	switch service {
-	case tcp:
-		log.Debugf("tcp service reload")
-		h.services["tcp"].Reload()
-	case http:
-		log.Debugf("http service reload")
-		h.services["http"].Reload()
-	case all:
-		log.Debugf("all service reload")
-		h.services["tcp"].Reload()
-		h.services["http"].Reload()
+	if service == "all" {
+		for _, s := range h.services {
+			s.Reload()
+		}
+	} else {
+		h.services[service].Reload()
 	}
 }
 
 func (h *Binlog) onNewLeader() {
 	log.Debugf("current run as leader, start running")
 	h.StartService()
-	tcp, ok := h.services["tcp"]
-	log.Debugf("tcp---%+v, %+v", tcp, ok)
-	if ok && tcp != nil {
-		tcp.AgentStop()
+	for _, s := range h.services {
+		s.AgentStop()
 	}
 }
 
