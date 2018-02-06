@@ -5,7 +5,7 @@ import (
 )
 
 type Service interface {
-	SendAll(msg []byte) bool
+	SendAll(data map[string] interface{}) bool
 	Start()
 	Close()
 	Reload()

@@ -1,16 +1,12 @@
 package binlog
 
 import (
-	"math/big"
-	"reflect"
-	"strconv"
 	"sync/atomic"
 	"time"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
-	"github.com/siddontang/go-mysql/schema"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"library/path"
@@ -73,102 +69,10 @@ func (h *Binlog) RegisterService(name string, s services.Service) {
 	h.services[name] = s
 }
 
-func (h *Binlog) notify(msg []byte) {
-	log.Debug("binlog发送广播：", msg, string(msg))
+func (h *Binlog) notify(data map[string] interface{}) {
+	log.Debugf("binlog notify: %+v", data)
 	for _, service := range h.services {
-		service.SendAll(msg)
-	}
-}
-
-func (h *Binlog) append(buf *[]byte, edata interface{}, column *schema.TableColumn) {
-	//log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
-	switch edata.(type) {
-	case string:
-		encode(buf, edata.(string))
-	case []uint8:
-		encode(buf, string(edata.([]byte)))
-	case int:
-		*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
-	case int8:
-		var r int64 = 0
-		r = int64(edata.(int8))
-		if column.IsUnsigned && r < 0 {
-			r = int64(int64(256) + int64(edata.(int8)))
-		}
-		*buf = strconv.AppendInt(*buf, r, 10)
-	case int16:
-		var r int64 = 0
-		r = int64(edata.(int16))
-		if column.IsUnsigned && r < 0 {
-			r = int64(int64(65536) + int64(edata.(int16)))
-		}
-		*buf = strconv.AppendInt(*buf, r, 10)
-	case int32:
-		var r int64 = 0
-		r = int64(edata.(int32))
-		if column.IsUnsigned && r < 0 {
-			t := string([]byte(column.RawType)[0:3])
-			if t != "int" {
-				r = int64(int64(1<<24) + int64(edata.(int32)))
-			} else {
-				r = int64(int64(4294967296) + int64(edata.(int32)))
-			}
-		}
-		*buf = strconv.AppendInt(*buf, r, 10)
-	case int64:
-		// 枚举类型支持
-		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
-			i := int(edata.(int64)) - 1
-			str := column.EnumValues[i]
-			encode(buf, str)
-		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
-			v := uint(edata.(int64))
-			l := uint(len(column.SetValues))
-			res := ""
-			for i := uint(0); i < l; i++ {
-				if (v & (1 << i)) > 0 {
-					if res != "" {
-						res += ","
-					}
-					res += column.SetValues[i]
-				}
-			}
-			encode(buf, res)
-		} else {
-			if column.IsUnsigned {
-				var ur uint64 = 0
-				ur = uint64(edata.(int64))
-				if ur < 0 {
-					ur = 1<<63 + (1<<63 + ur)
-				}
-				*buf = strconv.AppendUint(*buf, ur, 10)
-			} else {
-				*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
-			}
-		}
-	case uint:
-		*buf = strconv.AppendUint(*buf, uint64(edata.(uint)), 10)
-	case uint8:
-		*buf = strconv.AppendUint(*buf, uint64(edata.(uint8)), 10)
-	case uint16:
-		*buf = strconv.AppendUint(*buf, uint64(edata.(uint16)), 10)
-	case uint32:
-		*buf = strconv.AppendUint(*buf, uint64(edata.(uint32)), 10)
-	case uint64:
-		*buf = strconv.AppendUint(*buf, uint64(edata.(uint64)), 10)
-	case float64:
-		f := big.NewFloat(edata.(float64))
-		*buf = append(*buf, f.String()...)
-	case float32:
-		f := big.NewFloat(float64(edata.(float32)))
-		*buf = append(*buf, f.String()...)
-	default:
-		if edata != nil {
-			log.Warnf("binlog不支持的类型：%s %+v", column.Name /*col.Name*/, reflect.TypeOf(edata))
-			*buf = append(*buf, "\"--unkonw type--\""...)
-		} else {
-			*buf = append(*buf, "null"...)
-		}
+		service.SendAll(data)
 	}
 }
 
@@ -183,112 +87,61 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	// delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
-	log.Debugf("binlog基础数据：%+v", e.Rows)
-	columns_len := len(e.Table.Columns)
-	log.Debugf("binlog缓冲区详细信息: %d %d", len(h.buf), cap(h.buf))
-	db := []byte(e.Table.Schema)
-	point := []byte(".")
-	table := []byte(e.Table.Name)
-	dblen := len(db) + len(table) + len(point)
+	log.Debugf("binlog base data: %+v", e.Rows)
+	atomic.AddInt64(&h.EventIndex, int64(1))
+	rowData := make(map[string] interface{})
+	rowData["database"] = e.Table.Schema
+	rowData["event_type"] = e.Action
+	rowData["time"] = time.Now().Unix()
+	rowData["event_index"] = h.EventIndex
+	rowData["table"] = e.Table.Name
+
+	data := make(map[string] interface{})
+	ed := make(map[string] interface{})
+
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i += 2 {
-			atomic.AddInt64(&h.EventIndex, int64(1))
-			buf := h.buf[:0]
-			buf = append(buf, byte(dblen))
-			buf = append(buf, byte(dblen>>8))
-			buf = append(buf, db...)
-			buf = append(buf, point...)
-			buf = append(buf, table...)
-			buf = append(buf, "{\"database\":\""...)
-			buf = append(buf, e.Table.Schema...)
-			buf = append(buf, "\",\"event\":{\"data\":{\"old_data\":{"...)
-			rows_len := len(e.Rows[i])
+			oldData := make(map[string] interface{})
+			newData := make(map[string] interface{})
+			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
-				buf = append(buf, "\""...)
-				buf = append(buf, col.Name...)
-				buf = append(buf, "\":"...)
-				var edata interface{}
-				if k < rows_len {
-					edata = e.Rows[i][k]
+				if k < rowsLen {
+					oldData[col.Name] = e.Rows[i][k]
 				} else {
-					log.Warn("binlog未知的行", col.Name)
-					edata = nil
-				}
-				h.append(&buf, edata, &col)
-				if k < columns_len-1 {
-					buf = append(buf, ","...)
+					log.Warn("unknown line", col.Name)
+					oldData[col.Name] = nil
 				}
 			}
-			buf = append(buf, "},\"new_data\":{"...)
-			rows_len = len(e.Rows[i+1])
+			rowsLen = len(e.Rows[i+1])
 			for k, col := range e.Table.Columns {
-				buf = append(buf, "\""...)
-				buf = append(buf, col.Name...)
-				buf = append(buf, "\":"...)
-				var edata interface{}
-				if k < rows_len {
-					edata = e.Rows[i+1][k]
+				if k < rowsLen {
+					newData[col.Name] = e.Rows[i+1][k]
 				} else {
-					log.Warn("binlog未知的行", col.Name)
-					edata = nil
-				}
-				h.append(&buf, edata, &col)
-				if k < columns_len-1 {
-					buf = append(buf, ","...)
+					log.Warn("unknown line", col.Name)
+					newData[col.Name] = nil
 				}
 			}
-			buf = append(buf, "}},\"event_type\":\""...)
-			buf = append(buf, e.Action...)
-			buf = append(buf, "\",\"time\":"...)
-			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
-			buf = append(buf, "},\"event_index\":"...)
-			buf = strconv.AppendInt(buf, h.EventIndex, 10)
-			buf = append(buf, ",\"table\":\""...)
-			buf = append(buf, e.Table.Name...)
-			buf = append(buf, "\"}"...)
-			h.notify(buf)
+			data["old_data"] = oldData
+			data["new_data"] = newData
+			ed["data"] = data
+			rowData["event"] = ed
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
-			atomic.AddInt64(&h.EventIndex, int64(1))
-			buf := h.buf[:0]
-			buf = append(buf, byte(dblen))
-			buf = append(buf, byte(dblen>>8))
-			buf = append(buf, db...)
-			buf = append(buf, point...)
-			buf = append(buf, table...)
-			buf = append(buf, "{\"database\":\""...)
-			buf = append(buf, e.Table.Schema...)
-			buf = append(buf, "\",\"event\":{\"data\":{"...)
-			rows_len := len(e.Rows[i])
+			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
-				buf = append(buf, "\""...)
-				buf = append(buf, col.Name...)
-				buf = append(buf, "\":"...)
-				var edata interface{}
-				if k < rows_len {
-					edata = e.Rows[i][k]
+				if k < rowsLen {
+					data[col.Name] = e.Rows[i][k]
 				} else {
-					log.Warn("binlog未知的行", col.Name)
-					edata = nil
-				}
-				h.append(&buf, edata, &col)
-				if k < columns_len-1 {
-					buf = append(buf, ","...)
+					log.Warn("unknown line", col.Name)
+					data[col.Name] = nil
 				}
 			}
-			buf = append(buf, "},\"event_type\":\""...)
-			buf = append(buf, e.Action...)
-			buf = append(buf, "\",\"time\":"...)
-			buf = strconv.AppendInt(buf, time.Now().Unix(), 10)
-			buf = append(buf, "},\"event_index\":"...)
-			buf = strconv.AppendInt(buf, h.EventIndex, 10)
-			buf = append(buf, ",\"table\":\""...)
-			buf = append(buf, e.Table.Name...)
-			buf = append(buf, "\"}"...)
-			h.notify(buf)
+			ed["data"] = data
+			rowData["event"] = ed
 		}
 	}
+	h.notify(rowData)
 	return nil
 }
 
