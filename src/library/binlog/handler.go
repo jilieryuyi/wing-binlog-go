@@ -240,5 +240,6 @@ func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 			int64(data[10]) << 16 | int64(data[11]) << 24 |
 			int64(data[12]) << 32 | int64(data[13]) << 40 |
 			int64(data[14]) << 48 | int64(data[15]) << 56
+	log.Debugf("read pos: %v, %v, %v", string(data[16:]), pos, eventIndex)
 	return string(data[16:]), pos, eventIndex
 }
