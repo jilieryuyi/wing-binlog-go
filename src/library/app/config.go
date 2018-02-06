@@ -2,11 +2,10 @@ package app
 
 import (
 	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/file"
 	"library/path"
 	"context"
-	//"library/binlog"
 )
 
 type AppConfig struct {

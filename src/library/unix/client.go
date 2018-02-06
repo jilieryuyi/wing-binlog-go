@@ -2,7 +2,7 @@ package unix
 
 import (
 	"github.com/juju/errors"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/file"
 	"net"
 	"library/path"

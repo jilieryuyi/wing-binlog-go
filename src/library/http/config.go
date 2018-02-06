@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/BurntSushi/toml"
 	"github.com/gorilla/websocket"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/file"
 	"net/http"
 	"sync"

@@ -6,7 +6,7 @@ import (
 	"library/file"
 	"library/path"
 	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/app"
 )
 

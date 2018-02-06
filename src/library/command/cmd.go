@@ -5,7 +5,7 @@ import (
 
 	"library/unix"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 )
 
 func Stop() {

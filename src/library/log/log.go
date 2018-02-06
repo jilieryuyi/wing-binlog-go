@@ -2,7 +2,7 @@ package log
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/time"
 	"os"
 	stime "time"
