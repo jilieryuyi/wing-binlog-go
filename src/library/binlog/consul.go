@@ -44,13 +44,16 @@ func (h *Binlog) consulInit() {
 			h.Delete(LOCK)
 		}
 	}
-	//超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
-	//如果当前不是leader，重新选leader。leader不需要check
-	//如果被选为leader，则还需要执行一个onLeader回调
+	// 超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
+	// 如果当前不是leader，重新选leader。leader不需要check
+	// 如果被选为leader，则还需要执行一个onLeader回调
+	// check other is alive, if not, try to select a new leader
 	go h.checkAlive()
-	//////还需要一个keepalive
+	// 还需要一个keepalive
+	// keepalive
 	go h.keepalive()
-	////还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
+	// 还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
+	// watch pos change, if change, try to write cache
 	go h.watch()
 }
 
@@ -101,7 +104,7 @@ func (h *Binlog) registerService() {
 }
 
 // 服务发现，获取服务列表
-func (h *Binlog) GetServices() map[string]*api.AgentService {
+func (h *Binlog) getServices() map[string]*api.AgentService {
 	if !h.enable {
 		return nil
 	}
@@ -139,7 +142,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 	if !h.enable {
 		return nil
 	}
-	members := h.GetServices()
+	members := h.getServices()
 	if members == nil {
 		return nil
 	}
@@ -173,7 +176,7 @@ func (h *Binlog) checkAlive() {
 		//获取所有的服务
 		//判断服务的心跳时间是否超时
 		//如果超时，更新状态为
-		services := h.GetServices()
+		services := h.getServices()
 		if services == nil {
 			time.Sleep(time.Second * checkAliveInterval)
 			continue
@@ -181,7 +184,8 @@ func (h *Binlog) checkAlive() {
 		for _, v := range services {
 			isLock := v.Tags[0] == "1"
 			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
-			if time.Now().Unix()-t > serviceKeepaliveTimeout {
+			//only check other nodes is alive
+			if time.Now().Unix()-t > serviceKeepaliveTimeout && v.ID != h.sessionId {
 				log.Warnf("%s is timeout, will be deregister", v.ID)
 				h.agent.ServiceDeregister(v.ID)
 				// if is leader, try delete lock and reselect a new leader
@@ -189,11 +193,7 @@ func (h *Binlog) checkAlive() {
 					h.Delete(LOCK)
 					if h.Lock() {
 						log.Debugf("current is the new leader")
-						//if h.onLeaderCallback != nil {
-						//	h.onLeaderCallback()
-						//}
 						h.onNewLeader()
-						//h.ctx.NewLeader <- struct{}{}
 					}
 				}
 			}
