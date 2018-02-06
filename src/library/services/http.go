@@ -252,7 +252,7 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 			}
 		}
 		for _, cnode := range cgroup.nodes {
-			log.Debug("http send broadcast: %s=>%s", cnode.url, string(jsonData))
+			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(jsonData))
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
 				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(jsonData))
 				continue

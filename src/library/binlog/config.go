@@ -36,7 +36,7 @@ type Binlog struct {
 	ctx           *app.Context
 	wg            *sync.WaitGroup
 	lock          *sync.Mutex
-	isLeader      bool
+	//isLeader      bool
 	members       map[string]*member
 
 	EventIndex int64
