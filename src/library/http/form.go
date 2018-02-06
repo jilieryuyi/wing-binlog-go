@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 	"time"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"errors"
 	"fmt"
 )

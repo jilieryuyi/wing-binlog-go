@@ -1,7 +1,7 @@
 package services
 
 import (
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/http"
 	"regexp"
 	"runtime"

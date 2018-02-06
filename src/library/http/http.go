@@ -2,7 +2,7 @@ package http
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"library/data"
 	"library/path"
 	"library/util"

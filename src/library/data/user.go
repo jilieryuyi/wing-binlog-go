@@ -5,7 +5,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"library/file"
 	"library/path"
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 )
 
 var userDataPath string

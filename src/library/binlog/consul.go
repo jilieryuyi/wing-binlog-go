@@ -1,7 +1,7 @@
 package binlog
 
 import (
-	log "github.com/sirupsen/logrus"
+	log "github.com/jilieryuyi/logrus"
 	"time"
 	"os"
 	"github.com/hashicorp/consul/api"
