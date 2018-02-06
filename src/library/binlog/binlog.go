@@ -18,7 +18,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
-		isLeader : true,
+		//isLeader : true,
 		members  : make(map[string]*member),
 		services : make(map[string]services.Service),
 
@@ -81,6 +81,14 @@ func (h *Binlog) StartService() {
 			Pos:  h.lastPos,
 		}
 		h.isClosed = false
+		log.Debugf("handler===%+v", h.handler)
+		for {
+			if h.handler == nil {
+				time.Sleep(time.Second)
+				continue
+			}
+			break
+		}
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
 			log.Warnf("binlog service exit: %+v", err)

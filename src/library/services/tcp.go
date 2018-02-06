@@ -54,6 +54,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	defer tcp.lock.Unlock()
 
 	jsonData, _ := json.Marshal(data)
+	log.Debugf("datalen=%d", len(jsonData))
 	//send agent
 	for _, agent := range tcp.Agents {
 		agent.sendQueue <- tcp.pack(CMD_EVENT, string(jsonData))

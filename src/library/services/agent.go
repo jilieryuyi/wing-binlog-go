@@ -151,12 +151,14 @@ func (ag *Agent) onMessage(msg []byte) {
 		if len(ag.buffer) < 6 {
 			return
 		}
-		//4字节长度
-		clen := int(ag.buffer[0]) | int(ag.buffer[1]<<8) |
-			int(ag.buffer[2]<<16) | int(ag.buffer[3]<<24)
+		//4字节长度，包含2自己的cmd
+		clen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
 		//2字节 command
-		cmd := int(ag.buffer[4]) | int(ag.buffer[5]<<8)
-		dataB := ag.buffer[6:6+clen]
+		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
+		dataB := ag.buffer[6:4+clen]
+
+		log.Debugf("clen=%d, cmd=%d, %+v", clen, cmd, dataB)
+
 		switch(cmd) {
 		case CMD_EVENT:
 			var data map[string] interface{}
@@ -164,12 +166,12 @@ func (ag *Agent) onMessage(msg []byte) {
 			if err == nil {
 				ag.tcp.SendAll(data)
 			} else {
-				log.Errorf("json Unmarshal error: %+v, %+v", data, err)
+				log.Errorf("json Unmarshal error: %+v, %+v", dataB, err)
 			}
 		default:
 			ag.tcp.SendAll2(cmd, dataB)
 		}
 		//数据移动，清除已读数据
-		ag.buffer = append(ag.buffer[:0], ag.buffer[clen+6:]...)
+		ag.buffer = append(ag.buffer[:0], ag.buffer[clen+4:]...)
 	}
 }

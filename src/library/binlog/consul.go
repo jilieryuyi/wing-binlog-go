@@ -185,7 +185,7 @@ func (h *Binlog) checkAlive() {
 			isLock := v.Tags[0] == "1"
 			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
 			//only check other nodes is alive
-			if time.Now().Unix()-t > serviceKeepaliveTimeout && v.ID != h.sessionId {
+			if time.Now().Unix()-t > serviceKeepaliveTimeout/* && v.ID != h.sessionId */{
 				log.Warnf("%s is timeout, will be deregister", v.ID)
 				h.agent.ServiceDeregister(v.ID)
 				// if is leader, try delete lock and reselect a new leader
