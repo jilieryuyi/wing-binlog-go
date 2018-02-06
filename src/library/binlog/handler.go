@@ -87,13 +87,11 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	// delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
-	log.Debugf("binlog base data: %+v", e.Rows)
-	atomic.AddInt64(&h.EventIndex, int64(1))
+	//log.Debugf("binlog base data: %+v", e.Rows)
 	rowData := make(map[string] interface{})
 	rowData["database"] = e.Table.Schema
 	rowData["event_type"] = e.Action
 	rowData["time"] = time.Now().Unix()
-	rowData["event_index"] = h.EventIndex
 	rowData["table"] = e.Table.Name
 
 	data := make(map[string] interface{})
@@ -101,6 +99,8 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i += 2 {
+			atomic.AddInt64(&h.EventIndex, int64(1))
+			rowData["event_index"] = h.EventIndex
 			oldData := make(map[string] interface{})
 			newData := make(map[string] interface{})
 			rowsLen := len(e.Rows[i])
@@ -125,9 +125,12 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			data["new_data"] = newData
 			ed["data"] = data
 			rowData["event"] = ed
+			h.notify(rowData)
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
+			atomic.AddInt64(&h.EventIndex, int64(1))
+			rowData["event_index"] = h.EventIndex
 			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				if k < rowsLen {
@@ -139,9 +142,9 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			}
 			ed["data"] = data
 			rowData["event"] = ed
+			h.notify(rowData)
 		}
 	}
-	h.notify(rowData)
 	return nil
 }
 

@@ -148,16 +148,20 @@ func (ag *Agent) onMessage(msg []byte) {
 	//todo send broadcast
 	//这里还需要解包数据
 	for {
-		if len(ag.buffer) < 6 {
+		bufferLen := len(ag.buffer)
+		if bufferLen < 6 {
 			return
 		}
 		//4字节长度，包含2自己的cmd
-		clen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
+		contentLen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
 		//2字节 command
 		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
-		dataB := ag.buffer[6:4+clen]
-
-		log.Debugf("clen=%d, cmd=%d, %+v", clen, cmd, dataB)
+		//数据未接收完整，等待下一次处理
+		if bufferLen < 4 + contentLen {
+			return
+		}
+		dataB := ag.buffer[6:4 + contentLen]
+		log.Debugf("clen=%d, cmd=%d, %+v", contentLen, cmd, dataB)
 
 		switch(cmd) {
 		case CMD_EVENT:
@@ -172,6 +176,6 @@ func (ag *Agent) onMessage(msg []byte) {
 			ag.tcp.SendAll2(cmd, dataB)
 		}
 		//数据移动，清除已读数据
-		ag.buffer = append(ag.buffer[:0], ag.buffer[clen+4:]...)
+		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
 	}
 }
