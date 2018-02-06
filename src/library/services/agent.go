@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
+	"encoding/json"
 )
 
 //如果当前客户端为follower
@@ -21,6 +22,7 @@ type Agent struct {
 	servicePort int
 	isClose bool
 	lock *sync.Mutex
+	buffer []byte
 }
 
 type agentNode struct {
@@ -34,6 +36,7 @@ func newAgent(tcp *TcpService) *Agent{
 		isClose:false,
 		node:nil,
 		lock:new(sync.Mutex),
+		buffer:make([]byte, 0),
 	}
 	return agent
 }
@@ -141,6 +144,32 @@ func (ag *Agent) Close() {
 }
 
 func (ag *Agent) onMessage(msg []byte) {
+	ag.buffer = append(ag.buffer, msg...)
 	//todo send broadcast
-	ag.tcp.SendAll(msg)
+	//这里还需要解包数据
+	for {
+		if len(ag.buffer) < 6 {
+			return
+		}
+		//4字节长度
+		clen := int(ag.buffer[0]) | int(ag.buffer[1]<<8) |
+			int(ag.buffer[2]<<16) | int(ag.buffer[3]<<24)
+		//2字节 command
+		cmd := int(ag.buffer[4]) | int(ag.buffer[5]<<8)
+		dataB := ag.buffer[6:6+clen]
+		switch(cmd) {
+		case CMD_EVENT:
+			var data map[string] interface{}
+			err := json.Unmarshal(dataB, &data)
+			if err == nil {
+				ag.tcp.SendAll(data)
+			} else {
+				log.Errorf("json Unmarshal error: %+v, %+v", data, err)
+			}
+		default:
+			ag.tcp.SendAll2(cmd, dataB)
+		}
+		//数据移动，清除已读数据
+		ag.buffer = append(ag.buffer[:0], ag.buffer[clen+6:]...)
+	}
 }

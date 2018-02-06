@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 	"library/app"
+	"encoding/json"
 )
 
 func NewTcpService(ctx *app.Context) *TcpService {
@@ -42,19 +43,20 @@ func NewTcpService(ctx *app.Context) *TcpService {
 }
 
 // 对外的广播发送接口
-func (tcp *TcpService) SendAll(msg []byte) bool {
+func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	if !tcp.enable {
 		return false
 	}
-	log.Debugf("tcp broadcast: %s", string(msg))
-	tableLen := int(msg[0]) | int(msg[1] << 8)
-	table    := string(msg[2:tableLen + 2])
+	log.Debugf("tcp broadcast: %+v", data)
+	//tableLen := int(msg[0]) | int(msg[1] << 8)
+	table    := data["table"].(string)//string(msg[2:tableLen + 2])
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
+	jsonData, _ := json.Marshal(data)
 	//send agent
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- tcp.pack(CMD_EVENT, string(msg[tableLen + 2:]))
+		agent.sendQueue <- tcp.pack(CMD_EVENT, string(jsonData))
 	}
 
 	for _, cgroup := range tcp.groups {
@@ -92,7 +94,45 @@ func (tcp *TcpService) SendAll(msg []byte) bool {
 				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
 				continue
 			}
-			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(msg[tableLen + 2:]))
+			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(jsonData))
+		}
+	}
+	return true
+}
+
+
+func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
+	if !tcp.enable {
+		return false
+	}
+	log.Debugf("tcp SendAll2 broadcast: %+v", msg)
+	tcp.lock.Lock()
+	defer tcp.lock.Unlock()
+
+	//send agent
+	for _, agent := range tcp.Agents {
+		agent.sendQueue <- tcp.pack(cmd, string(msg))
+	}
+
+	for _, cgroup := range tcp.groups {
+		if cgroup.nodes == nil {
+			continue
+		}
+		if len(cgroup.nodes) <= 0 {
+			// if node count == 0 in each group
+			// program will left the loop from here
+			// after len(svc.groups) loops
+			continue
+		}
+		for _, cnode := range cgroup.nodes {
+			if !cnode.isConnected {
+				continue
+			}
+			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
+				continue
+			}
+			cnode.sendQueue <- tcp.pack(cmd, string(msg))
 		}
 	}
 	return true

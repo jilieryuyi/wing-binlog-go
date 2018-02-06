@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 	"library/app"
+	"encoding/json"
 )
 
 // 创建一个新的http服务
@@ -217,7 +218,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 	}
 }
 
-func (client *HttpService) SendAll(msg []byte) bool {
+func (client *HttpService) SendAll(data map[string] interface{}) bool {
 	if !client.enable {
 		return false
 	}
@@ -229,10 +230,10 @@ func (client *HttpService) SendAll(msg []byte) bool {
 			continue
 		}
 		// length, 2 bytes
-		tableLen := int(msg[0]) + int(msg[1]<<8)
+		//tableLen := int(msg[0]) + int(msg[1]<<8)
 		// content
-		table := string(msg[2 : tableLen+2])
-
+		table := data["table"].(string)//string(msg[2 : tableLen+2])
+		jsonData, _:= json.Marshal(data)
 		// check if the table name matches the filter
 		if len(cgroup.filter) > 0 {
 			found := false
@@ -251,12 +252,12 @@ func (client *HttpService) SendAll(msg []byte) bool {
 			}
 		}
 		for _, cnode := range cgroup.nodes {
-			log.Debug("http send broadcast: %s=>%s", cnode.url, string(msg[tableLen+2:]))
+			log.Debug("http send broadcast: %s=>%s", cnode.url, string(jsonData))
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(msg[tableLen+2:]))
+				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(jsonData))
 				continue
 			}
-			cnode.sendQueue <- string(msg[tableLen+2:])
+			cnode.sendQueue <- string(jsonData)
 		}
 	}
 
