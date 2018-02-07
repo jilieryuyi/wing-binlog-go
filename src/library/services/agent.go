@@ -32,11 +32,11 @@ type agentNode struct {
 
 func newAgent(tcp *TcpService) *Agent{
 	agent := &Agent{
-		tcp:tcp,
-		isClose:false,
-		node:nil,
-		lock:new(sync.Mutex),
-		buffer:make([]byte, 0),
+		tcp     : tcp,
+		isClose : true,
+		node    : nil,
+		lock    : new(sync.Mutex),
+		buffer  : make([]byte, 0),
 	}
 	return agent
 }
@@ -60,6 +60,8 @@ func (ag *Agent) nodeInit() {
 		log.Errorf("start agent with error: %+v", err)
 		ag.node.isConnect = false
 		ag.node.conn = nil
+	} else {
+		ag.isClose = false
 	}
 }
 
