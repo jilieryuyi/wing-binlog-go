@@ -72,7 +72,7 @@ func (ag *Client) pack(cmd int, content string) []byte {
 	r := make([]byte, l + 4)
 
 	// 4字节数据包长度
-	r[0] = byte(l);
+	r[0] = byte(l)
 	r[1] = byte(l >> 8)
 	r[2] = byte(l >> 16)
 	r[3] = byte(l >> 32)
@@ -81,38 +81,10 @@ func (ag *Client) pack(cmd int, content string) []byte {
 	r[4] = byte(cmd)
 	r[5] = byte(cmd >> 8)
 
-
 	// 实际美容
-	i := 6
-	for _, b := range c {
-		r[i] = b; i++
-	}
+	r = append(r[:6], c...)
 	return r
 }
-
-//func (ag *Client) H() []byte {
-//	// 打包set_pro数据包
-//	l := len(ag.groupName) + 2
-//	r := make([]byte, 4 + l)
-//
-//	// 4字节组名称长度
-//	r[0] = byte(l);
-//	r[1] = byte(l >> 8)
-//	r[2] = byte(l >> 16)
-//	r[3] = byte(l >> 32)
-//
-//	// 2字节cmd
-//	r[4] = byte(CMD_SET_PRO)
-//	r[5] = byte(CMD_SET_PRO >> 8)
-//
-//	// 实际的分组名称
-//	g := []byte(ag.groupName)
-//	i := 6
-//	for _, b := range g {
-//		r[i] = b; i++
-//	}
-//	return r;
-//}
 
 func (ag *Client) Start(serviceIp string, port int) {
 	ag.serviceIp   = serviceIp

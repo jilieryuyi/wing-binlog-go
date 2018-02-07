@@ -269,19 +269,23 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		} else if size > tcpRecviveDefaultSize {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
 			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
+			node.recvBytes = 0
 			log.Info("tcp服务-新建缓冲区")
 			return
 		}
 		//4字节长度
 		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
 			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
+		if len(node.recvBuf) < 	clen + 4 {
+			return
+		}
 		//2字节 command
 		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
 		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Info("tcp service, receive register group message")
-			if len(node.recvBuf) < 10 {
+			if len(node.recvBuf) < 7 {
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
@@ -310,7 +314,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.lock.Unlock()
 		default:
 			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
+			//clear all data
+			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
+			node.recvBytes = 0
+			return
 		}
+
 		//数据移动，清除已读数据
 		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:node.recvBytes]...)
 		node.recvBytes = node.recvBytes - clen - 4
