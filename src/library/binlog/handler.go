@@ -226,6 +226,7 @@ func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	l := make([]byte, 2)
 	n, err := h.cacheHandler.Read(l)
 	if n <= 0 || err != nil {
+		log.Errorf("%v", err)
 		return "", int64(0), int64(0)
 	}
 	// dl is file data length
@@ -233,6 +234,7 @@ func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	data := make([]byte, dl)
 	h.cacheHandler.Read(data)
 	if len(data) < 18 {
+		log.Errorf("datalen is %d", len(data))
 		return "", 0, 0
 	}
 	pos := int64(data[0]) | int64(data[1]) << 8 | int64(data[2]) << 16 |
