@@ -3,7 +3,7 @@ package binlog
 import (
 	"library/path"
 	"github.com/BurntSushi/toml"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"library/file"
 )
 

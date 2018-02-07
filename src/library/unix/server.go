@@ -3,7 +3,7 @@ package unix
 import (
 	"bytes"
 	"fmt"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"library/file"
 	"net"
 	"os"

@@ -19,7 +19,7 @@ import (
 	"library/services"
 	"library/unix"
 	_ "github.com/go-sql-driver/mysql"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	mlog "library/log"
 	"library/path"
 )

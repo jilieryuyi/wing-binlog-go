@@ -10,7 +10,7 @@ import (
 	"library/services"
 	"github.com/BurntSushi/toml"
 	"github.com/siddontang/go-mysql/canal"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/hashicorp/consul/api"
 	"library/app"
 )

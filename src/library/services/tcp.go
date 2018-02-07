@@ -2,7 +2,7 @@ package services
 
 import (
 	"fmt"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"regexp"
 	"sync"

@@ -3,7 +3,19 @@ package binlog
 import (
 	"testing"
 	"os"
+	"fmt"
+	log "github.com/sirupsen/logrus"
 )
+
+func init() {
+	log.SetFormatter(&log.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true,
+		FullTimestamp:    true,
+	})
+	log.SetLevel(log.Level(5))
+}
 
 // test SaveBinlogPostionCache api
 func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
@@ -19,6 +31,7 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	}
 	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
 	s, p, e := h.getBinlogPositionCache()
+	fmt.Printf("%v, %v, %v\n", s, p, e)
 	if s != binfile {
 		t.Errorf("getBinlogPositionCache binfile error")
 	}
@@ -27,5 +40,20 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	}
 	if e != eventIndex {
 		t.Errorf("getBinlogPositionCache eventIndex error")
+	}
+	binfile = "mysql-bin.00005"
+	pos = int64(12345)
+	eventIndex = int64(2)
+	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
+	s, p, e = h.getBinlogPositionCache()
+	fmt.Printf("%v, %v, %v\n", s, p, e)
+	if s != binfile {
+		t.Errorf("2=>getBinlogPositionCache binfile error")
+	}
+	if pos != p {
+		t.Errorf("2=>getBinlogPositionCache pos error")
+	}
+	if e != eventIndex {
+		t.Errorf("2=>getBinlogPositionCache eventIndex error")
 	}
 }

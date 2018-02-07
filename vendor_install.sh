@@ -10,8 +10,6 @@ if [ ! -d "$vendor_path" ]; then
 fi
 echo "installing... go-sql-driver/mysql"
 go get github.com/go-sql-driver/mysql
-echo "installing... larspensjo/config"
-go get github.com/larspensjo/config
 echo "installing... siddontang/go-mysql/canal"
 go get github.com/siddontang/go-mysql/canal
 echo "installing... siddontang/go-mysql/replication"
@@ -24,22 +22,12 @@ echo "installing... go-martini/martini"
 go get github.com/go-martini/martini
 echo "installing... gorilla/websocket"
 go get github.com/gorilla/websocket
-echo "installing... garyburd/redigo/redis"
-go get github.com/garyburd/redigo/redis
-echo "installing... takama/daemon"
-go get github.com/takama/daemon
-echo "installing... mattn/go-sqlite3"
-go get github.com/mattn/go-sqlite3
-echo "installing... segmentio/kafka-go"
-go get github.com/segmentio/kafka-go
-echo "installing... golang.org/x/text/encoding/simplifiedchinese"
-go get golang.org/x/text/encoding/simplifiedchinese
-echo "installing... golang.org/x/text/transform"
-go get golang.org/x/text/transform
 echo "installing... github.com/axgle/mahonia"
 go get github.com/axgle/mahonia
 echo "installing... github.com/hashicorp/consul"
 go get github.com/hashicorp/consul
+echo "installing... github.com/sirupsen/logrus"
+go get github.com/sirupsen/logrus
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 ##cp -rf $vendor_path/src/* $vendor_path

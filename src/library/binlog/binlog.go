@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"library/services"
 	"github.com/siddontang/go-mysql/mysql"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"library/app"
 	"time"
 )

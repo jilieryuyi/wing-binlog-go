@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/go-martini/martini"
 	"github.com/gorilla/websocket"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	ssh "library/ssh"
 	"net/http"
 	"sync"
