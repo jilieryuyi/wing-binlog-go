@@ -27,6 +27,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 	//init consul
 	binlog.consulInit()
 	binlog.handlerInit()
+	time.Sleep(time.Millisecond * 100)
 	return binlog
 }
 
