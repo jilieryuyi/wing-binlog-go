@@ -7,7 +7,7 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"library/path"
 )
@@ -215,9 +215,8 @@ func (h *Binlog) SaveBinlogPostionCache(binFile string, pos int64, eventIndex in
 	r := packPos(binFile, pos, eventIndex)
 	log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
 	n, err := h.cacheHandler.WriteAt(r, 0)
-	log.Debugf("%d , %+v", n, err)
 	if err != nil || n <= 0 {
-		log.Errorf("binlog写入缓存文件错误：%+v", err)
+		log.Errorf("binlog cache file with error: %+v", err)
 		return
 	}
 }

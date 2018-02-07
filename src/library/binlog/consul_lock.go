@@ -1,7 +1,7 @@
 package binlog
 
 import (
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/hashicorp/consul/api"
 )
 // lock if success, the current will be a leader

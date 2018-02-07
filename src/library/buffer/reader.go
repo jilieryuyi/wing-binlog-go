@@ -2,7 +2,7 @@ package buffer
 
 import (
 	"errors"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 var ErroutOfRange = errors.New("out of range")

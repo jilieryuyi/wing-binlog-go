@@ -2,7 +2,7 @@ package app
 
 import (
 	"github.com/BurntSushi/toml"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/path"
 	"context"

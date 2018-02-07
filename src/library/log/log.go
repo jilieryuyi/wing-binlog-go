@@ -2,16 +2,29 @@ package log
 
 import (
 	"fmt"
-	log "github.com/jilieryuyi/logrus"
+	log "github.com/sirupsen/logrus"
 	"library/time"
 	"os"
 	stime "time"
 	"library/path"
 	"sync"
+	"strings"
+	"runtime"
+	"path/filepath"
 )
 
 var logHandler = make(map[string] *os.File)
 var logLock = new(sync.Mutex)
+
+var workingDir = "/"
+
+func init() {
+	wd, err := os.Getwd()
+	if err == nil {
+		workingDir = filepath.ToSlash(wd) + "/"
+	}
+}
+
 func getHandler(level log.Level) (*os.File, error) {
 	logLock.Lock()
 	defer logLock.Unlock()
@@ -50,66 +63,61 @@ type ContextHook struct {}
 func (hook ContextHook) Levels() []log.Level {
 	return log.AllLevels
 }
+
+func (hook ContextHook) getCallerInfo() (string, string, int) {
+	//fmt.Println("=========================getCallerInfo")
+	var (
+		shortPath string
+	 	funcName string
+	 )
+	for i := 3; i < 15; i++ {
+		pc, fullPath, line, ok := runtime.Caller(i)
+		if !ok {
+			fmt.Println("error: error during runtime.Caller")
+			continue
+		} else {
+			if strings.HasPrefix(fullPath, workingDir) {
+				shortPath = fullPath[len(workingDir):]
+			} else {
+				shortPath = fullPath
+			}
+			funcName = runtime.FuncForPC(pc).Name()
+			if strings.HasPrefix(funcName, workingDir) {
+				funcName = funcName[len(workingDir):]
+			}
+			index := strings.LastIndex(funcName, ".")
+			if index > 0 {
+				funcName = funcName[index+1:]
+			}
+			if !strings.Contains(strings.ToLower(fullPath), "github.com/sirupsen/logrus") {
+				return shortPath, funcName, line
+				break
+			}
+		}
+		//fmt.Println("==>", fullPath)
+		//fmt.Println("==>", shortPath)
+		//fmt.Println("==>", funcName)
+		//fmt.Println("==>", line)
+		//fmt.Println("")
+	}
+	return "", "", 0
+}
+
 func (hook ContextHook) Fire(entry *log.Entry) error {
-	//todo 写入日志文件
+	shortPath, funcName, callLine := hook.getCallerInfo()
+	if shortPath != "" && callLine != 0 {
+		entry.Data["caller"] = fmt.Sprintf("[%s(%s):%d]", shortPath, funcName, callLine)
+	}
 	line, err := entry.String()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
 		return err
 	}
-	//fmt.Println("log hook debug: ",line)
 	handler, err := getHandler(entry.Level)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "get log handler error, %v", err)
 		return nil
 	}
 	handler.Write([]byte(line))
-	//switch entry.Level {
-	//case log.PanicLevel:
-	//	return hook.Writer.Crit(line)
-	//case log.FatalLevel:
-	//	return hook.Writer.Crit(line)
-	//case log.ErrorLevel:
-	//	return hook.Writer.Err(line)
-	//case log.WarnLevel:
-	//	return hook.Writer.Warning(line)
-	//case log.InfoLevel:
-	//	return hook.Writer.Info(line)
-	//case log.DebugLevel:
-	//	return hook.Writer.Debug(line)
-	//default:
-	//	return nil
-	//}
-
-
-	//if pc, _file, line, ok := runtime.Caller(8); ok {
-	//	funcName := runtime.FuncForPC(pc).Name()
-	//	entry.Data["file"] = path.Base(_file)
-	//	entry.Data["func"] = path.Base(funcName)
-	//	entry.Data["line"] = line
-	//}
-	//pc := make([]uintptr, 3, 3)
-	//cnt := runtime.Callers(6, pc)
-	//fmt.Printf("\n\n====%+v====\n\n", cnt)
-	//for i := 0; i < cnt; i++ {
-	//	fu := runtime.FuncForPC(pc[i] - 1)
-	//	_file, line := fu.FileLine(pc[i] - 1)
-	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-	//	fu = runtime.FuncForPC(pc[i] - 2)
-	//	_file, line = fu.FileLine(pc[i] - 2)
-	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-	//	fu = runtime.FuncForPC(pc[i] - 3)
-	//	_file, line = fu.FileLine(pc[i] - 2)
-	//	fmt.Printf("\n\n====%+v====%s, %s, %d\n\n", fu, fu.Name(), _file, line)
-	//
-	//	name := fu.Name()
-	//	//if !strings.Contains(name, "github.com/Sirupsen/logrus") {
-	//	_file, line = fu.FileLine(pc[i] - 1)
-	//	entry.Data["file"] = path.Base(_file)
-	//	entry.Data["func"] = path.Base(name)
-	//	entry.Data["line"] = line
-	//	break
-	//	//}
-	//}
 	return nil
 }
