@@ -81,9 +81,9 @@ func (h *Binlog) StartService() {
 			Pos:  h.lastPos,
 		}
 		h.isClosed = false
-		log.Debugf("handler===%+v", h.handler)
 		for {
 			if h.handler == nil {
+				log.Warn("binlog handler is nil, wait for init")
 				time.Sleep(time.Second)
 				continue
 			}
@@ -91,7 +91,7 @@ func (h *Binlog) StartService() {
 		}
 		err := h.handler.RunFrom(startPos)
 		if err != nil {
-			log.Warnf("binlog service exit: %+v", err)
+			log.Warnf("binlog service exit with error: %+v", err)
 			return
 		}
 	}()
@@ -103,7 +103,7 @@ func (h *Binlog) Start() {
 		service.Start()
 	}
 	if h.Lock() {
-		log.Debugf("current run as leader")
+		log.Debugf("current node will run as leader")
 		h.StartService()
 	} else {
 		go func() {
@@ -112,11 +112,11 @@ func (h *Binlog) Start() {
 			for {
 				serviceIp, port = h.GetLeader()
 				if serviceIp == "" || port == 0 {
-					log.Warnf("wait for get leader ip and port")
+					log.Warnf("leader ip and port is empty, wait for init")
 					time.Sleep(time.Second)
 					continue
 				}
-				log.Debugf("==%s %d==", serviceIp, port)
+				log.Debugf("leader ip and port: %s:%d", serviceIp, port)
 				break
 			}
 			for _, s := range h.services {

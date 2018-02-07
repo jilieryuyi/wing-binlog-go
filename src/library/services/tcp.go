@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 )
 
+// new tcp service, usr for handler.go RegisterService
 func NewTcpService(ctx *app.Context) *TcpService {
 	config, _ := GetTcpConfig()
 	tcp := &TcpService {
@@ -42,14 +43,13 @@ func NewTcpService(ctx *app.Context) *TcpService {
 	return tcp
 }
 
-// 对外的广播发送接口
+// send event data to all connects client
 func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	if !tcp.enable {
 		return false
 	}
 	log.Debugf("tcp broadcast: %+v", data)
-	//tableLen := int(msg[0]) | int(msg[1] << 8)
-	table    := data["table"].(string)//string(msg[2:tableLen + 2])
+	table := data["table"].(string)
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 
@@ -101,7 +101,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	return true
 }
 
-
+// send raw bytes data to all connects client
 func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
 	if !tcp.enable {
 		return false
@@ -109,12 +109,10 @@ func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
 	log.Debugf("tcp SendAll2 broadcast: %+v", msg)
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-
 	//send agent
 	for _, agent := range tcp.Agents {
 		agent.sendQueue <- tcp.pack(cmd, string(msg))
 	}
-
 	for _, cgroup := range tcp.groups {
 		if cgroup.nodes == nil {
 			continue
@@ -225,17 +223,17 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
-		recvBuf:          make([]byte, TCP_RECV_DEFAULT_SIZE),
+		recvBuf:          make([]byte, tcpRecviveDefaultSize),
 		recvBytes:        0,
 		group:            "",
 		isAgent:          false,
 	}
 	go tcp.clientSendService(cnode)
-	var read_buffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+	var readBuffer [tcpDefaultReadBufferSize]byte
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
-		buf := read_buffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+		buf := readBuffer[:tcpDefaultReadBufferSize]
 		//清空旧数据 memset
 		for i := range buf {
 			buf[i] = byte(0)
@@ -268,16 +266,17 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		size := len(node.recvBuf)
 		if size < 6 {
 			return
-		} else if size > TCP_RECV_DEFAULT_SIZE {
+		} else if size > tcpRecviveDefaultSize {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
-			node.recvBuf = make([]byte, TCP_RECV_DEFAULT_SIZE)
+			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
 			log.Info("tcp服务-新建缓冲区")
 			return
 		}
 		//4字节长度
-		clen := int(node.recvBuf[0]) | int(node.recvBuf[1] << 8) | int(node.recvBuf[2] << 16) | int(node.recvBuf[3] << 24)
+		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
+			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
 		//2字节 command
-		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5] << 8)
+		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
 		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		switch cmd {
 		case CMD_SET_PRO:

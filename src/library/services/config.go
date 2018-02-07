@@ -29,10 +29,8 @@ const (
 
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
-	TCP_DEFAULT_READ_BUFFER_SIZE  = 1024
-	TCP_RECV_DEFAULT_SIZE         = 4096
-	TCP_DEFAULT_WRITE_BUFFER_SIZE = 4096
+	tcpDefaultReadBufferSize      = 1024
+	tcpRecviveDefaultSize         = 4096
 
 	HTTP_CACHE_LEN         = 10000
-	HTTP_CACHE_BUFFER_SIZE = 4096
 )
