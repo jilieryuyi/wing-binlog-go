@@ -75,7 +75,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 	log.Debugf("====================agent start====================")
 	agentH := ag.tcp.pack(CMD_AGENT, "")
 	go func() {
-		var readBuffer [TCP_DEFAULT_READ_BUFFER_SIZE]byte
+		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
 			ag.lock.Lock()
 			if ag.isClose {
@@ -99,7 +99,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 					return
 				}
 				ag.lock.Unlock()
-				buf := readBuffer[:TCP_DEFAULT_READ_BUFFER_SIZE]
+				buf := readBuffer[:tcpDefaultReadBufferSize]
 				//清空旧数据 memset
 				for i := range buf {
 					buf[i] = byte(0)
@@ -126,16 +126,19 @@ func (ag *Agent) Start(serviceIp string, port int) {
 func (ag *Agent) disconnect() {
 	ag.lock.Lock()
 	defer ag.lock.Unlock()
-	log.Warnf("---------------agent disconnect---------------")
 	if ag.node == nil || !ag.node.isConnect {
 		return
 	}
-	//todo disconnect
+	log.Warnf("---------------agent disconnect---------------")
 	ag.node.conn.Close()
 	ag.node.isConnect = false
 }
 
 func (ag *Agent) Close() {
+	if ag.isClose {
+		log.Debugf("agent close was called, but not running")
+		return
+	}
 	log.Warnf("---------------agent close---------------")
 	ag.disconnect()
 	ag.lock.Lock()

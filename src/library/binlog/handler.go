@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"library/path"
+	"io"
 )
 
 func (h *Binlog) handlerInit() {
@@ -30,6 +31,7 @@ func (h *Binlog) handlerInit() {
 	h.isClosed   = true
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
+	log.Debugf("==================>master pos: %+v<==================", currentPos)
 	if f != "" {
 		h.Config.BinFile = f
 	} else {
@@ -50,9 +52,12 @@ func (h *Binlog) handlerInit() {
 	}
 	h.lastBinFile = h.Config.BinFile
 	h.lastPos = uint32(h.Config.BinPos)
+	log.Debugf("==================>last pos: %+v, %+v<==================", h.lastBinFile, h.lastPos)
 }
 
 func (h *Binlog) setHandler()  {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	cfg, err := canal.NewConfigWithFile(path.CurrentPath + "/config/canal.toml")
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
@@ -224,10 +229,12 @@ func (h *Binlog) SaveBinlogPostionCache(binFile string, pos int64, eventIndex in
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	// read 2 bytes is file data length
 	l := make([]byte, 2)
-	h.cacheHandler.Seek(0, os.SEEK_SET)
+	h.cacheHandler.Seek(0, io.SeekStart)
 	n, err := h.cacheHandler.Read(l)
 	if n <= 0 || err != nil {
-		log.Errorf("read pos error: %v", err)
+		if err != io.EOF {
+			log.Errorf("read pos error: %v", err)
+		}
 		return "", int64(0), int64(0)
 	}
 	// dl is file data length
