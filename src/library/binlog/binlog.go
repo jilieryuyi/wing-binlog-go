@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-
 func NewBinlog(ctx *app.Context) *Binlog {
 	config, _ := GetMysqlConfig()
 	binlog := &Binlog{
@@ -18,10 +17,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
-		//isLeader : true,
-		members  : make(map[string]*member),
 		services : make(map[string]services.Service),
-
 		//tcp service ip and port
 		ServiceIp   : ctx.ServiceIp,
 		ServicePort : ctx.ServicePort,
