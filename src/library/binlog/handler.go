@@ -224,9 +224,10 @@ func (h *Binlog) SaveBinlogPostionCache(binFile string, pos int64, eventIndex in
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	// read 2 bytes is file data length
 	l := make([]byte, 2)
+	h.cacheHandler.Seek(0, os.SEEK_SET)
 	n, err := h.cacheHandler.Read(l)
 	if n <= 0 || err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("read pos error: %v", err)
 		return "", int64(0), int64(0)
 	}
 	// dl is file data length
