@@ -94,22 +94,17 @@ const (
 	statusOffline   = "offline"
 )
 
-type Pos struct {
-	BinFile string
-	Pos int64
-	EventIndex int64
-}
-
 type ConsulConfig struct{
 	Address string `toml:"address"`
 }
-
+// consul config
 type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
 	Consul *ConsulConfig
 }
 
+// cluster interface
 type Cluster interface{
 	Close()
 	Lock() bool
@@ -120,6 +115,7 @@ type Cluster interface{
 	GetLeader() (string, int)
 }
 
+// cluster node(member)
 type ClusterMember struct {
 	Hostname string
 	IsLeader bool
@@ -129,6 +125,7 @@ type ClusterMember struct {
 	Port int
 }
 
+// mysql config
 type MysqlConfig struct {
 	Addr string
 	Port int
@@ -136,16 +133,6 @@ type MysqlConfig struct {
 	Password string
 	Database string
 	Charset string
-}
-
-type RedisConfig struct {
-	Addr string
-	Port int
-}
-
-type SsdbConfig struct {
-	Addr string
-	Port int
 }
 
 
