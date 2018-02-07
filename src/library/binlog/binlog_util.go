@@ -5,38 +5,39 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"library/file"
+	"library/app"
 )
 
 // 封包
-func pack(cmd int, client_id string, msgs []string) []byte {
-	client_id_len := len(client_id)
-	// 获取实际包长度
-	l := 0
-	for _, msg := range msgs {
-		l += len([]byte(msg)) + 4
-	}
-	// cl为实际的包内容长度，2字节cmd
-	cl := l + 2 + client_id_len
-	r := make([]byte, cl)
-	r[0] = byte(cmd)
-	r[1] = byte(cmd >> 8)
-	copy(r[2:], []byte(client_id))
-	base_start := 2 + client_id_len
-	for _, msg := range msgs {
-		m := []byte(msg)
-		ml := len(m)
-		// 前4字节存放长度
-		r[base_start+0] = byte(ml)
-		r[base_start+1] = byte(ml >> 8)
-		r[base_start+2] = byte(ml >> 16)
-		r[base_start+3] = byte(ml >> 24)
-		base_start += 4
-		// 实际的内容
-		copy(r[base_start:], m)
-		base_start += ml
-	}
-	return r
-}
+//func pack(cmd int, client_id string, msgs []string) []byte {
+//	client_id_len := len(client_id)
+//	// 获取实际包长度
+//	l := 0
+//	for _, msg := range msgs {
+//		l += len([]byte(msg)) + 4
+//	}
+//	// cl为实际的包内容长度，2字节cmd
+//	cl := l + 2 + client_id_len
+//	r := make([]byte, cl)
+//	r[0] = byte(cmd)
+//	r[1] = byte(cmd >> 8)
+//	copy(r[2:], []byte(client_id))
+//	base_start := 2 + client_id_len
+//	for _, msg := range msgs {
+//		m := []byte(msg)
+//		ml := len(m)
+//		// 前4字节存放长度
+//		r[base_start+0] = byte(ml)
+//		r[base_start+1] = byte(ml >> 8)
+//		r[base_start+2] = byte(ml >> 16)
+//		r[base_start+3] = byte(ml >> 24)
+//		base_start += 4
+//		// 实际的内容
+//		copy(r[base_start:], m)
+//		base_start += ml
+//	}
+//	return r
+//}
 
 func packPos(binFile string, pos int64, eventIndex int64) []byte {
 	res := []byte(binFile)
@@ -82,15 +83,31 @@ func unpackPos(data []byte) (string, int64, int64) {
 func getConfig() (*Config, error) {
 	var config Config
 	configFile := path.CurrentPath + "/config/cluster.toml"
-	wfile := file.WFile{configFile}
-	if !wfile.Exists() {
+	//wfile := file.WFile{configFile}
+	if !file.Exists(configFile) {
 		log.Errorf("config file not found: %s", configFile)
-		return nil, ErrorFileNotFound
+		return nil, app.ErrorFileNotFound
 	}
 	if _, err := toml.DecodeFile(configFile, &config); err != nil {
 		log.Println(err)
-		return nil, ErrorFileParse
+		return nil, app.ErrorFileParse
 	}
 	return &config, nil
 }
+
+// 获取mysql配置
+func GetMysqlConfig() (*AppConfig, error) {
+	var appConfig AppConfig
+	configFile := path.CurrentPath + "/config/canal.toml"
+	if !file.Exists(configFile) {
+		log.Errorf("config file %s not found", configFile)
+		return nil, app.ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &appConfig); err != nil {
+		log.Println(err)
+		return nil, app.ErrorFileParse
+	}
+	return &appConfig, nil
+}
+
 

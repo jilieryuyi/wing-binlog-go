@@ -15,7 +15,6 @@ import (
 
 func (h *Binlog) handlerInit() {
 	var (
-		b   [defaultBufferSize]byte
 		err error
 	)
 	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
@@ -27,7 +26,6 @@ func (h *Binlog) handlerInit() {
 	}
 	f, p, index := h.getBinlogPositionCache()
 	h.EventIndex = index
-	h.buf        = b[:0]
 	h.isClosed   = true
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
