@@ -150,7 +150,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 		time.Sleep(sleepTime)
 		select {
 		case <-client.ctx.Ctx.Done():
-			log.Debugf("http服务errorCheckService退出：%s", node.url)
+			log.Debugf("http service %s errorCheckService exit", node.url)
 			return
 		default:
 		}
@@ -164,13 +164,12 @@ func (client *HttpService) clientSendService(node *httpNode) {
 		select {
 		case msg, ok := <-node.sendQueue:
 			if !ok {
-				log.Warnf("http服务-发送消息channel通道关闭")
+				log.Warnf("http service, sendQueue channel was closed")
 				return
 			}
 			if !node.isDown {
 				atomic.AddInt64(&node.sendTimes, int64(1))
-				log.Debug("http服务 post数据到url：",
-					node.url, string(msg))
+				log.Debugf("http service post to %s: %+v", node.url, string(msg))
 				data, err := http.Post(node.url, []byte(msg))
 				if err != nil {
 					atomic.AddInt64(&client.sendFailureTimes, int64(1))
@@ -180,12 +179,12 @@ func (client *HttpService) clientSendService(node *httpNode) {
 					// 如果连续3次错误，标志位故障
 					if failure_times >= 3 {
 						//发生故障
-						log.Warn(node.url, "http服务发生错误，下线节点", node.url)
+						log.Warnf("http service url %s post error happened max then 3, will be offline %s", node.url)
 						node.lock.Lock()
 						node.isDown = true
 						node.lock.Unlock()
 					}
-					log.Warn("http服务失败url和次数：", node.url, node.sendFailureTimes)
+					log.Warnf("http service node %s failure times：%d", node.url, node.sendFailureTimes)
 					client.cacheInit(node)
 					client.addCache(node, []byte(msg))
 				} else {
@@ -202,7 +201,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 					//对失败的cache进行重发
 					client.sendCache(node)
 				}
-				log.Debug("http服务 post返回值：", node.url, string(data))
+				log.Debugf("http service post to %s return %s", node.url, string(data))
 			} else {
 				// 故障节点，缓存需要发送的数据
 				// 这里就需要一个map[string][10000][]byte，最多缓存10000条
