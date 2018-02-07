@@ -9,8 +9,8 @@ It allows you to receive events like insert, update and delete with the original
 wing-binlog-go can run on OSX, Linux and Windows system.
 
 Installation:
-* On Xnix, run sh build.sh
-* On Windows, run build.bat
+* On Xnix, run ./bin/build.sh
+* On Windows, run bin/build.bat
 
 Project status
 The project is test with:
