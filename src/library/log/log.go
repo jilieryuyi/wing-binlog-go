@@ -76,11 +76,16 @@ func (hook ContextHook) getCallerInfo() (string, string, int) {
 			fmt.Println("error: error during runtime.Caller")
 			continue
 		} else {
-			if strings.HasPrefix(fullPath, workingDir) {
-				shortPath = fullPath[len(workingDir):]
-			} else {
-				shortPath = fullPath
+			lastS := strings.LastIndex(fullPath, "/")
+			if lastS < 0 {
+				lastS = strings.LastIndex(fullPath, "\\")
 			}
+			//if strings.HasPrefix(fullPath, workingDir) {
+			//	shortPath = fullPath[len(workingDir):]
+			//} else {
+			//	shortPath = fullPath
+			//}
+			shortPath = fullPath[lastS+1:]
 			funcName = runtime.FuncForPC(pc).Name()
 			if strings.HasPrefix(funcName, workingDir) {
 				funcName = funcName[len(workingDir):]

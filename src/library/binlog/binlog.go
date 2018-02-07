@@ -72,6 +72,14 @@ func (h *Binlog) StartService() {
 		return
 	}
 	go func() {
+		for {
+			if h.lastBinFile == "" {
+				log.Warn("binlog lastBinFile is empty, wait for init")
+				time.Sleep(time.Second)
+				continue
+			}
+			break
+		}
 		startPos := mysql.Position{
 			Name: h.lastBinFile,
 			Pos:  h.lastPos,
