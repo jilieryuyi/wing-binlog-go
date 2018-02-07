@@ -285,7 +285,8 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			name := string(node.recvBuf[10 : clen + 4])
+			name := string(node.recvBuf[6 : clen + 4])
+			log.Debugf("add to group: %s", name)
 			tcp.lock.Lock()
 			group, found := tcp.groups[name]
 			if !found {

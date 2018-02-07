@@ -54,9 +54,9 @@ function pack_cmd($cmd, $content = "")
 }
 
 // 打包set_pro数据包
-function pack_set_pro($group_name, $weight)
+/*function pack_set_pro($group_name)
 {
-    $l = 6 + strlen($group_name);
+    $l = 2 + strlen($group_name);
     $r = "";
 
     // 4字节宝长度
@@ -69,17 +69,11 @@ function pack_set_pro($group_name, $weight)
     $r .= chr(CMD_SET_PRO);
     $r .= chr(CMD_SET_PRO >> 8);
 
-    // 4字节权重
-    $r .= chr($weight);
-    $r .= chr($weight >> 8);
-    $r .= chr($weight >> 16);
-    $r .= chr($weight >> 32);
-
     // 实际的分组名称
     $r .= $group_name;
 
     return $r;
-}
+}*/
 
 // 创建子进程，用于发送心跳包
 function fork_child($socket)
@@ -114,7 +108,7 @@ function start_service()
     pcntl_signal(SIGINT,  "sig_handler", false);
 
     $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    $con    = socket_connect($socket, '127.0.0.1', 10008);
+    $con    = socket_connect($socket, '127.0.0.1', 9998);
 
     if (!$con) {
         socket_close($socket);
@@ -130,7 +124,7 @@ function start_service()
     //权重值 0 - 100，当然也只有分组模式为 MODE_WEIGHT 时有效，为广播时此值会被忽略
     //最后一个值得意思是要注册到那个分组
     //3秒之内不发送加入到分组将被强制断开
-    $pack = pack_set_pro("group1", 50);
+    $pack = pack_cmd(CMD_SET_PRO, "group1");
     socket_write($socket, $pack);
 
     //测试
