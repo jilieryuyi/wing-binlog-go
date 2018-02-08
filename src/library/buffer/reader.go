@@ -5,7 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var ErroutOfRange = errors.New("out of range")
+var ErrOutOfRange = errors.New("out of range")
 
 type WBuffer struct {
 	buf  []byte
@@ -37,7 +37,7 @@ func (wb *WBuffer) Len() int {
 // 读取指定字节
 func (wb *WBuffer) Read(n int) ([]byte, error) {
 	if wb.size-wb.pos <= 0 {
-		return nil, ErroutOfRange
+		return nil, ErrOutOfRange
 	}
 	log.Debugf("buffer read: %d, %d", wb.pos, wb.pos+n)
 	b := wb.buf[wb.pos : wb.pos+n]
@@ -55,22 +55,22 @@ func (wb *WBuffer) ResetPos() {
 // 读取int32，int32占4个字节，即解包int32
 func (wb *WBuffer) ReadInt32() (int, error) {
 	if wb.size-wb.pos < 4 {
-		return 0, ErroutOfRange
+		return 0, ErrOutOfRange
 	}
 	b, err := wb.Read(4)
-	i := int(b[0]) + int(b[1]<<8) + int(b[2]<<16) + int(b[3]<<32)
+	i := int(b[0]) + int(b[1])<<8 + int(b[2])<<16 + int(b[3])<<24
 	return i, err
 }
 
 // 读取int16，int16占2个字节，即解包int16
 func (wb *WBuffer) ReadInt16() (int, error) {
 	if wb.size-wb.pos < 2 {
-		return 0, ErroutOfRange
+		return 0, ErrOutOfRange
 	}
 	b, err := wb.Read(2)
 	if err != nil {
 		return 0, err
 	}
-	i := int(b[0]) + int(b[1]<<8)
+	i := int(b[0]) + int(b[1])<<8
 	return i, err
 }

@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	mlog "library/log"
 	"library/path"
+	"github.com/sevlyar/go-daemon"
 )
 
 var (
@@ -35,6 +36,8 @@ var (
 	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp")
 	help           = flag.Bool("help", false, "help")
 	members        = flag.Bool("members", false, "show members from current node")
+	deamon         = flag.Bool("deamon", false, "-deamon or -d, run as deamon process")
+	d              = flag.Bool("d", false, "-deamon or -d, run as deamon process")
 	//clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
 )
 
@@ -145,27 +148,44 @@ func commandService() bool {
 		usage()
 		return true
 	}
-	// 加入集群
-	//if *joinTo != "" {
-	//	command.JoinTo(*joinTo)
-	//	return true
-	//}
 	if *members {
 		command.ShowMembers()
 		return true
 	}
-	//if *clear {
-	//	command.Clear()
-	//	return true
-	//}
 	return false
 }
 
 func main() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("%+v", err)
+		}
+	}()
 	flag.Parse()
 	if commandService() {
 		return
 	}
+
+	if *deamon || *d {
+		cntxt := &daemon.Context{
+			PidFileName: pid,
+			PidFilePerm: 0644,
+			LogFileName: path.CurrentPath + "/logs/wing-binlog-go.log",
+			LogFilePerm: 0640,
+			WorkDir:     path.CurrentPath,
+			Umask:       027,
+			Args:        []string{""},
+		}
+		d, err := cntxt.Reborn()
+		if err != nil {
+			log.Fatal("Unable to run: ", err)
+		}
+		if d != nil {
+			return
+		}
+		defer cntxt.Release()
+	}
+
 	app.DEBUG = *debug
 	// 退出程序时删除pid文件
 	defer clearPid()
