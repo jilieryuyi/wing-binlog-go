@@ -56,7 +56,7 @@ func (h *Binlog) StopService(exit bool) {
 	} else {
 		h.SaveBinlogPostionCache(h.lastBinFile,
 			int64(h.lastPos),
-				atomic.LoadInt64(&h.EventIndex))
+			atomic.LoadInt64(&h.EventIndex))
 	}
 	h.isClosed = true
 	if !exit {
@@ -73,6 +73,7 @@ func (h *Binlog) StartService() {
 		log.Debug("binlog service is not in close status")
 		return
 	}
+	h.isClosed = false
 	go func() {
 		for {
 			if h.lastBinFile == "" {
@@ -86,7 +87,6 @@ func (h *Binlog) StartService() {
 			Name: h.lastBinFile,
 			Pos:  h.lastPos,
 		}
-		h.isClosed = false
 		for {
 			if h.handler == nil {
 				log.Warn("binlog handler is nil, wait for init")
