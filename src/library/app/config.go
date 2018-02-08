@@ -8,63 +8,37 @@ import (
 	"context"
 )
 
-type AppConfig struct {
-	LogLevel int `toml:"log_level"`
+type Config struct {
+	LogLevel int       `toml:"log_level"`
 	PprofListen string `toml:"pprof_listen"`
-	TimeZone string `toml:"time_zone"`
+	TimeZone string     `toml:"time_zone"`
 }
 
+// debug mode, default is false
 var DEBUG = false
 
+// context
 type Context struct {
+	// canal context
 	Ctx context.Context
+	// canal context func
 	Cancel context.CancelFunc
+	// pid file path
 	PidFile string
-	ServiceIp string
-	ServicePort int
-	//Binlog *binlog.Binlog
+	CancelChan chan struct{}
 }
 
-type tcpGroupConfig struct { // group node in toml
-	Name   string   // = "group1"
-	Filter []string //
-}
-
-type TcpConfig struct {
-	Listen string `toml:"listen"`
-	Port   int    `toml:"port"`
-	Enable bool   `toml:"enable"`
-	ServiceIp string `toml:"service_ip"`
-	Groups map[string]tcpGroupConfig
-}
-
-func GetTcpConfig() (*TcpConfig, error) {
-	var tcp_config TcpConfig
-	tcp_config_file := path.CurrentPath + "/config/tcp.toml"
-	wfile := file.WFile{tcp_config_file}
-	if !wfile.Exists() {
-		log.Warnf("配置文件%s不存在 %s", tcp_config_file)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(tcp_config_file, &tcp_config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	return &tcp_config, nil
-}
-
+// new app context
 func NewContext() *Context {
-	config, _ := GetTcpConfig()
 	ctx := &Context{
-		ServicePort : config.Port,
-		ServiceIp   : config.ServiceIp,
+		CancelChan:make(chan struct{}),
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	return ctx
 }
 
-func GetAppConfig() (*AppConfig, error) {
-	var appConfig AppConfig
+func GetAppConfig() (*Config, error) {
+	var appConfig Config
 	configFile := path.CurrentPath + "/config/wing-binlog-go.toml"
 	if !file.Exists(configFile) {
 		log.Errorf("config file %s does not exists", configFile)

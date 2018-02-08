@@ -12,6 +12,7 @@ import (
 
 func NewBinlog(ctx *app.Context) *Binlog {
 	config, _ := GetMysqlConfig()
+	tcpConfig, _:= services.GetTcpConfig()
 	binlog := &Binlog{
 		Config   : config,
 		wg       : new(sync.WaitGroup),
@@ -19,8 +20,8 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		ctx      : ctx,
 		services : make(map[string]services.Service),
 		//tcp service ip and port
-		ServiceIp   : ctx.ServiceIp,
-		ServicePort : ctx.ServicePort,
+		ServiceIp   : tcpConfig.ServiceIp,
+		ServicePort : tcpConfig.Port,
 		isClosed    : true,
 	}
 

@@ -41,11 +41,12 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		switch cmd {
 		case CMD_STOP:
 			log.Debug("get stop cmd, app will stop later")
-			server.clear()
-			server.ctx.Cancel()
-			server.binlog.Close()
-			fmt.Println("service exit...")
-			os.Exit(0)
+			//server.clear()
+			//server.ctx.Cancel()
+			//server.binlog.Close()
+			//fmt.Println("service exit...")
+			//os.Exit(0)
+			server.ctx.CancelChan <- struct{}{}
 		case CMD_RELOAD:
 			log.Debugf("收到重新加载指令：%s", string(content))
 			server.binlog.Reload(string(content))
@@ -76,7 +77,7 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			} else {
 				c.Write([]byte("no members found"))
 			}
-		case CMD_CLEAR:
+		//case CMD_CLEAR:
 			//server.binlog.Drive.ClearOfflineMembers()
 			//c.Write([]byte("ok"))
 		default:
@@ -90,14 +91,13 @@ func (server *UnixServer) onConnect(c net.Conn) {
 	}
 }
 func (server *UnixServer) clear() {
-	f := file.WFile{server.addr}
-	if f.Exists() {
-		f.Delete()
+	if file.Exists(server.addr) {
+		file.Delete(server.addr)
 	}
-	f = file.WFile{server.ctx.PidFile}
-	if f.Exists() {
-		f.Delete()
-	}
+	//f = file.WFile{server.ctx.PidFile}
+	//if f.Exists() {
+	//	f.Delete()
+	//}
 }
 
 func (server *UnixServer) Close() {
