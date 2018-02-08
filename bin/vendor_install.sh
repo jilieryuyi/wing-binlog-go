@@ -9,15 +9,15 @@ if [ ! -d "$vendor_path" ]; then
  mkdir "$vendor_path"
  mkdir "$vendor_path/src"
 fi
-echo "installing... go-sql-driver/mysql"
+echo "installing... github.com/go-sql-driver/mysql"
 go get github.com/go-sql-driver/mysql
-echo "installing... siddontang/go-mysql/canal"
+echo "installing... github.com/siddontang/go-mysql/canal"
 go get github.com/siddontang/go-mysql/canal
-echo "installing... siddontang/go-mysql/replication"
+echo "installing... github.com/siddontang/go-mysql/replication"
 go get github.com/siddontang/go-mysql/replication
-echo "installing... siddontang/go-mysql/mysql"
+echo "installing... github.com/siddontang/go-mysql/mysql"
 go get github.com/siddontang/go-mysql/mysql
-echo "installing... BurntSushi/toml"
+echo "installing... github.com/BurntSushi/toml"
 go get github.com/BurntSushi/toml
 echo "installing... go-martini/martini"
 go get github.com/go-martini/martini
@@ -29,6 +29,8 @@ echo "installing... github.com/hashicorp/consul"
 go get github.com/hashicorp/consul
 echo "installing... github.com/sirupsen/logrus"
 go get github.com/sirupsen/logrus
+echo "installing... github.com/sevlyar/go-daemon"
+go get github.com/sevlyar/go-daemon
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 ##cp -rf $vendor_path/src/* $vendor_path
