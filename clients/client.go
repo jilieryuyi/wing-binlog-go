@@ -221,7 +221,7 @@ func main() {
 
 	groupName := "group1"
 	serviceIp := "127.0.0.1"
-	port := 9998
+	port := 10008
 
 	client := NewClient(groupName)
 	client.Start(serviceIp, port)

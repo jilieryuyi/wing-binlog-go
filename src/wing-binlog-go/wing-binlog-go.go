@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	//"strconv"
 	"syscall"
 	"time"
 	"library/app"
@@ -34,11 +33,13 @@ var (
 	//-service-reload tcp
 	//-service-reload all ##重新加载全部服务
 	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp")
+	// show help info
 	help           = flag.Bool("help", false, "help")
+	// show members
 	members        = flag.Bool("members", false, "show members from current node")
+	// -deamon === -d run as daemon process
 	deamon         = flag.Bool("deamon", false, "-deamon or -d, run as deamon process")
 	d              = flag.Bool("d", false, "-deamon or -d, run as deamon process")
-	//clear          = flag.Bool("clear", false, "clear offline nodes from members, if need, it will auto register again")
 )
 
 const (
@@ -102,7 +103,7 @@ func usage() {
 	fmt.Println("wing-binlog-go -service-reload  websocket        --reload websocket service")
 	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
 	fmt.Println("wing-binlog-go -members                          --show cluster members")
-	fmt.Println("wing-binlog-go -clear                            --clear offline nodes from members, if need, it will auto register again")
+	fmt.Println("wing-binlog-go -d|-daemon                        --run as daemon process")
 	fmt.Println("*********************************************************************")
 }
 
@@ -165,7 +166,6 @@ func main() {
 	if commandService() {
 		return
 	}
-
 	if *deamon || *d {
 		cntxt := &daemon.Context{
 			PidFileName: pid,
@@ -174,7 +174,7 @@ func main() {
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
-			Args:        []string{""},
+			Args:        []string{"-deamon"},
 		}
 		d, err := cntxt.Reborn()
 		if err != nil {
