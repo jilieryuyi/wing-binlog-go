@@ -62,7 +62,6 @@ func Cmd() bool {
 	return false
 }
 
-
 func main() {
 	flag.Parse()
 	defer func() {
