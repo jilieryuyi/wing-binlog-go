@@ -3,17 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"library/app"
 	"library/binlog"
 	"library/services"
 	"library/unix"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
-	"github.com/sevlyar/go-daemon"
-	"library/path"
 )
 
 var (
@@ -29,9 +24,9 @@ var (
 	help           = flag.Bool("help", false, "help")
 	// show members
 	members        = flag.Bool("members", false, "show members from current node")
-	// -deamon === -d run as daemon process
-	deamon         = flag.Bool("deamon", false, "-deamon or -d, run as deamon process")
-	d              = flag.Bool("d", false, "-deamon or -d, run as deamon process")
+	// -daemon === -d run as daemon process
+	daemon         = flag.Bool("daemon", false, "-daemon or -d, run as daemon process")
+	d              = flag.Bool("d", false, "-daemon or -d, run as daemon process")
 )
 
 func Cmd() bool {
@@ -73,24 +68,9 @@ func main() {
 	if Cmd() {
 		return
 	}
-	if *deamon || *d {
-		cntxt := &daemon.Context{
-			PidFileName: app.Pid,
-			PidFilePerm: 0644,
-			LogFileName: path.CurrentPath + "/logs/wing-binlog-go.log",
-			LogFilePerm: 0640,
-			WorkDir:     path.CurrentPath,
-			Umask:       027,
-			Args:        []string{"-deamon"},
-		}
-		d, err := cntxt.Reborn()
-		if err != nil {
-			log.Fatal("Unable to run: ", err)
-		}
-		if d != nil {
-			return
-		}
-		defer cntxt.Release()
+	// return true is parent process
+	if app.DaemonProcess(*daemon || *d) {
+		return
 	}
 	// app init
 	app.DEBUG = *debug
@@ -111,20 +91,6 @@ func main() {
 	server := unix.NewUnixServer(appContext, blog)
 	server.Start()
 	defer server.Close()
-
-	go func() {
-		// wait for exit signal
-		sc := make(chan os.Signal, 1)
-		signal.Notify(sc,
-			os.Kill,
-			os.Interrupt,
-			syscall.SIGHUP,
-			syscall.SIGINT,
-			syscall.SIGTERM,
-			syscall.SIGQUIT)
-		<-sc
-		appContext.CancelChan <- struct{}{}
-	}()
 
 	// wait exit
 	select {
