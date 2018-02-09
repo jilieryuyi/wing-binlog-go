@@ -60,6 +60,8 @@ type Binlog struct {
 	// the last read binlog file
 	lastBinFile   string
 
+	// consul lock key
+	LockKey string
 	// consul address
 	Address string
 	// tcp service ip
@@ -83,12 +85,11 @@ type Binlog struct {
 }
 
 const (
-	serviceKeepaliveTimeout  = 9 // timeout, unit is second
+	serviceKeepaliveTimeout  = 6 // timeout, unit is second
 	checkAliveInterval       = 1 // interval for checkalive
 	keepaliveInterval        = 3 // interval for keepalive
 
-	posKey          = "wing/binlog/pos"
-	LOCK            = "wing/binlog/lock"
+	posKey          = "wing/binlog/pos/"
 	prefixKeepalive = "wing/binlog/keepalive/"
 	statusOnline    = "online"
 	statusOffline   = "offline"
@@ -120,7 +121,7 @@ type Cluster interface{
 type ClusterMember struct {
 	Hostname string
 	IsLeader bool
-	Session string
+	SessionId string
 	Status string
 	ServiceIp string
 	Port int

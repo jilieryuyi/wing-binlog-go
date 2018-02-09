@@ -13,6 +13,7 @@ func (h *Binlog) consulInit() {
 	var err error
 	consulConfig, err := getConfig()
 
+	h.LockKey     = consulConfig.Lock
 	//consul config
 	h.Address     = consulConfig.Consul.Address
 	h.isLock      = 0
@@ -41,7 +42,7 @@ func (h *Binlog) consulInit() {
 		if m.IsLeader && m.Status == statusOffline {
 			log.Warnf("current node is lock in start, try to unlock")
 			h.Unlock()
-			h.Delete(LOCK)
+			h.Delete(h.LockKey)
 		}
 	}
 	// 超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
@@ -66,7 +67,7 @@ func (h *Binlog) getService() *ClusterMember{
 		return nil
 	}
 	for _, v := range members {
-		if v != nil && v.Session == h.sessionId {
+		if v != nil && v.SessionId == h.sessionId {
 			return v
 		}
 	}
@@ -88,8 +89,8 @@ func (h *Binlog) registerService() {
 	t := time.Now().Unix()
 	service := &api.AgentServiceRegistration{
 		ID:                h.sessionId,
-		Name:              h.sessionId,
-		Tags:              []string{fmt.Sprintf("%d", h.isLock), h.sessionId, fmt.Sprintf("%d", t), hostname},
+		Name:              h.LockKey,
+		Tags:              []string{fmt.Sprintf("%d", h.isLock), h.sessionId, fmt.Sprintf("%d", t), hostname, h.LockKey},
 		Port:              h.ServicePort,
 		Address:           h.ServiceIp,
 		EnableTagOverride: false,
@@ -104,26 +105,26 @@ func (h *Binlog) registerService() {
 }
 
 // 服务发现，获取服务列表
-func (h *Binlog) getServices() map[string]*api.AgentService {
-	if !h.enable {
-		return nil
-	}
-	//1516574111-0hWR-E6IN-lrsO: {
-	// ID:1516574111-0hWR-E6IN-lrsO
-	// Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO
-	// Tags:[ 1516574111-0hWR-E6IN-lrsO /7tZ yuyideMacBook-Pro.local]
-	// Port:9998 Address:127.0.0.1
-	// EnableTagOverride:false
-	// CreateIndex:0
-	// ModifyIndex:0
-	// }
-	ser, err := h.agent.Services()
-	if err != nil {
-		log.Errorf("get service list error: %+v", err)
-		return nil
-	}
-	return ser
-}
+//func (h *Binlog) getServices() map[string]*api.AgentService {
+//	if !h.enable {
+//		return nil
+//	}
+//	//1516574111-0hWR-E6IN-lrsO: {
+//	// ID:1516574111-0hWR-E6IN-lrsO
+//	// Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO
+//	// Tags:[ 1516574111-0hWR-E6IN-lrsO /7tZ yuyideMacBook-Pro.local]
+//	// Port:9998 Address:127.0.0.1
+//	// EnableTagOverride:false
+//	// CreateIndex:0
+//	// ModifyIndex:0
+//	// }
+//	ser, err := h.agent.Services()
+//	if err != nil {
+//		log.Errorf("get service list error: %+v", err)
+//		return nil
+//	}
+//	return ser
+//}
 
 // keepalive
 func (h *Binlog) keepalive() {
@@ -142,28 +143,39 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 	if !h.enable {
 		return nil
 	}
-	members := h.getServices()
+	members, err := h.agent.Services()
+	if err != nil {
+		log.Errorf("get service list error: %+v", err)
+		return nil
+	}
 	if members == nil {
 		return nil
 	}
-	m := make([]*ClusterMember, len(members))
-	var i = 0
+	data := make([]*ClusterMember, 0)
 	for _, v := range members {
-		m[i] = &ClusterMember{}
-		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
-		m[i].Status = statusOnline
-		if time.Now().Unix() - t > serviceKeepaliveTimeout {
-			m[i].Status = statusOffline
+		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
+		if len(v.Tags) < 5 {
+			continue
 		}
-		m[i].IsLeader  = v.Tags[0] == "1"
-		m[i].Hostname  = v.Tags[3]
-		m[i].Session   = v.Tags[1]
-		m[i].ServiceIp = v.Address
-		m[i].Port      = v.Port
+		if v.Tags[4] != h.LockKey {
+			continue
+		}
+		m := &ClusterMember{}
+		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
+		m.Status = statusOnline
+		if time.Now().Unix() - t > serviceKeepaliveTimeout {
+			m.Status = statusOffline
+		}
+		m.IsLeader  = v.Tags[0] == "1"
+		m.Hostname  = v.Tags[3]
+		m.SessionId   = v.Tags[1]
+		m.ServiceIp = v.Address
+		m.Port      = v.Port
 		//log.Debugf("member=>%+v", *m[i])
-		i++
+		//i++
+		data = append(data, m)
 	}
-	return m
+	return data
 }
 
 // check service is alive
@@ -176,21 +188,21 @@ func (h *Binlog) checkAlive() {
 		//获取所有的服务
 		//判断服务的心跳时间是否超时
 		//如果超时，更新状态为
-		services := h.getServices()
-		if services == nil {
+		members := h.GetMembers()
+		if members == nil {
 			time.Sleep(time.Second * checkAliveInterval)
 			continue
 		}
-		for _, v := range services {
-			isLock := v.Tags[0] == "1"
-			t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
+		for _, v := range members {
+			//isLock := v.Tags[0] == "1"
+			//t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
 			//only check other nodes is alive
-			if time.Now().Unix()-t > serviceKeepaliveTimeout/* && v.ID != h.sessionId */{
-				log.Warnf("%s is timeout, will be deregister", v.ID)
-				h.agent.ServiceDeregister(v.ID)
+			if v.Status == statusOffline/* && v.ID != h.sessionId */{
+				log.Warnf("%s is timeout, will be deregister", v.SessionId)
+				h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
-				if isLock {
-					h.Delete(LOCK)
+				if v.IsLeader {
+					h.Delete(h.LockKey)
 					if h.Lock() {
 						log.Debugf("current is the new leader")
 						h.onNewLeader()
@@ -218,7 +230,7 @@ func (h *Binlog) watch() {
 			continue
 		}
 		h.lock.Unlock()
-		_, meta, err := h.Kv.Get(posKey, nil)
+		_, meta, err := h.Kv.Get(posKey + h.LockKey, nil)
 		if err != nil {
 			log.Errorf("watch pos change with error：%#v", err)
 			time.Sleep(time.Second)
@@ -228,7 +240,7 @@ func (h *Binlog) watch() {
 			time.Sleep(time.Second)
 			continue
 		}
-		v, _, err := h.Kv.Get(posKey, &api.QueryOptions{
+		v, _, err := h.Kv.Get(posKey + h.LockKey, &api.QueryOptions{
 			WaitIndex : meta.LastIndex,
 			WaitTime : time.Second * 86400,
 		})
@@ -280,9 +292,9 @@ func (h *Binlog) closeConsul() {
 	l := h.isLock
 	h.lock.Unlock()
 	if l == 1 {
-		log.Debugf("delete lock %s", LOCK)
+		log.Debugf("delete lock %s", h.LockKey)
 		h.Unlock()
-		h.Delete(LOCK)
+		h.Delete(h.LockKey)
 	}
 	h.Session.delete()
 }
@@ -293,8 +305,8 @@ func (h *Binlog) Write(data []byte) bool {
 	if !h.enable {
 		return true
 	}
-	log.Debugf("write consul pos kv: %s, %v", posKey, data)
-	_, err := h.Kv.Put(&api.KVPair{Key: posKey, Value: data}, nil)
+	log.Debugf("write consul pos kv: %s, %v", posKey + h.LockKey, data)
+	_, err := h.Kv.Put(&api.KVPair{Key: posKey + h.LockKey, Value: data}, nil)
 	if err != nil {
 		log.Errorf("write consul pos kv with error: %+v", err)
 	}
@@ -314,7 +326,7 @@ func (h *Binlog) Lock() bool {
 		return false
 	}
 	//key string, value []byte, sessionID string
-	p := &api.KVPair{Key: LOCK, Value: nil, Session: h.Session.ID}
+	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
 	success, _, err := h.Kv.Acquire(p, nil)
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
@@ -339,7 +351,7 @@ func (h *Binlog) Unlock() bool {
 		log.Errorf("error: %v", ErrorSessionEmpty)
 		return false
 	}
-	p := &api.KVPair{Key: LOCK, Value: nil, Session: h.Session.ID}
+	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
 	success, _, err := h.Kv.Release(p, nil)
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
@@ -366,7 +378,7 @@ func (h *Binlog) Delete(key string) error {
 	_, err := h.Kv.Delete(key, nil)
 	if err == nil {
 		h.lock.Lock()
-		if key == LOCK {
+		if key == h.LockKey {
 			h.isLock = 0
 		}
 		h.lock.Unlock()
