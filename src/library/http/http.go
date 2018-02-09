@@ -5,10 +5,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/data"
 	"library/path"
-	"library/util"
 	"net/http"
 	"sync"
 	"time"
+	wstring "library/string"
 )
 
 var online_users map[string]*OnLineUser = make(map[string]*OnLineUser)
@@ -64,7 +64,7 @@ func onUserLogin(w http.ResponseWriter, req *http.Request) {
 	user := data.User{username[0], password[0]}
 	if ok1 && ok2 && user.Get() {
 		log.Infof("http服务，用户 %s 登陆成功", username[0])
-		user_sign := util.RandString(32)
+		user_sign := wstring.RandString(32)
 		online_users_lock.Lock()
 		online_users[user_sign] = &OnLineUser{
 			Name:         username[0],

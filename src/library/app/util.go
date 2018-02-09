@@ -14,16 +14,21 @@ import (
 	"runtime"
 	"github.com/sevlyar/go-daemon"
 )
-var Pid = path.CurrentPath + "/wing-binlog-go.pid"
-var ctx *daemon.Context = nil
+var (
+	Pid = path.CurrentPath + "/wing-binlog-go.pid"
+	ctx *daemon.Context = nil
+)
 const (
 	VERSION = "1.0.0"
 )
 
 func Init() {
+	// write pid file
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
 	ioutil.WriteFile(Pid, data, 0777)
+	// get app config
 	appConfig, _ := GetAppConfig()
+	// run pprof
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
 		//go tool pprof logDemo.exe --text a.prof
@@ -41,28 +46,33 @@ func Init() {
 			http.ListenAndServe(appConfig.PprofListen, nil)
 		}
 	}()
-
+	// set timezone
 	time.LoadLocation(appConfig.TimeZone)
+	// set log format
 	log.SetFormatter(&log.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:      true,
 		QuoteEmptyFields: true,
 		FullTimestamp:    true,
 	})
+	// set log context hook
 	log.AddHook(mlog.ContextHook{})
 	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
-
+	// set cpu num
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 }
 
 func Release() {
+	// delete pid when exit
 	file.Delete(Pid)
 	if ctx != nil {
+		// release process context when exit
 		ctx.Release()
 	}
 }
 
+// show usage
 func Usage() {
 	fmt.Println("*********************************************************************")
 	fmt.Println("wing-binlog-go                                   --start service")
@@ -77,7 +87,7 @@ func Usage() {
 	fmt.Println("*********************************************************************")
 }
 
-
+// run as daemon process
 func DaemonProcess(d bool) bool {
 	if d {
 		ctx = &daemon.Context{
