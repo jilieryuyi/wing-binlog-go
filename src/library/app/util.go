@@ -12,8 +12,10 @@ import (
 	mlog "library/log"
 	"time"
 	"runtime"
+	"github.com/sevlyar/go-daemon"
 )
 var Pid = path.CurrentPath + "/wing-binlog-go.pid"
+var ctx *daemon.Context = nil
 const (
 	VERSION = "1.0.0"
 )
@@ -56,6 +58,9 @@ func Init() {
 
 func Release() {
 	file.Delete(Pid)
+	if ctx != nil {
+		ctx.Release()
+	}
 }
 
 func Usage() {
@@ -70,6 +75,30 @@ func Usage() {
 	fmt.Println("wing-binlog-go -members                          --show cluster members")
 	fmt.Println("wing-binlog-go -d|-daemon                        --run as daemon process")
 	fmt.Println("*********************************************************************")
+}
+
+
+func DaemonProcess(d bool) bool {
+	if d {
+		ctx = &daemon.Context{
+			PidFileName: Pid,
+			PidFilePerm: 0644,
+			LogFileName: path.CurrentPath + "/logs/wing-binlog-go.log",
+			LogFilePerm: 0640,
+			WorkDir:     path.CurrentPath,
+			Umask:       027,
+			Args:        []string{"-deamon"},
+		}
+		d, err := ctx.Reborn()
+		if err != nil {
+			log.Fatal("Unable to run: ", err)
+		}
+		if d != nil {
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 // kill process by pid file
