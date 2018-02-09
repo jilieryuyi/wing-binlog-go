@@ -136,4 +136,9 @@ type TcpConfig struct {
 	Groups map[string]tcpGroupConfig
 }
 
+var (
+	_ Service = &TcpService{}
+	_ Service = &HttpService{}
+)
+
 
