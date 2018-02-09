@@ -92,8 +92,7 @@ const (
 func getServiceConfig() (*httpServiceConfig, error) {
 	var config httpServiceConfig
 	config_file := path.CurrentPath + "/config/admin.toml"
-	wfile := file.WFile{config_file}
-	if !wfile.Exists() {
+	if !file.Exists(config_file) {
 		log.Printf("配置文件%s不存在", config_file)
 		return nil, ErrorFileNotFound
 	}

@@ -33,8 +33,7 @@ func (client *UnixClient) Read() ([]byte, error) {
 
 func (client *UnixClient) Start() {
 	client.conn = nil
-	socketFile := &file.WFile{client.addr}
-	if !socketFile.Exists() {
+	if !file.Exists(client.addr) {
 		return
 	}
 	c, err := net.Dial("unix", client.addr)
