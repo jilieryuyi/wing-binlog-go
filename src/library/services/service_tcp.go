@@ -10,6 +10,7 @@ import (
 	"time"
 	"library/app"
 	"encoding/json"
+	"runtime"
 )
 
 // new tcp service, usr for handler.go RegisterService
@@ -30,7 +31,11 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ServiceIp:        config.ServiceIp,
 		Agents:           make([]*tcpClientNode, 0),
 	}
-	tcp.Agent = newAgent(tcp)
+
+	sendAllChan1 := make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE)
+	sendAllChan2 := make(chan []byte, TCP_MAX_SEND_QUEUE)
+	tcp.agentService(sendAllChan1, sendAllChan2)
+	tcp.Agent = newAgent(ctx, sendAllChan1, sendAllChan2)
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		tcp.groups[cgroup.Name] = &tcpGroup{
@@ -41,6 +46,26 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		tcp.groups[cgroup.Name].filter = append(tcp.groups[cgroup.Name].filter[:0], cgroup.Filter...)
 	}
 	return tcp
+}
+
+func (tcp *TcpService) agentService(ch1 chan map[string] interface{}, ch2 chan []byte) {
+	n := runtime.NumCPU() + 2
+	for i := 0; i < n; i++ {
+		go func() {
+			for {
+				select {
+				case data := <-ch1:
+					tcp.SendAll(data)
+				}
+			}
+		}()
+		go func() {
+			select {
+			case data := <-ch2:
+				tcp.sendAllB(data)
+			}
+		}()
+	}
 }
 
 // send event data to all connects client
@@ -57,7 +82,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	log.Debugf("datalen=%d", len(jsonData))
 	//send agent
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- tcp.pack(CMD_EVENT, string(jsonData))
+		agent.sendQueue <- pack(CMD_EVENT, string(jsonData))
 	}
 
 	for _, cgroup := range tcp.groups {
@@ -95,14 +120,15 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
 				continue
 			}
-			cnode.sendQueue <- tcp.pack(CMD_EVENT, string(jsonData))
+			cnode.sendQueue <- pack(CMD_EVENT, string(jsonData))
 		}
 	}
 	return true
 }
 
 // send raw bytes data to all connects client
-func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
+// msg is the pack frame form func: pack
+func (tcp *TcpService) sendAllB(msg []byte) bool {
 	if !tcp.enable {
 		return false
 	}
@@ -111,7 +137,7 @@ func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
 	defer tcp.lock.Unlock()
 	//send agent
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- tcp.pack(cmd, string(msg))
+		agent.sendQueue <- msg//pack(cmd, string(msg))
 	}
 	for _, cgroup := range tcp.groups {
 		if cgroup.nodes == nil {
@@ -131,27 +157,27 @@ func (tcp *TcpService) SendAll2(cmd int, msg []byte) bool {
 				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
 				continue
 			}
-			cnode.sendQueue <- tcp.pack(cmd, string(msg))
+			cnode.sendQueue <- msg//pack(cmd, string(msg))
 		}
 	}
 	return true
 }
 
 // data pack with little endian
-func (tcp *TcpService) pack(cmd int, msg string) []byte {
-	m  := []byte(msg)
-	l  := len(m)
-	r  := make([]byte, l+6)
-	cl := l + 2
-	r[0] = byte(cl)
-	r[1] = byte(cl >> 8)
-	r[2] = byte(cl >> 16)
-	r[3] = byte(cl >> 24)
-	r[4] = byte(cmd)
-	r[5] = byte(cmd >> 8)
-	copy(r[6:], m)
-	return r
-}
+//func (tcp *TcpService) pack(cmd int, msg string) []byte {
+//	m  := []byte(msg)
+//	l  := len(m)
+//	r  := make([]byte, l+6)
+//	cl := l + 2
+//	r[0] = byte(cl)
+//	r[1] = byte(cl >> 8)
+//	r[2] = byte(cl >> 16)
+//	r[3] = byte(cl >> 24)
+//	r[4] = byte(cmd)
+//	r[5] = byte(cmd >> 8)
+//	copy(r[6:], m)
+//	return r
+//}
 
 // 掉线回调
 func (tcp *TcpService) onClose(node *tcpClientNode) {
@@ -294,17 +320,17 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.lock.Lock()
 			group, found := tcp.groups[name]
 			if !found {
-				node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service, group does not exists: %s", group))
+				node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service, group does not exists: %s", group))
 				tcp.lock.Unlock()
 				return
 			}
 			(*node.conn).SetReadDeadline(time.Time{})
-			node.sendQueue <- tcp.pack(CMD_SET_PRO, "ok")
+			node.sendQueue <- pack(CMD_SET_PRO, "ok")
 			node.group = group.name
 			group.nodes = append(group.nodes, node)
 			tcp.lock.Unlock()
 		case CMD_TICK:
-			node.sendQueue <- tcp.pack(CMD_TICK, "ok")
+			node.sendQueue <- pack(CMD_TICK, "ok")
 			//心跳包
 		case CMD_AGENT:
 			tcp.lock.Lock()
@@ -313,7 +339,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.Agents = append(tcp.Agents, node)
 			tcp.lock.Unlock()
 		default:
-			node.sendQueue <- tcp.pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
+			node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 			//clear all data
 			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
 			node.recvBytes = 0
@@ -497,6 +523,7 @@ func (tcp *TcpService) Reload() {
 	}
 }
 
+// agent will connect to serviceIp:port
 func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 	tcp.Agent.Start(serviceIp, port)
 }

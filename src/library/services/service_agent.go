@@ -7,22 +7,24 @@ import (
 	"sync"
 	"time"
 	"encoding/json"
+	"library/app"
 )
 
 //如果当前客户端为follower
 //agent会使用客户端连接到leader
 //leader发生事件的时候通过agent转发到连接follower的tcp客户端
 //实现数据代理
-//todo 这里应该弄一个连接池
 
 type Agent struct {
-	tcp *TcpService
 	node *agentNode
 	serviceIp string
 	servicePort int
 	isClose bool
 	lock *sync.Mutex
 	buffer []byte
+	ctx    *app.Context
+	sendAllChan1 chan map[string] interface{}
+	sendAllChan2 chan []byte
 }
 
 type agentNode struct {
@@ -30,13 +32,15 @@ type agentNode struct {
 	isConnect bool
 }
 
-func newAgent(tcp *TcpService) *Agent{
+func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendAllChan2 chan []byte) *Agent{
 	agent := &Agent{
-		tcp     : tcp,
+		sendAllChan1 : sendAllChan1,
+		sendAllChan2 : sendAllChan2,
 		isClose : true,
 		node    : nil,
 		lock    : new(sync.Mutex),
 		buffer  : make([]byte, 0),
+		ctx:ctx,
 	}
 	return agent
 }
@@ -68,14 +72,14 @@ func (ag *Agent) nodeInit() {
 func (ag *Agent) Start(serviceIp string, port int) {
 	//todo get service ip and port
 	ag.serviceIp = serviceIp
-	ag.servicePort = port//ag.tcp.GetLeader()
+	ag.servicePort = port
 	if ag.serviceIp == "" || ag.servicePort == 0 {
 		log.Warnf("ip ang port empty")
 		return
 	}
 	ag.nodeInit()
 	log.Debugf("====================agent start====================")
-	agentH := ag.tcp.pack(CMD_AGENT, "")
+	agentH := pack(CMD_AGENT, "")
 	go func() {
 		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
@@ -115,7 +119,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
 				ag.onMessage(buf[:size])
 				select {
-				case <-ag.tcp.ctx.Ctx.Done():
+				case <-ag.ctx.Ctx.Done():
 					log.Warnf("agent context quit")
 					return
 				default:
@@ -168,17 +172,25 @@ func (ag *Agent) onMessage(msg []byte) {
 		dataB := ag.buffer[6:4 + contentLen]
 		log.Debugf("clen=%d, cmd=%d, %+v", contentLen, cmd, dataB)
 
-		switch(cmd) {
+		switch cmd {
 		case CMD_EVENT:
 			var data map[string] interface{}
 			err := json.Unmarshal(dataB, &data)
 			if err == nil {
-				ag.tcp.SendAll(data)
+				if len(ag.sendAllChan1) < cap(ag.sendAllChan1) {
+					ag.sendAllChan1 <- data
+				} else {
+					log.Warnf("ag.sendAllChan1 was full")
+				}
 			} else {
 				log.Errorf("json Unmarshal error: %+v, %+v", dataB, err)
 			}
 		default:
-			ag.tcp.SendAll2(cmd, dataB)
+			if len(ag.sendAllChan2) < cap(ag.sendAllChan2) {
+				ag.sendAllChan2 <- pack(cmd, string(msg))
+			} else {
+				log.Warnf("ag.sendAllChan2 was full")
+			}
 		}
 		//数据移动，清除已读数据
 		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
