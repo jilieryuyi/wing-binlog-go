@@ -37,22 +37,21 @@ func NewContext() *Context {
 		CancelChan:make(chan struct{}),
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
-
-	go func() {
-		// wait for exit signal
-		sc := make(chan os.Signal, 1)
-		signal.Notify(sc,
-			os.Kill,
-			os.Interrupt,
-			syscall.SIGHUP,
-			syscall.SIGINT,
-			syscall.SIGTERM,
-			syscall.SIGQUIT)
-		<-sc
-		ctx.CancelChan <- struct{}{}
-	}()
-
+	go ctx.signalHandler()
 	return ctx
+}
+
+func (ctx *Context)signalHandler() {
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc,
+		os.Kill,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	<-sc
+	ctx.CancelChan <- struct{}{}
 }
 
 func GetAppConfig() (*Config, error) {
