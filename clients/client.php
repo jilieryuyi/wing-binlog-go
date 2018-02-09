@@ -25,7 +25,7 @@ function clog($content)
 }
 
 // 信号处理
-function sig_handler($sig)
+function sig_handler()
 {
     clog("收到退出信号");
     exit;
@@ -52,28 +52,6 @@ function pack_cmd($cmd, $content = "")
 
 	return $r;
 }
-
-// 打包set_pro数据包
-/*function pack_set_pro($group_name)
-{
-    $l = 2 + strlen($group_name);
-    $r = "";
-
-    // 4字节宝长度
-    $r .= chr($l);
-    $r .= chr($l >> 8);
-    $r .= chr($l >> 16);
-    $r .= chr($l >> 32);
-
-    // 2字节cmd
-    $r .= chr(CMD_SET_PRO);
-    $r .= chr(CMD_SET_PRO >> 8);
-
-    // 实际的分组名称
-    $r .= $group_name;
-
-    return $r;
-}*/
 
 // 创建子进程，用于发送心跳包
 function fork_child($socket)
@@ -112,17 +90,11 @@ function start_service()
 
     if (!$con) {
         socket_close($socket);
-        clog("无法连接服务器");
-        exit;
+        clog("无法连接服务器，等待重试");
+        return false;
     }
 
     //注册到分组
-    //两种模式，广播和权重，决定以那种模式注册到服务端是分组决定的
-    //wing-binclog-go/src/config/tcp.toml如配置文件下的group1模式为广播
-    //如果以广播的方式注册到服务端，那每次都会收到事件
-    //如果以权重的方式注册到服务端，服务端会按照权重比例，均衡的把事件发送给已经注册到服务端的客户端
-    //权重值 0 - 100，当然也只有分组模式为 MODE_WEIGHT 时有效，为广播时此值会被忽略
-    //最后一个值得意思是要注册到那个分组
     //3秒之内不发送加入到分组将被强制断开
     $pack = pack_cmd(CMD_SET_PRO, "group1");
     socket_write($socket, $pack);
@@ -218,9 +190,12 @@ function start_service()
         }
         if ((time() - $start) > 5) break;
     }
+    return true;
 }
 
 //打开while 1，断开将自动重连
 while (1) {
-    start_service();
+    if (false === start_service()) {
+        sleep(1);
+    }
 }
