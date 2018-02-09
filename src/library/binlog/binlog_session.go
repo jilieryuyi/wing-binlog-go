@@ -4,10 +4,10 @@ import (
 	"github.com/hashicorp/consul/api"
 	"library/path"
 	"library/file"
-	"library/util"
 	"fmt"
 	"time"
 	log "github.com/sirupsen/logrus"
+	wstring "library/string"
 )
 
 type Session struct {
@@ -55,7 +55,7 @@ func GetSession() string {
 		}
 	}
 	//write a new session
-	session := fmt.Sprintf("%d-%s", time.Now().Unix(), util.RandString(64))
+	session := fmt.Sprintf("%d-%s", time.Now().Unix(), wstring.RandString(64))
 	dir := path.GetParent(sessionFile)
 	path.Mkdir(dir)
 	n := file.Write(sessionFile, session, false)
