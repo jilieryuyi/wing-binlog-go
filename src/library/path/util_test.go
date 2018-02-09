@@ -4,6 +4,7 @@ import (
 	"testing"
 	"os"
 	"strings"
+	"library/platform"
 )
 
 func TestExists(t *testing.T) {
@@ -57,5 +58,29 @@ func TestGetPath(t *testing.T) {
 	dir = "/usr/local/1.text"
 	if "/usr/local/1.text" != GetPath(dir) {
 		t.Error("get path error - 2")
+	}
+}
+
+func TestDelete(t *testing.T) {
+	dir := "/tmp/1/2/3/4/5/6"
+	if platform.System(platform.IS_WINDOWS) {
+		dir = "C:/1/2/3/4/5/6"
+	}
+	if Exists(dir) {
+		t.Errorf("exists error")
+	}
+	s := Mkdir(dir)
+	if !s {
+		t.Errorf("mkdir error")
+	}
+	if !Exists(dir) {
+		t.Errorf("exists error")
+	}
+	s = Delete(dir)
+	if !s {
+		t.Errorf("delete error")
+	}
+	if Exists(dir) {
+		t.Errorf("exists error")
 	}
 }

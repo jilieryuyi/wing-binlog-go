@@ -21,10 +21,8 @@ func init() {
 
 	// db文件
 	userDataPath = dataPath + "/wing.db"
-	wfile := &file.WFile{userDataPath}
-
 	// 如果不存在，尝试创建
-	if !wfile.Exists() {
+	if !file.Exists(userDataPath) {
 		create := "CREATE TABLE `userinfo` (`id` INTEGER PRIMARY KEY AUTOINCREMENT,`username` VARCHAR(64) NULL,`password` VARCHAR(64) NULL,`created` TIMESTAMP default (datetime('now', 'localtime')));"
 		db, err := sql.Open("sqlite3", dataPath+"/wing.db")
 		defer db.Close()
