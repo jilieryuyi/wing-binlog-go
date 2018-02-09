@@ -29,29 +29,19 @@ func (server *UnixServer) onConnect(c net.Conn) {
 		if err != nil {
 			return
 		}
-		data := buf[0:nr]
-		length := int(data[0]) +
-			int(data[1] << 8) +
-			int(data[2] << 16) +
-			int(data[3] << 24)
-		cmd := 	int(data[4]) +
-			int(data[5] << 8)
+		data    := buf[0:nr]
+		length  := int(data[0]) | int(data[1]) << 8 + int(data[2]) << 16 | int(data[3]) << 24
+		cmd     := int(data[4]) | int(data[5]) << 8
 		content := bytes.ToLower(data[6:])
+
 		log.Debugf("unix receive：%s, %+v, %d", string(data), data, length)
 		switch cmd {
 		case CMD_STOP:
 			log.Debug("get stop cmd, app will stop later")
-			//server.clear()
-			//server.ctx.Cancel()
-			//server.binlog.Close()
-			//fmt.Println("service exit...")
-			//os.Exit(0)
 			server.ctx.CancelChan <- struct{}{}
 		case CMD_RELOAD:
-			log.Debugf("收到重新加载指令：%s", string(content))
+			log.Debugf("receive reload cmd：%s", string(content))
 			server.binlog.Reload(string(content))
-		case CMD_JOINTO:
-			log.Debugf("收到加入群集指令：%s", string(content))
 		case CMD_SHOW_MEMBERS:
 			members := server.binlog.GetMembers()
 			if members != nil {
@@ -77,27 +67,15 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			} else {
 				c.Write([]byte("no members found"))
 			}
-		//case CMD_CLEAR:
-			//server.binlog.Drive.ClearOfflineMembers()
-			//c.Write([]byte("ok"))
 		default:
 			log.Error("不支持的指令：%d：%s", cmd, string(content))
 		}
-
-		//_, err = c.Write(data)
-		//if err != nil {
-		//	log.Errorf("unix服务Write异常：%+v ", err)
-		//}
 	}
 }
 func (server *UnixServer) clear() {
 	if file.Exists(server.addr) {
 		file.Delete(server.addr)
 	}
-	//f = file.WFile{server.ctx.PidFile}
-	//if f.Exists() {
-	//	f.Delete()
-	//}
 }
 
 func (server *UnixServer) Close() {
@@ -107,15 +85,15 @@ func (server *UnixServer) Close() {
 func (server *UnixServer) Start() {
 	server.clear()
 	go func() {
-		log.Debug("unix服务启动，等待新的连接...")
+		log.Debug("unix service start")
 		listen, err := net.Listen("unix", server.addr)
 		if err != nil {
-			log.Panicf("unix服务异常：%+v", err)
+			log.Panicf("unix service error：%+v", err)
 		}
 		for {
 			fd, err := listen.Accept()
 			if err != nil {
-				log.Panicf("unix服务异常：%+v", err)
+				log.Panicf("unix service error：%+v", err)
 			}
 			go server.onConnect(fd)
 		}
