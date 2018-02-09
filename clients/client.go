@@ -6,6 +6,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"time"
+	"sync/atomic"
 )
 const tcpDefaultReadBufferSize = 4096
 const CMD_SET_PRO = 1
@@ -23,6 +24,8 @@ type Client struct {
 	lock *sync.Mutex
 	buffer []byte
 	groupName string
+	total int64
+	starttime int64
 }
 
 type Node struct {
@@ -37,6 +40,8 @@ func NewClient(groupName string) *Client{
 		lock     : new(sync.Mutex),
 		buffer   : make([]byte, 0),
 		groupName : groupName,
+		total:0,
+		starttime:time.Now().Unix(),
 	}
 	return agent
 }
@@ -189,7 +194,14 @@ func (ag *Client) onMessage(msg []byte) {
 			return
 		}
 		dataB := ag.buffer[6:4 + contentLen]
-		log.Debugf("clen=%d, cmd=%d, %+v", contentLen, cmd, string(dataB))
+		atomic.AddInt64(&ag.total, 1)
+		total := atomic.LoadInt64(&ag.total)
+		p := int64(0)
+		sp := time.Now().Unix() - ag.starttime
+		if sp > 0 {
+			p = int64(total/sp)
+		}
+		log.Debugf("每秒接收数据 %d 条， clen=%d, cmd=%d, %+v", p, contentLen, cmd, string(dataB))
 
 		//switch(cmd) {
 		//case CMD_EVENT:
