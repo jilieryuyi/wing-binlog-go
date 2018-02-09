@@ -119,6 +119,8 @@ type TcpService struct {
 	Agent            *Agent
 	ServiceIp        string
 	Agents           []*tcpClientNode
+	sendAllChan1 chan map[string] interface{}
+	sendAllChan2 chan []byte
 }
 
 type tcpGroupConfig struct { // group node in toml

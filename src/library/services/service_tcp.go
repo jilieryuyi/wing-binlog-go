@@ -30,12 +30,14 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
 		Agents:           make([]*tcpClientNode, 0),
+		sendAllChan1:     make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE),
+		sendAllChan2:     make(chan []byte, TCP_MAX_SEND_QUEUE),
 	}
 
-	sendAllChan1 := make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE)
-	sendAllChan2 := make(chan []byte, TCP_MAX_SEND_QUEUE)
-	tcp.agentService(sendAllChan1, sendAllChan2)
-	tcp.Agent = newAgent(ctx, sendAllChan1, sendAllChan2)
+	//sendAllChan1 := make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE)
+	//sendAllChan2 := make(chan []byte, TCP_MAX_SEND_QUEUE)
+	tcp.agentService()
+	tcp.Agent = newAgent(ctx, tcp.sendAllChan1, tcp.sendAllChan2)
 	for _, cgroup := range config.Groups {
 		flen := len(cgroup.Filter)
 		tcp.groups[cgroup.Name] = &tcpGroup{
@@ -48,21 +50,42 @@ func NewTcpService(ctx *app.Context) *TcpService {
 	return tcp
 }
 
-func (tcp *TcpService) agentService(ch1 chan map[string] interface{}, ch2 chan []byte) {
+func (tcp *TcpService) agentService() {
 	n := runtime.NumCPU() + 2
+	tcp.wg.Add(2*n)
 	for i := 0; i < n; i++ {
 		go func() {
+			defer tcp.wg.Done()
 			for {
 				select {
-				case data := <-ch1:
+				case data, ok := <-tcp.sendAllChan1:
+					if !ok {
+						log.Warnf("tcp.sendAllChan1 was closed")
+						return
+					}
 					tcp.SendAll(data)
+				case <-tcp.ctx.Ctx.Done():
+					if len(tcp.sendAllChan1) <= 0 {
+						log.Info("tcp.sendAllChan1 is empty, will exit")
+						return
+					}
 				}
 			}
 		}()
 		go func() {
+			defer tcp.wg.Done()
 			select {
-			case data := <-ch2:
+			case data, ok:= <-tcp.sendAllChan2:
+				if !ok {
+					log.Warnf("tcp.sendAllChan2 was closed")
+					return
+				}
 				tcp.sendAllB(data)
+			case <-tcp.ctx.Ctx.Done():
+				if len(tcp.sendAllChan2) <= 0 {
+					log.Info("tcp.sendAllChan2 is empty, will exit")
+					return
+				}
 			}
 		}()
 	}
@@ -183,7 +206,9 @@ func (tcp *TcpService) sendAllB(msg []byte) bool {
 func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	close(node.sendQueue)
+	if node.isConnected {
+		close(node.sendQueue)
+	}
 	node.isConnected = false
 	if node.isAgent {
 		for index, n := range tcp.Agents {
@@ -390,6 +415,8 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
+	close(tcp.sendAllChan1)
+	close(tcp.sendAllChan2)
 	for _, cgroup := range tcp.groups {
 		if len(cgroup.nodes) > 0 {
 			tcp.wg.Wait()
