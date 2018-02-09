@@ -101,6 +101,7 @@ type ConsulConfig struct{
 type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
+	Lock string `toml:"lock"`
 	Consul *ConsulConfig
 }
 
