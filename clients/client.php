@@ -139,6 +139,7 @@ function start_service()
     //父进程接收消息
     $count    = 1;
     $recv_buf = "";
+    $start_time = time();
 
     while ($msg = socket_read($socket, 4096)) {
         ob_start();
@@ -168,6 +169,11 @@ function start_service()
             // 删除掉已经读取的数据
             $recv_buf = substr($recv_buf, $len + 4);
 
+            $s = time() - $start_time;
+            $p = 0;
+            if ($s > 0) {
+                $p = $count/$s;
+            }
             switch ($cmd) {
                 case CMD_TICK:
                     clog("心跳包返回值：" . $content);
@@ -176,7 +182,7 @@ function start_service()
                     clog("错误：" . $content);
                     break;
                 case CMD_EVENT:
-                    clog($count . "次收到事件：" . $content);
+                    clog("每秒响应 ".$p." 次，".$count . "次收到事件：" . $content);
                     $count++;
                     break;
                 case CMD_OK:
