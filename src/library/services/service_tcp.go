@@ -247,7 +247,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 				log.Info("tcp service, sendQueue channel closed.")
 				return
 			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 1))
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 3))
 			size, err := (*node.conn).Write(msg)
 			atomic.AddInt64(&node.sendTimes, int64(1))
 			if size <= 0 || err != nil {
