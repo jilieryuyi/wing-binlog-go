@@ -85,7 +85,6 @@ func (h *Binlog) registerService() {
 	if err != nil {
 		hostname = ""
 	}
-	//name := hostname + h.sessionId
 	t := time.Now().Unix()
 	service := &api.AgentServiceRegistration{
 		ID:                h.sessionId,
@@ -97,34 +96,11 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	//log.Debugf("register service %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
 	}
 }
-
-// 服务发现，获取服务列表
-//func (h *Binlog) getServices() map[string]*api.AgentService {
-//	if !h.enable {
-//		return nil
-//	}
-//	//1516574111-0hWR-E6IN-lrsO: {
-//	// ID:1516574111-0hWR-E6IN-lrsO
-//	// Service:yuyideMacBook-Pro.local1516574111-0hWR-E6IN-lrsO
-//	// Tags:[ 1516574111-0hWR-E6IN-lrsO /7tZ yuyideMacBook-Pro.local]
-//	// Port:9998 Address:127.0.0.1
-//	// EnableTagOverride:false
-//	// CreateIndex:0
-//	// ModifyIndex:0
-//	// }
-//	ser, err := h.agent.Services()
-//	if err != nil {
-//		log.Errorf("get service list error: %+v", err)
-//		return nil
-//	}
-//	return ser
-//}
 
 // keepalive
 func (h *Binlog) keepalive() {
@@ -171,8 +147,6 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m.SessionId   = v.Tags[1]
 		m.ServiceIp = v.Address
 		m.Port      = v.Port
-		//log.Debugf("member=>%+v", *m[i])
-		//i++
 		data = append(data, m)
 	}
 	return data
