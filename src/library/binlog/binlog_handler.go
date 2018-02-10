@@ -11,6 +11,7 @@ import (
 	"os"
 	"library/path"
 	"io"
+	"library/app"
 )
 
 func (h *Binlog) handlerInit() {
@@ -56,7 +57,7 @@ func (h *Binlog) handlerInit() {
 func (h *Binlog) setHandler()  {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	cfg, err := canal.NewConfigWithFile(path.CurrentPath + "/config/canal.toml")
+	cfg, err := canal.NewConfigWithFile(app.ConfigPath + "/canal.toml")
 	if err != nil {
 		log.Panicf("binlog create canal config error：%+v", err)
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 	"runtime"
 	"github.com/sevlyar/go-daemon"
+	"strings"
 )
 var (
 	Pid = path.CurrentPath + "/wing-binlog-go.pid"
@@ -61,6 +62,16 @@ func Init() {
 	// set cpu num
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
+}
+
+func ConfigPathParse(configPath string) {
+	if configPath != "" && path.Exists(configPath) {
+		ConfigPath = configPath
+	}
+	ConfigPath = strings.Replace(ConfigPath, "\\", "/", -1)
+	if ConfigPath[len(ConfigPath)-1:] == "/" {
+		ConfigPath = ConfigPath[:len(ConfigPath)-1]
+	}
 }
 
 func Release() {

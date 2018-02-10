@@ -19,6 +19,7 @@ type Config struct {
 
 // debug mode, default is false
 var DEBUG = false
+var ConfigPath = path.CurrentPath + "/config"
 
 // context
 type Context struct {
@@ -56,7 +57,7 @@ func (ctx *Context)signalHandler() {
 
 func GetAppConfig() (*Config, error) {
 	var appConfig Config
-	configFile := path.CurrentPath + "/config/wing-binlog-go.toml"
+	configFile := ConfigPath + "/wing-binlog-go.toml"
 	if !file.Exists(configFile) {
 		log.Errorf("config file %s does not exists", configFile)
 		return nil, ErrorFileNotFound

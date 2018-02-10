@@ -2,9 +2,9 @@ package services
 
 import (
 	"library/file"
-	"library/path"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
+	"library/app"
 )
 
 // parse http config
@@ -12,7 +12,7 @@ import (
 // use for service_http.go NewHttpService and Reload
 func getHttpConfig() (*HttpConfig, error) {
 	var config HttpConfig
-	configFile := path.CurrentPath + "/config/http.toml"
+	configFile := app.ConfigPath + "/http.toml"
 	if !file.Exists(configFile) {
 		log.Warnf("config file %s does not exists", configFile)
 		return nil, ErrorFileNotFound
@@ -28,7 +28,7 @@ func getHttpConfig() (*HttpConfig, error) {
 }
 
 func GetTcpConfig() (*TcpConfig, error) {
-	configFile := path.CurrentPath + "/config/tcp.toml"
+	configFile := app.ConfigPath + "/tcp.toml"
 	if !file.Exists(configFile) {
 		log.Warnf("config %s does not exists", configFile)
 		return nil, ErrorFileNotFound
@@ -46,7 +46,6 @@ func GetTcpConfig() (*TcpConfig, error) {
 	}
 	return &tcpConfig, nil
 }
-
 
 func pack(cmd int, msg string) []byte {
 	m  := []byte(msg)
