@@ -83,6 +83,9 @@ type Binlog struct {
 	Kv *api.KV
 	// consul agent, use for register service
 	agent *api.Agent
+
+	startServiceChan chan struct{}
+	stopServiceChan chan bool
 }
 
 const (
