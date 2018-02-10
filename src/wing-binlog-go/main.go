@@ -75,10 +75,8 @@ func main() {
 	}
 	// app init
 	app.DEBUG = *debug
-
-	app.Init()
 	app.ConfigPathParse(*configPath)
-	log.Debugf("load config form path: %s", app.ConfigPath)
+	app.Init()
 	// clear some resource after exit
 	defer app.Release()
 

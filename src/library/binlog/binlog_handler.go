@@ -18,7 +18,7 @@ func (h *Binlog) handlerInit() {
 	var (
 		err error
 	)
-	mysqlBinlogCacheFile := path.CurrentPath + "/cache/mysql_binlog_position.pos"
+	mysqlBinlogCacheFile := app.CachePath + "/mysql_binlog_position.pos"
 	path.Mkdir(path.GetParent(mysqlBinlogCacheFile))
 	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
 	h.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)

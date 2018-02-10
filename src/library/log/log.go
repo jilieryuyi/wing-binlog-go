@@ -25,7 +25,7 @@ func init() {
 	}
 }
 
-func getHandler(level log.Level) (*os.File, error) {
+func getHandler(logPath string, level log.Level) (*os.File, error) {
 	logLock.Lock()
 	defer logLock.Unlock()
 	//初始化当前，后天的文件句柄
@@ -33,8 +33,8 @@ func getHandler(level log.Level) (*os.File, error) {
 	month    := time.GetYearMonth()
 	t        := stime.Now()
 	day      := fmt.Sprintf("%d-%02d-%02d", t.Year(), t.Month(), t.Day())
-	dir      := fmt.Sprintf("%s/logs/%d/%s", path.CurrentPath, year, month)
-	dfile    := fmt.Sprintf("%s/logs/%d/%s/%s-%s.log", path.CurrentPath, year, month, level.String(), day)
+	dir      := fmt.Sprintf("%s/%d/%s", logPath, year, month)
+	dfile    := fmt.Sprintf("%s/%d/%s/%s-%s.log", logPath, year, month, level.String(), day)
 	//logsDir := &file.WPath{Dir:dir}
 	if !path.Exists(dir) {
 		os.MkdirAll(dir, 0755)
@@ -59,7 +59,9 @@ func getHandler(level log.Level) (*os.File, error) {
 }
 
 
-type ContextHook struct {}
+type ContextHook struct {
+	LogPath string
+}
 func (hook ContextHook) Levels() []log.Level {
 	return log.AllLevels
 }
@@ -118,7 +120,7 @@ func (hook ContextHook) Fire(entry *log.Entry) error {
 		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
 		return err
 	}
-	handler, err := getHandler(entry.Level)
+	handler, err := getHandler(hook.LogPath, entry.Level)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "get log handler error, %v", err)
 		return nil

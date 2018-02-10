@@ -29,6 +29,9 @@ func Init() {
 	ioutil.WriteFile(Pid, data, 0777)
 	// get app config
 	appConfig, _ := GetAppConfig()
+	CachePath = appConfig.CachePath
+	LogPath   = appConfig.LogPath
+
 	// run pprof
 	go func() {
 		//http://localhost:6060/debug/pprof/  内存性能分析工具
@@ -57,21 +60,38 @@ func Init() {
 		FullTimestamp:    true,
 	})
 	// set log context hook
-	log.AddHook(mlog.ContextHook{})
+	log.AddHook(mlog.ContextHook{LogPath:LogPath})
 	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
 	// set cpu num
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
+
+	log.Debugf("cache path: %s", CachePath)
+	log.Debugf("log path: %s", LogPath)
+	log.Debugf("app config: %+v", *appConfig)
+}
+
+func pathParse(dir string, defaultValue string) string {
+	if dir == "" || !path.Exists(dir) {
+		return defaultValue
+	}
+	dir = strings.Replace(dir, "\\", "/", -1)
+	if dir[len(dir)-1:] == "/" {
+		dir = dir[:len(dir)-1]
+	}
+	return dir
 }
 
 func ConfigPathParse(configPath string) {
-	if configPath != "" && path.Exists(configPath) {
-		ConfigPath = configPath
-	}
-	ConfigPath = strings.Replace(ConfigPath, "\\", "/", -1)
-	if ConfigPath[len(ConfigPath)-1:] == "/" {
-		ConfigPath = ConfigPath[:len(ConfigPath)-1]
-	}
+	//if configPath != "" && path.Exists(configPath) {
+	//	ConfigPath = configPath
+	//}
+	//ConfigPath = strings.Replace(ConfigPath, "\\", "/", -1)
+	//if ConfigPath[len(ConfigPath)-1:] == "/" {
+	//	ConfigPath = ConfigPath[:len(ConfigPath)-1]
+	//}
+	ConfigPath = pathParse(configPath, ConfigPath)
+	log.Debugf("load config form path: %s", ConfigPath)
 }
 
 func Release() {

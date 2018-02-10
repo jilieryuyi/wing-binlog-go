@@ -9,17 +9,24 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"strings"
 )
 
 type Config struct {
 	LogLevel int       `toml:"log_level"`
 	PprofListen string `toml:"pprof_listen"`
-	TimeZone string     `toml:"time_zone"`
+	TimeZone string    `toml:"time_zone"`
+	CachePath string   `toml:"cache_path"`
+	LogPath string     `toml:"log_path"`
 }
 
 // debug mode, default is false
-var DEBUG = false
-var ConfigPath = path.CurrentPath + "/config"
+var (
+	DEBUG = false
+    ConfigPath = path.CurrentPath + "/config"
+    CachePath  = path.CurrentPath + "/cache"
+    LogPath    = path.CurrentPath + "/logs"
+)
 
 // context
 type Context struct {
@@ -68,6 +75,33 @@ func GetAppConfig() (*Config, error) {
 	}
 	if appConfig.TimeZone == "" {
 		appConfig.TimeZone = "Local"
+	}
+
+	appConfig.CachePath = strings.Trim(appConfig.CachePath, " ")
+	if appConfig.CachePath != "" && !path.Exists(appConfig.CachePath) {
+		path.Mkdir(appConfig.CachePath)
+	}
+	appConfig.CachePath = pathParse(appConfig.CachePath, CachePath)
+	if appConfig.CachePath != "" && !path.Exists(appConfig.CachePath) {
+		path.Mkdir(appConfig.CachePath)
+	}
+
+	appConfig.CachePath = strings.Trim(appConfig.CachePath," ")
+	if appConfig.CachePath != "" && !path.Exists(appConfig.CachePath) {
+		path.Mkdir(appConfig.CachePath)
+	}
+	appConfig.CachePath = pathParse(appConfig.CachePath, CachePath)
+	if appConfig.CachePath != "" && !path.Exists(appConfig.CachePath) {
+		path.Mkdir(appConfig.CachePath)
+	}
+
+	appConfig.LogPath = strings.Trim(appConfig.LogPath, " ")
+	if appConfig.LogPath != "" && !path.Exists(appConfig.LogPath) {
+		path.Mkdir(appConfig.LogPath)
+	}
+	appConfig.LogPath = pathParse(appConfig.LogPath, LogPath)
+	if appConfig.LogPath != "" && !path.Exists(appConfig.LogPath) {
+		path.Mkdir(appConfig.LogPath)
 	}
 	return &appConfig, nil
 }
