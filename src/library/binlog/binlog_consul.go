@@ -149,7 +149,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m.ServiceIp = v.Address
 		m.Port      = v.Port
 		data = append(data, m)
-		log.Debugf("member: %+v, %+v", *v, *m)
+		//log.Debugf("member: %+v, %+v", *v, *m)
 	}
 	return data
 }
