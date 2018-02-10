@@ -150,6 +150,7 @@ func Usage() {
 // run as daemon process
 func DaemonProcess(d bool) bool {
 	if d {
+		params := os.Args[0] + " -daemon " +  ConfigPath
 		ctx = &daemon.Context{
 			PidFileName: Pid,
 			PidFilePerm: 0644,
@@ -157,7 +158,7 @@ func DaemonProcess(d bool) bool {
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
-			Args:        []string{os.Args[0] + " -daemon"},
+			Args:        []string{params},
 		}
 		d, err := ctx.Reborn()
 		if err != nil {
