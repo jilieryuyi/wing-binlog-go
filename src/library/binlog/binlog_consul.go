@@ -129,8 +129,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		return nil
 	}
 	data := make([]*ClusterMember, 0)
-	//fmt.Println("")
-	//log.Debugf("============================================")
+	fmt.Println("")
 	for _, v := range members {
 		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
 		if len(v.Tags) < 5 {
@@ -151,9 +150,8 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m.ServiceIp = v.Address
 		m.Port      = v.Port
 		data = append(data, m)
-		//log.Debugf("member: %+v, %+v", *v, *m)
+		log.Debugf("member: %+v, %+v", *v, *m)
 	}
-	//log.Debugf("============================================")
 
 	return data
 }
@@ -181,11 +179,11 @@ func (h *Binlog) checkAlive() {
 			//t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
 			//only check other nodes is alive
 			if v.Status == statusOffline {
-				log.Warnf("%s is timeout, will be deregister", v.SessionId)
-				h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
 				//if is leader, ping, check leader is alive again
 				if v.IsLeader && !h.alive(v.ServiceIp, v.Port) {
+					log.Warnf("%s is timeout, will be deregister", v.SessionId)
+					h.agent.ServiceDeregister(v.SessionId)
 					h.Delete(h.LockKey)
 					if h.Lock() {
 						log.Debugf("current is the new leader")
