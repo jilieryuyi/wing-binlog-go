@@ -54,7 +54,7 @@ type Context struct {
 func Init() {
 	// write pid file
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
-	ioutil.WriteFile(Pid, data, 0777)
+	ioutil.WriteFile(Pid, data, 0644)
 	// get app config
 	appConfig, _ := GetAppConfig()
 	CachePath = appConfig.CachePath
