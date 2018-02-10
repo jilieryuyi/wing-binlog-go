@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"fmt"
 	"strconv"
+	"net"
 )
 
 func (h *Binlog) consulInit() {
@@ -169,14 +170,18 @@ func (h *Binlog) checkAlive() {
 			continue
 		}
 		for _, v := range members {
+			if v.SessionId == h.sessionId {
+				continue
+			}
 			//isLock := v.Tags[0] == "1"
 			//t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
 			//only check other nodes is alive
-			if v.Status == statusOffline/* && v.ID != h.sessionId */{
+			if v.Status == statusOffline {
 				log.Warnf("%s is timeout, will be deregister", v.SessionId)
 				h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
-				if v.IsLeader {
+				//if is leader, ping, check leader is alive again
+				if v.IsLeader && !h.alive(v.ServiceIp, v.Port) {
 					h.Delete(h.LockKey)
 					if h.Lock() {
 						log.Debugf("current is the new leader")
@@ -187,6 +192,23 @@ func (h *Binlog) checkAlive() {
 		}
 		time.Sleep(time.Second * checkAliveInterval)
 	}
+}
+
+func (h *Binlog) alive(ip string, port int) bool {
+	log.Debugf("ping %s:%d", ip, port)
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
+	if err != nil {
+		log.Debugf("is not alive")
+		return false
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil || conn == nil {
+		log.Debugf("is not alive")
+		return false
+	}
+	conn.Close()
+	log.Debugf("is alive")
+	return true
 }
 
 // watch pos change
