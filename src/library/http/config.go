@@ -8,7 +8,7 @@ import (
 	"library/file"
 	"net/http"
 	"sync"
-	"library/path"
+	"library/app"
 )
 
 var (
@@ -91,7 +91,7 @@ const (
 
 func getServiceConfig() (*httpServiceConfig, error) {
 	var config httpServiceConfig
-	config_file := path.CurrentPath + "/config/admin.toml"
+	config_file := app.ConfigPath + "/admin.toml"
 	if !file.Exists(config_file) {
 		log.Printf("配置文件%s不存在", config_file)
 		return nil, ErrorFileNotFound

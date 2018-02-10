@@ -27,6 +27,7 @@ var (
 	// -daemon === -d run as daemon process
 	daemon         = flag.Bool("daemon", false, "-daemon or -d, run as daemon process")
 	d              = flag.Bool("d", false, "-daemon or -d, run as daemon process")
+	configPath     = flag.String("config-path", "", "-config-path set config path, default is ./config")
 )
 
 func Cmd() bool {
@@ -74,7 +75,10 @@ func main() {
 	}
 	// app init
 	app.DEBUG = *debug
+
 	app.Init()
+	app.ConfigPathParse(*configPath)
+	log.Debugf("load config form path: %s", app.ConfigPath)
 	// clear some resource after exit
 	defer app.Release()
 

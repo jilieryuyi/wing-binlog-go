@@ -1,7 +1,6 @@
 package binlog
 
 import (
-	"library/path"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"library/file"
@@ -82,7 +81,7 @@ func unpackPos(data []byte) (string, int64, int64) {
 
 func getConfig() (*Config, error) {
 	var config Config
-	configFile := path.CurrentPath + "/config/cluster.toml"
+	configFile := app.ConfigPath + "/cluster.toml"
 	//wfile := file.WFile{configFile}
 	if !file.Exists(configFile) {
 		log.Errorf("config file not found: %s", configFile)
@@ -98,7 +97,7 @@ func getConfig() (*Config, error) {
 // 获取mysql配置
 func GetMysqlConfig() (*AppConfig, error) {
 	var appConfig AppConfig
-	configFile := path.CurrentPath + "/config/canal.toml"
+	configFile := app.ConfigPath + "/canal.toml"
 	if !file.Exists(configFile) {
 		log.Errorf("config file %s not found", configFile)
 		return nil, app.ErrorFileNotFound
