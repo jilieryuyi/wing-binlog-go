@@ -12,3 +12,5 @@ pprof_listen = "0.0.0.0:6060"
 time_zone = "Local"
 cache_path = "" ##缓存目录，如果为空，使用默认设置，默认为当前目录下的cache目录
 log_path = "" ##日志目录，空使用默认配置
+pid_file = "" ## pid文件，默认为 当前路径/wing-binlog-go.pid， 为空则使用默认配置
+sock_file = "" ## unix socket 文件，默认为 当前路径/wing-binlog-go.sock， 为空则使用默认配置
