@@ -143,6 +143,7 @@ func Usage() {
 	fmt.Println("wing-binlog-go -service-reload  all              --reload all service")
 	fmt.Println("wing-binlog-go -members                          --show cluster members")
 	fmt.Println("wing-binlog-go -d|-daemon                        --run as daemon process")
+	fmt.Println("wing-binlog-go -config-path                      --set config path")
 	fmt.Println("*********************************************************************")
 }
 
