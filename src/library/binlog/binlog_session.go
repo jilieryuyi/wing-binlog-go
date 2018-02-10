@@ -8,6 +8,7 @@ import (
 	"time"
 	log "github.com/sirupsen/logrus"
 	wstring "library/string"
+	"library/app"
 )
 
 type Session struct {
@@ -46,7 +47,7 @@ func (ses *Session) delete() (err error) {
 }
 
 func GetSession() string {
-	sessionFile := path.CurrentPath + "/cache/session"
+	sessionFile := app.CachePath + "/session"
 	log.Debugf("session file: %s", sessionFile)
 	if file.Exists(sessionFile) {
 		data := file.Read(sessionFile)
