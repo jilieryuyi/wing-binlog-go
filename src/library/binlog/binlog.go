@@ -138,11 +138,11 @@ func (h *Binlog) StartService() {
 }
 
 func (h *Binlog) Start() {
-	log.Debugf("===========binlog service start===========")
 	for _, service := range h.services {
 		service.Start()
 	}
 	if h.Lock() {
+		log.Debugf("===========binlog service start===========")
 		log.Debugf("current node will run as leader")
 		h.StartService()
 	} else {
