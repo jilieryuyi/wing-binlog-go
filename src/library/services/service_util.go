@@ -38,6 +38,12 @@ func GetTcpConfig() (*TcpConfig, error) {
 		log.Println(err)
 		return nil, ErrorFileParse
 	}
+	if tcpConfig.ServiceIp == "" {
+		log.Panicf("service ip can not be empty (config file: %s)", configFile)
+	}
+	if tcpConfig.Port <= 0 {
+		log.Panicf("service port can not be 0 (config file: %s)", configFile)
+	}
 	return &tcpConfig, nil
 }
 
