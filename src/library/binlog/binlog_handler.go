@@ -27,7 +27,6 @@ func (h *Binlog) handlerInit() {
 	}
 	f, p, index := h.getBinlogPositionCache()
 	h.EventIndex = index
-	h.isClosed   = true
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
 	log.Debugf("==================>master pos: %+v<==================", currentPos)

@@ -22,9 +22,10 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		//tcp service ip and port
 		ServiceIp   : tcpConfig.ServiceIp,
 		ServicePort : tcpConfig.Port,
-		isClosed    : true,
+		//isClosed    : true,
+		//isRunning   : 0,
 	}
-
+	atomic.StoreInt32(&binlog.isRunning, 0)
 	//init consul
 	binlog.consulInit()
 	binlog.handlerInit()
@@ -33,11 +34,12 @@ func NewBinlog(ctx *app.Context) *Binlog {
 }
 
 func (h *Binlog) Close() {
-	log.Warn("binlog service exit")
-	if h.isClosed {
+	isRunning := atomic.LoadInt32(&h.isRunning)
+	if isRunning == 0 {
+		log.Debugf("binlog service is not running")
 		return
 	}
-	h.isClosed = true
+	log.Warn("binlog service exit")
 	h.StopService(true)
 	h.cacheHandler.Close()
 	for name, service := range h.services {
@@ -51,29 +53,31 @@ func (h *Binlog) StopService(exit bool) {
 	log.Debug("binlog service stop")
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if !h.isClosed {
+	isRunning := atomic.LoadInt32(&h.isRunning)
+	if isRunning > 0 {
 		h.handler.Close()
 	} else {
 		h.SaveBinlogPostionCache(h.lastBinFile,
 			int64(h.lastPos),
 			atomic.LoadInt64(&h.EventIndex))
 	}
-	h.isClosed = true
-	if !exit {
+	if !exit && isRunning > 0 {
 		//reset handler
 		h.setHandler()
 	}
+	atomic.StoreInt32(&h.isRunning, 0)
 }
 
 func (h *Binlog) StartService() {
 	log.Debug("binlog service start")
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	if !h.isClosed {
-		log.Debug("binlog service is not in close status")
+	isRunning := atomic.LoadInt32(&h.isRunning)
+	if isRunning > 0 {
+		log.Debug("binlog service is still running")
 		return
 	}
-	h.isClosed = false
+	atomic.StoreInt32(&h.isRunning, 1)
 	go func() {
 		for {
 			if h.lastBinFile == "" {

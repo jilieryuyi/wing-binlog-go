@@ -41,7 +41,8 @@ type Binlog struct {
 	// github.com/siddontang/go-mysql mysql protocol handler
 	handler       *canal.Canal
 	// binlog status, true means that was closed
-	isClosed      bool
+	//isClosed      bool
+	isRunning     int32 // > 0 is running
 	// context, like that use for wait coroutine exit
 	ctx           *app.Context
 	// use for wait coroutine exit
