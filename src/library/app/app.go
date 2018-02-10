@@ -157,7 +157,7 @@ func DaemonProcess(d bool) bool {
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
-			Args:        []string{"-deamon"},
+			Args:        []string{"-daemon"},
 		}
 		d, err := ctx.Reborn()
 		if err != nil {
