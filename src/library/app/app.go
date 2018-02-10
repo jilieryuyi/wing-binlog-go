@@ -26,6 +26,7 @@ var (
 	ConfigPath = path.CurrentPath + "/config"
 	CachePath  = path.CurrentPath + "/cache"
 	LogPath    = path.CurrentPath + "/logs"
+	SockFile   = path.CurrentPath + "/wing-binlog-go.sock"
 )
 
 const (
@@ -38,6 +39,8 @@ type Config struct {
 	TimeZone string    `toml:"time_zone"`
 	CachePath string   `toml:"cache_path"`
 	LogPath string     `toml:"log_path"`
+	PidFile string     `toml:"pid_file"`
+	SockFile string    `toml:"sock_file"`
 }
 
 // context
@@ -52,13 +55,14 @@ type Context struct {
 }
 
 func Init() {
+	appConfig, _ := GetAppConfig()
+	Pid = appConfig.PidFile
+	SockFile = appConfig.SockFile
+	CachePath = appConfig.CachePath
+	LogPath   = appConfig.LogPath
 	// write pid file
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
 	ioutil.WriteFile(Pid, data, 0644)
-	// get app config
-	appConfig, _ := GetAppConfig()
-	CachePath = appConfig.CachePath
-	LogPath   = appConfig.LogPath
 
 	// run pprof
 	go func() {
@@ -154,7 +158,7 @@ func DaemonProcess(d bool) bool {
 		ctx = &daemon.Context{
 			PidFileName: Pid,
 			PidFilePerm: 0644,
-			LogFileName: path.CurrentPath + "/logs/wing-binlog-go.log",
+			LogFileName: LogPath + "/wing-binlog-go.log",
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
@@ -222,6 +226,23 @@ func GetAppConfig() (*Config, error) {
 	if appConfig.LogPath != "" && !path.Exists(appConfig.LogPath) {
 		path.Mkdir(appConfig.LogPath)
 	}
+
+	if appConfig.PidFile == "" {
+		appConfig.PidFile = Pid
+	} else {
+		appConfig.PidFile = strings.Replace(appConfig.PidFile,"\\", "/", -1)
+		dir := path.GetParent(appConfig.PidFile)
+		path.Mkdir(dir)
+	}
+
+	if appConfig.SockFile == "" {
+		appConfig.SockFile = SockFile
+	} else {
+		appConfig.SockFile = strings.Replace(appConfig.SockFile,"\\", "/", -1)
+		dir := path.GetParent(appConfig.SockFile)
+		path.Mkdir(dir)
+	}
+
 	return &appConfig, nil
 }
 

@@ -65,6 +65,12 @@ func main() {
 			log.Errorf("%+v", err)
 		}
 	}()
+	// app init
+	app.DEBUG = *debug
+	app.ConfigPathParse(*configPath)
+	app.Init()
+	// clear some resource after exit
+	defer app.Release()
 	// if use cmd params
 	if Cmd() {
 		return
@@ -73,12 +79,7 @@ func main() {
 	if app.DaemonProcess(*daemon || *d) {
 		return
 	}
-	// app init
-	app.DEBUG = *debug
-	app.ConfigPathParse(*configPath)
-	app.Init()
-	// clear some resource after exit
-	defer app.Release()
+
 
 	appContext  := app.NewContext()
 	httpService := services.NewHttpService(appContext)

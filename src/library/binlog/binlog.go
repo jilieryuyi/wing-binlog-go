@@ -54,16 +54,14 @@ func (h *Binlog) StopService(exit bool) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	isRunning := atomic.LoadInt32(&h.isRunning)
-	if isRunning > 0 {
+	if isRunning > 0 && !exit {
 		h.handler.Close()
+		//reset handler
+		h.setHandler()
 	} else {
 		h.SaveBinlogPostionCache(h.lastBinFile,
 			int64(h.lastPos),
 			atomic.LoadInt64(&h.EventIndex))
-	}
-	if !exit && isRunning > 0 {
-		//reset handler
-		h.setHandler()
 	}
 	atomic.StoreInt32(&h.isRunning, 0)
 }

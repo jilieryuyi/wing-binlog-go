@@ -7,18 +7,19 @@ import (
 	"library/file"
 	"net"
 	"os"
-	"library/path"
+	//"library/path"
 	"library/app"
 	"library/binlog"
 )
 
 func NewUnixServer(ctx *app.Context, binlog *binlog.Binlog) *UnixServer {
-	addr := path.CurrentPath + "/wing-binlog-go.sock"
+	//addr := app.SockFile//path.CurrentPath + "/wing-binlog-go.sock"
 	server := &UnixServer{
-		addr: addr,
+		addr: app.SockFile,
 		ctx : ctx,
 		binlog:binlog,
 	}
+	log.Debugf("unix server: %+v", *server)
 	return server
 }
 
