@@ -43,7 +43,6 @@ func (h *Binlog) Close() {
 	}
 	log.Warn("binlog service exit")
 	h.StopService(true)
-	close(h.startServiceChan)
 	for name, service := range h.services {
 		log.Debugf("%s service exit", name)
 		service.Close()
@@ -122,6 +121,7 @@ func (h *Binlog) lookService() {
 						atomic.LoadInt64(&h.EventIndex))
 					h.cacheHandler.Close()
 					close(h.stopServiceChan)
+					close(h.startServiceChan)
 				}
 				atomic.StoreInt32(&h.isRunning, 0)
 			}

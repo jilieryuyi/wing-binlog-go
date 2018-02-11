@@ -129,7 +129,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		return nil
 	}
 	data := make([]*ClusterMember, 0)
-	fmt.Println("")
+	//fmt.Println("")
 	for _, v := range members {
 		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
 		if len(v.Tags) < 5 {
@@ -150,7 +150,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m.ServiceIp = v.Address
 		m.Port      = v.Port
 		data = append(data, m)
-		log.Debugf("member: %+v, %+v", *v, *m)
+		//log.Debugf("member: %+v, %+v", *v, *m)
 	}
 
 	return data
