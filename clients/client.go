@@ -18,14 +18,12 @@ const CMD_EVENT   = 6
 
 type Client struct {
 	node *Node
-	serviceIp string
-	servicePort int
 	isClose bool
 	lock *sync.Mutex
 	buffer []byte
-	groupName string
 	total int64
 	starttime int64
+	Services []*service
 }
 
 type Node struct {
@@ -33,29 +31,34 @@ type Node struct {
 	isConnect bool
 }
 
-func NewClient(groupName string) *Client{
+func NewClient(s []*service) *Client{
 	agent := &Client{
 		isClose  : true,
 		node     : nil,
 		lock     : new(sync.Mutex),
 		buffer   : make([]byte, 0),
-		groupName : groupName,
+		//groupName : groupName,
 		total:0,
 		starttime:time.Now().Unix(),
+		Services:s,
 	}
 	return agent
 }
 
-func (ag *Client) init() {
+func (ag *Client) init(ip string, port int) bool {
+	log.Debugf("init connect to %s:%d", ip, port)
 	ag.lock.Lock()
 	defer ag.lock.Unlock()
 	if ag.node != nil && ag.node.isConnect {
-		ag.Close()
+		ag.disconnect()
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ag.serviceIp, ag.servicePort))
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
+
 	if err != nil {
-		log.Panicf("start agent with error: %+v", err)
+		log.Errorf("connect to %s:%d with error: %+v", ip, port, err)
+		return false
 	}
+	success := true
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	ag.node = &Node{
 		conn:conn,
@@ -65,9 +68,12 @@ func (ag *Client) init() {
 		log.Errorf("start agent with error: %+v", err)
 		ag.node.isConnect = false
 		ag.node.conn = nil
+		success = true
 	} else {
 		ag.isClose = false
+		success = false
 	}
+	return success
 }
 
 func (ag *Client) pack(cmd int, content string) []byte {
@@ -91,63 +97,63 @@ func (ag *Client) pack(cmd int, content string) []byte {
 	return r
 }
 
-func (ag *Client) Start(serviceIp string, port int) {
-	ag.serviceIp   = serviceIp
-	ag.servicePort = port
-	if ag.serviceIp == "" || ag.servicePort == 0 {
-		log.Warnf("ip ang port empty")
-		return
-	}
-	ag.init()
+func (ag *Client) Start() {
 	keepalive := ag.pack(CMD_TICK, "")
 	go func() {
 		for {
-			ag.node.conn.Write(keepalive)
+			if ag.node == nil {
+				continue
+				time.Sleep(time.Second * 5)
+			}
+			ag.lock.Lock()
+			if ag.node.conn != nil {
+				ag.node.conn.Write(keepalive)
+			}
+			ag.lock.Unlock()
 			time.Sleep(time.Second * 5)
 		}
 	}()
-
-	log.Debugf("====================client start====================")
-	//握手包
-	clientH := ag.pack(CMD_SET_PRO, ag.groupName)
-	{
-		var readBuffer [tcpDefaultReadBufferSize]byte
-		for {
-			ag.lock.Lock()
-			if ag.isClose {
-				ag.lock.Unlock()
-				return
-			}
-			ag.lock.Unlock()
-			if !ag.node.isConnect {
-				ag.init()
-			}
-			if ag.node.conn == nil {
-				time.Sleep(time.Second * 1)
+	for {
+		for _, server := range ag.Services {
+			ag.init(server.ip, server.port)
+			if  ag.node == nil {
 				continue
 			}
-			//握手
-			ag.node.conn.Write(clientH)
-			for {
-				ag.lock.Lock()
-				if ag.isClose {
-					ag.lock.Unlock()
-					return
+			if ag.node.conn == nil {
+				continue
+			}
+			if !ag.node.isConnect {
+				continue
+			}
+			log.Debugf("====================client start====================")
+			//握手包
+			clientH := ag.pack(CMD_SET_PRO, server.groupName)
+			{
+				var readBuffer [tcpDefaultReadBufferSize]byte
+				{
+					if ag.isClose {
+						return
+					}
+					//握手
+					ag.node.conn.Write(clientH)
+					for {
+						if ag.isClose {
+							return
+						}
+						buf := readBuffer[:tcpDefaultReadBufferSize]
+						//清空旧数据 memset
+						for i := range buf {
+							buf[i] = byte(0)
+						}
+						size, err := ag.node.conn.Read(buf[0:])
+						if err != nil || size <= 0 {
+							log.Warnf("agent read with error: %+v", err)
+							ag.disconnect()
+							break
+						}
+						ag.onMessage(buf[:size])
+					}
 				}
-				ag.lock.Unlock()
-				buf := readBuffer[:tcpDefaultReadBufferSize]
-				//清空旧数据 memset
-				for i := range buf {
-					buf[i] = byte(0)
-				}
-				size, err := ag.node.conn.Read(buf[0:])
-				if err != nil || size <= 0 {
-					log.Warnf("agent read with error: %+v", err)
-					ag.disconnect()
-					break
-				}
-				//log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
-				ag.onMessage(buf[:size])
 			}
 		}
 	}
@@ -166,10 +172,10 @@ func (ag *Client) disconnect() {
 
 func (ag *Client) Close() {
 	if ag.isClose {
-		log.Debugf("agent close was called, but not running")
+		log.Debugf("client close was called, but not running")
 		return
 	}
-	log.Warnf("---------------agent close---------------")
+	log.Warnf("---------------client close---------------")
 	ag.disconnect()
 	ag.lock.Lock()
 	ag.isClose = true
@@ -221,8 +227,13 @@ func (ag *Client) onMessage(msg []byte) {
 }
 
 
-func main() {
+type service struct {
+	groupName string
+	ip string
+	port int
+}
 
+func main() {
 	log.SetFormatter(&log.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		ForceColors:      true,
@@ -230,11 +241,20 @@ func main() {
 		FullTimestamp:    true,
 	})
 	log.SetLevel(log.Level(5))
+	ser1 := &service{
+		groupName : "group1",
+		ip : "127.0.0.1",
+		port :10008,
+	}
+	ser2 := &service{
+		groupName : "group1",
+		ip : "127.0.0.1",
+		port :9998,
+	}
+	s := make([]*service, 0)
+	s = append(s, ser1)
+	s = append(s, ser2)
 
-	groupName := "group1"
-	serviceIp := "127.0.0.1"
-	port := 10008
-
-	client := NewClient(groupName)
-	client.Start(serviceIp, port)
+	client := NewClient(s)
+	client.Start()
 }
