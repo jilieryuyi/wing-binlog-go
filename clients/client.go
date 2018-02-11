@@ -244,9 +244,22 @@ func main() {
 		ip : "127.0.0.1",
 		port :9998,
 	}
+	ser3 := &service{
+		groupName : "group1",
+		ip : "127.0.0.1",
+		port :10010,
+	}
+	ser4 := &service{
+		groupName : "group1",
+		ip : "127.0.0.1",
+		port :10009,
+	}
+
 	s := make([]*service, 0)
 	s = append(s, ser1)
 	s = append(s, ser2)
+	s = append(s, ser3)
+	s = append(s, ser4)
 
 	client := NewClient(s)
 	client.Start()
