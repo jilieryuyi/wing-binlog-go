@@ -15,33 +15,42 @@ import (
 //leader发生事件的时候通过agent转发到连接follower的tcp客户端
 //实现数据代理
 
+const (
+	AgentStatusOffline = 1 << iota
+	AgentStatusOnline
+	AgentStatusConnect
+	AgentStatusDisconnect
+)
+
 type Agent struct {
 	node *agentNode
 	serviceIp string
 	servicePort int
-	isClose bool
 	lock *sync.Mutex
 	buffer []byte
 	ctx    *app.Context
 	sendAllChan1 chan map[string] interface{}
 	sendAllChan2 chan []byte
+	status int
 }
 
 type agentNode struct {
 	conn *net.TCPConn
-	isConnect bool
+	//isConnect bool
 }
 
 func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendAllChan2 chan []byte) *Agent{
 	agent := &Agent{
 		sendAllChan1 : sendAllChan1,
 		sendAllChan2 : sendAllChan2,
-		isClose : true,
 		node    : nil,
 		lock    : new(sync.Mutex),
 		buffer  : make([]byte, 0),
-		ctx:ctx,
+		ctx     : ctx,
+		//serviceChan: make(chan struct{}, 100),
+		status  : AgentStatusOffline | AgentStatusDisconnect,
 	}
+	//go agent.lookAgent()
 	return agent
 }
 
@@ -56,106 +65,94 @@ func (ag *Agent) nodeInit() {
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	ag.node = &agentNode{
 		conn:conn,
-		isConnect:true,
 	}
 	if err != nil {
 		log.Errorf("start agent with error: %+v", err)
-		ag.node.isConnect = false
 		ag.node.conn = nil
-	} else {
-		ag.isClose = false
 	}
 }
 
 func (ag *Agent) Start(serviceIp string, port int) {
-	ag.lock.Lock()
-	if !ag.isClose {
-		log.Debugf("===agent is not in close status")
-		ag.lock.Unlock()
+	ag.status ^= AgentStatusOffline
+	ag.status |= AgentStatusOnline
+
+	if ag.status & AgentStatusConnect > 0 {
+		log.Debugf("agent is still is running")
 		return
 	}
-	ag.lock.Unlock()
-	//todo get service ip and port
+
 	ag.serviceIp   = serviceIp
 	ag.servicePort = port
 	if ag.serviceIp == "" || ag.servicePort == 0 {
-		log.Warnf("ip ang port empty")
+		log.Warnf("ip and port empty")
 		return
 	}
 	agentH := pack(CMD_AGENT, "")
 	var readBuffer [tcpDefaultReadBufferSize]byte
-	go func() {
+	for {
+		if ag.status & AgentStatusOffline > 0 {
+			log.Debugf("AgentStatusOffline return")
+			return
+		}
+		ag.nodeInit()
+		if ag.node == nil || ag.node.conn == nil {
+			log.Warnf("node | conn is nil")
+			time.Sleep(time.Second * 3)
+			continue
+		}
+
+		ag.status ^= AgentStatusDisconnect
+		ag.status |= AgentStatusConnect
+
+		log.Debugf("====================agent start====================")
+		//握手
+		ag.node.conn.Write(agentH)
 		for {
-			ag.nodeInit()
-			if ag.node == nil {
-				log.Warnf("node is nil")
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			if ag.node.conn == nil {
-				log.Warnf("conn is nil")
-				ag.nodeInit()
-			}
-			if !ag.node.isConnect {
-				log.Warnf("isConnect false")
-				ag.nodeInit()
-			}
-			if ag.node.conn == nil {
-				log.Warnf("conn is nil, seleep 3 second, retry")
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			if ag.isClose {
+			if ag.status & AgentStatusOffline > 0 {
 				return
 			}
-			log.Debugf("====================agent start====================")
-			//握手
-			ag.node.conn.Write(agentH)
-			for {
-				if ag.isClose {
-					return
-				}
-				buf := readBuffer[:tcpDefaultReadBufferSize]
-				//清空旧数据 memset
-				for i := range buf {
-					buf[i] = byte(0)
-				}
-				size, err := ag.node.conn.Read(buf[0:])
-				if err != nil || size <= 0 {
-					log.Warnf("agent read with error: %+v", err)
-					ag.disconnect()
-					break
-				}
-				log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
-				ag.onMessage(buf[:size])
-				select {
-				case <-ag.ctx.Ctx.Done():
-					log.Warnf("agent context quit")
-					return
-				default:
-				}
+			buf := readBuffer[:tcpDefaultReadBufferSize]
+			//清空旧数据 memset
+			for i := range buf {
+				buf[i] = byte(0)
+			}
+			size, err := ag.node.conn.Read(buf[0:])
+			if err != nil || size <= 0 {
+				log.Warnf("agent read with error: %+v", err)
+				ag.disconnect()
+				break
+			}
+			log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
+			ag.onMessage(buf[:size])
+			select {
+			case <-ag.ctx.Ctx.Done():
+				log.Warnf("agent context quit")
+			return
+			default:
 			}
 		}
-	}()
+	}
 }
 
 func (ag *Agent) disconnect() {
-	if ag.node == nil || !ag.node.isConnect {
+	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
 		return
 	}
 	log.Warnf("---------------agent disconnect---------------")
 	ag.node.conn.Close()
-	ag.node.isConnect = false
+	ag.status ^= AgentStatusConnect
+	ag.status |= AgentStatusDisconnect
 }
 
 func (ag *Agent) Close() {
-	if ag.isClose {
+	if ag.status & AgentStatusOffline > 0 {
 		log.Debugf("agent close was called, but not running")
 		return
 	}
 	log.Warnf("---------------agent close---------------")
 	ag.disconnect()
-	ag.isClose = true
+	ag.status ^= AgentStatusOnline
+	ag.status |= AgentStatusOffline
 }
 
 func (ag *Agent) onMessage(msg []byte) {
