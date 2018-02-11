@@ -30,6 +30,11 @@ var (
 	configPath     = flag.String("config-path", "", "-config-path set config path, default is ./config")
 )
 
+func hasCmd() bool {
+	// 显示版本信息
+	return *version||*stop ||*serviceReload != "" || *help ||*members
+}
+
 func Cmd() bool {
 	// 显示版本信息
 	if *version {
@@ -65,14 +70,17 @@ func main() {
 			log.Errorf("%+v", err)
 		}
 	}()
+	isCmd := hasCmd()
 	// app init
 	app.DEBUG = *debug
 	app.ConfigPathParse(*configPath)
-	app.Init()
+	app.Init(isCmd)
+
 	// clear some resource after exit
 	defer app.Release()
 	// if use cmd params
-	if Cmd() {
+	if isCmd {
+		Cmd()
 		return
 	}
 	// return true is parent process

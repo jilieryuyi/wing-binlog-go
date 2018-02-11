@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"net"
+	"math/rand"
 )
 
 func (h *Binlog) consulInit() {
@@ -162,6 +163,9 @@ func (h *Binlog) checkAlive() {
 	if !h.enable {
 		return
 	}
+	// 延迟执行
+	t := h.rand(30000, 60000)
+	time.Sleep(time.Duration(t) * time.Millisecond)
 	for {
 		//获取所有的服务
 		//判断服务的心跳时间是否超时
@@ -179,44 +183,54 @@ func (h *Binlog) checkAlive() {
 			if v.SessionId == h.sessionId {
 				continue
 			}
-			//isLock := v.Tags[0] == "1"
-			//t, _ := strconv.ParseInt(v.Tags[2], 10, 64)
-			//only check other nodes is alive
 			if v.Status == statusOffline {
+				log.Warnf("%s is timeout", v.SessionId)
+				h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
-				//if is leader, ping, check leader is alive again
+				// if is leader, ping, check leader is alive again
 				if v.IsLeader && !h.alive(v.ServiceIp, v.Port) {
-					log.Warnf("%s is timeout, will be deregister", v.SessionId)
-					h.agent.ServiceDeregister(v.SessionId)
-					h.Delete(h.LockKey)
-					if h.Lock() {
-						log.Debugf("current is the new leader")
-						//log.Debugf("current run as leader, start running")
-						h.StartService()
-						for _, s := range h.services {
-							s.AgentStop()
-						}
-					}
+					//log.Warnf("will be deregister", v.SessionId)
+					//h.agent.ServiceDeregister(v.SessionId)
+					h.newleader()
 				}
 			}
 		}
 		if leaderCount == 0 {
-			log.Warnf("no leader was run, will select a new one")
-			h.Delete(h.LockKey)
-			if h.Lock() {
-				log.Debugf("current is the new leader")
-				//log.Debugf("current run as leader, start running")
-				h.StartService()
-				for _, s := range h.services {
-					s.AgentStop()
+			log.Warnf("no leader is running")
+			h.newleader()
+		}
+		if leaderCount > 1 {
+			log.Warnf("%d leaders is running", leaderCount)
+			for _, v := range members {
+				if v.IsLeader {
+					if !h.alive(v.ServiceIp, v.Port) {
+						log.Warnf("deregister %s", v.SessionId)
+						h.agent.ServiceDeregister(v.SessionId)
+					}
 				}
 			}
 		}
-		if leaderCount > 1 {
-			log.Warnf("%d leaders is running, will stop it", leaderCount)
-			h.StopService(false)
-		}
-		time.Sleep(time.Second * checkAliveInterval)
+		n := h.rand(checkAliveInterval * 1000, checkAliveInterval * 3 * 1000)
+		log.Debugf("sleep %vms", n)
+		time.Sleep(time.Millisecond * time.Duration(n))
+	}
+}
+func (h *Binlog) rand(min int, max int) int {
+	r1 := rand.NewSource(time.Now().UnixNano())
+	r2 := rand.New(r1)
+	n := r2.Intn(max)
+	if n < min {
+		n = h.rand(min, max)
+	}
+	return n
+}
+func (h *Binlog) newleader() {
+	n := h.rand(500, 3000)
+	time.Sleep(time.Millisecond * time.Duration(n))
+	h.Delete(h.LockKey)
+	if h.Lock() {
+		log.Debugf("current is the new leader")
+		h.StartService()
 	}
 }
 

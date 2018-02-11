@@ -89,9 +89,9 @@ type Binlog struct {
 }
 
 const (
-	serviceKeepaliveTimeout  = 6 // timeout, unit is second
-	checkAliveInterval       = 1 // interval for checkalive
-	keepaliveInterval        = 1 // interval for keepalive
+	serviceKeepaliveTimeout  = 36 // timeout, unit is second
+	checkAliveInterval       = 6  // interval for checkalive
+	keepaliveInterval        = 1  // interval for keepalive
 
 	posKey          = "wing/binlog/pos/"
 	prefixKeepalive = "wing/binlog/keepalive/"
