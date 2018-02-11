@@ -552,7 +552,8 @@ func (tcp *TcpService) Reload() {
 
 // agent will connect to serviceIp:port
 func (tcp *TcpService) AgentStart(serviceIp string, port int) {
-	tcp.Agent.Start(serviceIp, port)
+	log.Debugf("TcpService AgentStart")
+	go tcp.Agent.Start(serviceIp, port)
 }
 
 func (tcp *TcpService) AgentStop() {
