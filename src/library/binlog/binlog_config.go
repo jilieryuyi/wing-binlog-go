@@ -42,7 +42,7 @@ type Binlog struct {
 	handler       *canal.Canal
 	// binlog status, true means that was closed
 	//isClosed      bool
-	isRunning     int32 // > 0 is running
+	//isRunning     int32 // > 0 is running
 	// context, like that use for wait coroutine exit
 	ctx           *app.Context
 	// use for wait coroutine exit
@@ -86,8 +86,19 @@ type Binlog struct {
 
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
+
+	status int
 }
 
+const (
+	// 针对停止服务 和 开始服务
+	binlogStatusIsStop = 1 <<iota
+	binlogStatusIsRunning
+	// 最后两个状态成对
+	binlogStatusIsNormal
+	binlogStatusIsExit
+
+)
 const (
 	serviceKeepaliveTimeout  = 36 // timeout, unit is second
 	checkAliveInterval       = 6  // interval for checkalive

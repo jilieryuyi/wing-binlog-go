@@ -105,7 +105,9 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	log.Debugf("datalen=%d", len(jsonData))
 	//send agent
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- pack(CMD_EVENT, string(jsonData))
+		if agent.isConnected {
+			agent.sendQueue <- pack(CMD_EVENT, string(jsonData))
+		}
 	}
 
 	for _, cgroup := range tcp.groups {
@@ -552,7 +554,7 @@ func (tcp *TcpService) Reload() {
 
 // agent will connect to serviceIp:port
 func (tcp *TcpService) AgentStart(serviceIp string, port int) {
-	log.Debugf("TcpService AgentStart")
+	//log.Debugf("TcpService AgentStart")
 	go tcp.Agent.Start(serviceIp, port)
 }
 
