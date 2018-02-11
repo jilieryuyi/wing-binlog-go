@@ -171,7 +171,11 @@ func (h *Binlog) checkAlive() {
 			time.Sleep(time.Second * checkAliveInterval)
 			continue
 		}
+		leaderCount := 0
 		for _, v := range members {
+			if v.IsLeader {
+				leaderCount++
+			}
 			if v.SessionId == h.sessionId {
 				continue
 			}
@@ -187,10 +191,30 @@ func (h *Binlog) checkAlive() {
 					h.Delete(h.LockKey)
 					if h.Lock() {
 						log.Debugf("current is the new leader")
-						h.onNewLeader()
+						//log.Debugf("current run as leader, start running")
+						h.StartService()
+						for _, s := range h.services {
+							s.AgentStop()
+						}
 					}
 				}
 			}
+		}
+		if leaderCount == 0 {
+			log.Warnf("no leader was run, will select a new one")
+			h.Delete(h.LockKey)
+			if h.Lock() {
+				log.Debugf("current is the new leader")
+				//log.Debugf("current run as leader, start running")
+				h.StartService()
+				for _, s := range h.services {
+					s.AgentStop()
+				}
+			}
+		}
+		if leaderCount > 1 {
+			log.Warnf("%d leaders is running, will stop it", leaderCount)
+			h.StopService(false)
 		}
 		time.Sleep(time.Second * checkAliveInterval)
 	}

@@ -44,7 +44,6 @@ func (h *Binlog) Close() {
 	log.Warn("binlog service exit")
 	h.StopService(true)
 	close(h.startServiceChan)
-	close(h.stopServiceChan)
 	for name, service := range h.services {
 		log.Debugf("%s service exit", name)
 		service.Close()
@@ -122,6 +121,7 @@ func (h *Binlog) lookService() {
 						int64(h.lastPos),
 						atomic.LoadInt64(&h.EventIndex))
 					h.cacheHandler.Close()
+					close(h.stopServiceChan)
 				}
 				atomic.StoreInt32(&h.isRunning, 0)
 			}
@@ -130,7 +130,10 @@ func (h *Binlog) lookService() {
 }
 
 func (h *Binlog) StopService(exit bool) {
-	h.stopServiceChan <- exit
+	isRunning := atomic.LoadInt32(&h.isRunning)
+	if isRunning > 0 {
+		h.stopServiceChan <- exit
+	}
 }
 
 func (h *Binlog) StartService() {
@@ -173,14 +176,6 @@ func (h *Binlog) Reload(service string) {
 		}
 	} else {
 		h.services[service].Reload()
-	}
-}
-
-func (h *Binlog) onNewLeader() {
-	log.Debugf("current run as leader, start running")
-	h.StartService()
-	for _, s := range h.services {
-		s.AgentStop()
 	}
 }
 
