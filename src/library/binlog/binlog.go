@@ -38,10 +38,10 @@ func (h *Binlog) Close() {
 		//log.Debugf("binlog service is not running")
 		return
 	}
-
-	h.status ^= binlogStatusIsNormal
-	h.status |= binlogStatusIsExit
-
+	if h.status & binlogStatusIsNormal >0 {
+		h.status ^= binlogStatusIsNormal
+		h.status |= binlogStatusIsExit
+	}
 	log.Warn("binlog service exit")
 	h.StopService(true)
 	for name, service := range h.services {
@@ -51,6 +51,8 @@ func (h *Binlog) Close() {
 	h.closeConsul()
 	h.agent.ServiceDeregister(h.sessionId)
 	h.wg.Wait()
+	close(h.stopServiceChan)
+	close(h.startServiceChan)
 }
 
 func (h *Binlog) lookService() {
@@ -69,8 +71,10 @@ func (h *Binlog) lookService() {
 						break
 					}
 					log.Debug("binlog service start")
-					h.status ^= binlogStatusIsStop
-					h.status |= binlogStatusIsRunning
+					if h.status & binlogStatusIsStop > 0 {
+						h.status ^= binlogStatusIsStop
+						h.status |= binlogStatusIsRunning
+					}
 					go func() {
 						for {
 							if h.lastBinFile == "" {
@@ -124,8 +128,6 @@ func (h *Binlog) lookService() {
 						int64(h.lastPos),
 						atomic.LoadInt64(&h.EventIndex))
 					h.cacheHandler.Close()
-					//close(h.stopServiceChan)
-					//close(h.startServiceChan)
 				}
 				if h.status & binlogStatusIsRunning > 0 {
 					h.status ^= binlogStatusIsRunning
@@ -171,11 +173,16 @@ func (h *Binlog) Start() {
 	}()
 }
 
+// start tcp service agent
+// service stop will start a tcp service agent
 func (h *Binlog) agentStart() {
 	var serviceIp = ""
 	var port= 0
 	go func() {
 		st := time.Now().Unix()
+		// get leader service ip and port
+		// if empty, wait for init
+		// max wait time is 60 seconds
 		for {
 			if (time.Now().Unix() - st) > 60 {
 				break
@@ -198,8 +205,12 @@ func (h *Binlog) agentStart() {
 	}()
 }
 
+// service reload
+// ./wing-binlog-go -service-reload all
+// ./wing-binlog-go -service-reload tcp
+// ./wing-binlog-go -service-reload http
 func (h *Binlog) Reload(service string) {
-	if service == "all" {
+	if service == serviceNameAll {
 		for _, s := range h.services {
 			s.Reload()
 		}

@@ -108,6 +108,9 @@ const (
 	prefixKeepalive = "wing/binlog/keepalive/"
 	statusOnline    = "online"
 	statusOffline   = "offline"
+	serviceNameTcp  = "tcp"
+	serviceNameHttp = "http"
+	serviceNameAll  = "all"
 )
 
 type ConsulConfig struct{
