@@ -50,6 +50,7 @@ func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendA
 		//serviceChan: make(chan struct{}, 100),
 		status  : AgentStatusOffline | AgentStatusDisconnect,
 	}
+	log.Debugf("status======%d", agent.status)
 	//go agent.lookAgent()
 	return agent
 }
@@ -73,14 +74,15 @@ func (ag *Agent) nodeInit() {
 }
 
 func (ag *Agent) Start(serviceIp string, port int) {
-	ag.status ^= AgentStatusOffline
-	ag.status |= AgentStatusOnline
-
 	if ag.status & AgentStatusConnect > 0 {
-		log.Debugf("agent is still is running")
+		//log.Debugf("agent is still is running")
 		return
 	}
-
+	if ag.status & AgentStatusOffline > 0 {
+		ag.status ^= AgentStatusOffline
+		ag.status |= AgentStatusOnline
+	}
+	log.Debugf("status======%d", ag.status)
 	ag.serviceIp   = serviceIp
 	ag.servicePort = port
 	if ag.serviceIp == "" || ag.servicePort == 0 {
@@ -91,7 +93,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
 		if ag.status & AgentStatusOffline > 0 {
-			log.Debugf("AgentStatusOffline return")
+			log.Warnf("AgentStatusOffline return")
 			return
 		}
 		ag.nodeInit()
@@ -101,14 +103,18 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			continue
 		}
 
-		ag.status ^= AgentStatusDisconnect
-		ag.status |= AgentStatusConnect
+		if ag.status & AgentStatusDisconnect >0 {
+			ag.status ^= AgentStatusDisconnect
+			ag.status |= AgentStatusConnect
+		}
+		log.Debugf("status======%d", ag.status)
 
 		log.Debugf("====================agent start====================")
 		//握手
 		ag.node.conn.Write(agentH)
 		for {
 			if ag.status & AgentStatusOffline > 0 {
+				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
 				return
 			}
 			buf := readBuffer[:tcpDefaultReadBufferSize]
@@ -140,19 +146,25 @@ func (ag *Agent) disconnect() {
 	}
 	log.Warnf("---------------agent disconnect---------------")
 	ag.node.conn.Close()
-	ag.status ^= AgentStatusConnect
-	ag.status |= AgentStatusDisconnect
+	if ag.status & AgentStatusConnect > 0 {
+		ag.status ^= AgentStatusConnect
+		ag.status |= AgentStatusDisconnect
+	}
+	log.Debugf("status======%d", ag.status)
 }
 
 func (ag *Agent) Close() {
 	if ag.status & AgentStatusOffline > 0 {
-		log.Debugf("agent close was called, but not running")
+		//log.Debugf("agent close was called, but not running")
 		return
 	}
 	log.Warnf("---------------agent close---------------")
 	ag.disconnect()
-	ag.status ^= AgentStatusOnline
-	ag.status |= AgentStatusOffline
+	if ag.status & AgentStatusOnline > 0 {
+		ag.status ^= AgentStatusOnline
+		ag.status |= AgentStatusOffline
+	}
+	log.Debugf("status======%d", ag.status)
 }
 
 func (ag *Agent) onMessage(msg []byte) {

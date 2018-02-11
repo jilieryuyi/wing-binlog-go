@@ -98,6 +98,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
+	//log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -185,33 +186,39 @@ func (h *Binlog) checkAlive() {
 			}
 			if v.Status == statusOffline {
 				log.Warnf("%s is timeout", v.SessionId)
-				h.agent.ServiceDeregister(v.SessionId)
+				//h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
 				// if is leader, ping, check leader is alive again
 				if v.IsLeader && !h.alive(v.ServiceIp, v.Port) {
 					//log.Warnf("will be deregister", v.SessionId)
 					//h.agent.ServiceDeregister(v.SessionId)
-					h.newleader()
+					//h.newleader()
+					h.Delete(h.LockKey)
 				}
 			}
 		}
-		if leaderCount == 0 {
+		if leaderCount == 0 && len(members) > 0 {
 			log.Warnf("no leader is running")
-			h.newleader()
+			for _, v := range members {
+				log.Debugf("member: %+v", *v)
+			}
+			//h.newleader()
+			h.Delete(h.LockKey)
 		}
 		if leaderCount > 1 {
 			log.Warnf("%d leaders is running", leaderCount)
-			for _, v := range members {
-				if v.IsLeader {
-					if !h.alive(v.ServiceIp, v.Port) {
-						log.Warnf("deregister %s", v.SessionId)
-						h.agent.ServiceDeregister(v.SessionId)
-					}
-				}
-			}
+			h.Delete(h.LockKey)
+			//for _, v := range members {
+			//	if v.IsLeader {
+			//		if !h.alive(v.ServiceIp, v.Port) {
+			//			log.Warnf("deregister %s", v.SessionId)
+			//			h.agent.ServiceDeregister(v.SessionId)
+			//		}
+			//	}
+			//}
 		}
 		n := h.rand(checkAliveInterval * 1000, checkAliveInterval * 3 * 1000)
-		log.Debugf("sleep %vms", n)
+		//log.Debugf("sleep %vms", n)
 		time.Sleep(time.Millisecond * time.Duration(n))
 	}
 }
@@ -310,7 +317,7 @@ func (h *Binlog) GetLeader() (string, int) {
 		return "", 0
 	}
 	for _, v := range members {
-		log.Debugf("GetLeader--%+v", v)
+		//log.Debugf("GetLeader--%+v", v)
 		if v.IsLeader {
 			return v.ServiceIp, v.Port
 		}
@@ -369,9 +376,7 @@ func (h *Binlog) Lock() bool {
 		log.Errorf("lock error: %+v", err)
 	}
 	if success {
-		h.lock.Lock()
 		h.isLock = 1
-		h.lock.Unlock()
 	}
 	return success
 }
