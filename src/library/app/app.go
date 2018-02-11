@@ -54,12 +54,18 @@ type Context struct {
 	CancelChan chan struct{}
 }
 
-func Init() {
+func Init(hasCmd bool) {
 	appConfig, _ := GetAppConfig()
 	Pid = appConfig.PidFile
 	SockFile = appConfig.SockFile
 	CachePath = appConfig.CachePath
 	LogPath   = appConfig.LogPath
+
+	if file.Exists(Pid) && !hasCmd {
+		fmt.Println("other process still running")
+		os.Exit(1)
+	}
+
 	// write pid file
 	data := []byte(fmt.Sprintf("%d", os.Getpid()))
 	ioutil.WriteFile(Pid, data, 0644)

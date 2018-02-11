@@ -48,6 +48,7 @@ func (h *Binlog) Close() {
 		service.Close()
 	}
 	h.closeConsul()
+	h.agent.ServiceDeregister(h.sessionId)
 }
 
 func (h *Binlog) lookService() {
@@ -134,10 +135,16 @@ func (h *Binlog) StopService(exit bool) {
 	if isRunning > 0 {
 		h.stopServiceChan <- exit
 	}
+	if !exit {
+		h.agentStart()
+	}
 }
 
 func (h *Binlog) StartService() {
 	h.startServiceChan <- struct{}{}
+	for _, s := range h.services {
+		s.AgentStop()
+	}
 }
 
 func (h *Binlog) Start() {
@@ -149,23 +156,25 @@ func (h *Binlog) Start() {
 		log.Debugf("current node will run as leader")
 		h.StartService()
 	} else {
-		go func() {
-			var serviceIp = ""
-			var port= 0
-			for {
-				serviceIp, port = h.GetLeader()
-				if serviceIp == "" || port == 0 {
-					log.Warnf("leader ip and port is empty, wait for init")
-					time.Sleep(time.Second)
-					continue
-				}
-				log.Debugf("leader ip and port: %s:%d", serviceIp, port)
-				break
-			}
-			for _, s := range h.services {
-				s.AgentStart(serviceIp, port)
-			}
-		}()
+		h.agentStart()
+	}
+}
+
+func (h *Binlog) agentStart() {
+	var serviceIp = ""
+	var port= 0
+	for {
+		serviceIp, port = h.GetLeader()
+		if serviceIp == "" || port == 0 {
+			log.Warnf("leader ip and port is empty, wait for init")
+			time.Sleep(time.Second)
+			continue
+		}
+		log.Debugf("leader ip and port: %s:%d", serviceIp, port)
+		break
+	}
+	for _, s := range h.services {
+		s.AgentStart(serviceIp, port)
 	}
 }
 

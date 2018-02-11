@@ -46,10 +46,8 @@ func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendA
 }
 
 func (ag *Agent) nodeInit() {
-	ag.lock.Lock()
-	defer ag.lock.Unlock()
-	if ag.node != nil && ag.node.isConnect {
-		ag.Close()
+	if ag.node != nil && ag.node.conn != nil {
+		ag.disconnect()
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ag.serviceIp, ag.servicePort))
 	if err != nil {
@@ -70,41 +68,53 @@ func (ag *Agent) nodeInit() {
 }
 
 func (ag *Agent) Start(serviceIp string, port int) {
+	ag.lock.Lock()
+	if !ag.isClose {
+		log.Debugf("===agent is not in close status")
+		ag.lock.Unlock()
+		return
+	}
+	ag.lock.Unlock()
 	//todo get service ip and port
-	ag.serviceIp = serviceIp
+	ag.serviceIp   = serviceIp
 	ag.servicePort = port
 	if ag.serviceIp == "" || ag.servicePort == 0 {
 		log.Warnf("ip ang port empty")
 		return
 	}
-	ag.nodeInit()
-	log.Debugf("====================agent start====================")
 	agentH := pack(CMD_AGENT, "")
+	var readBuffer [tcpDefaultReadBufferSize]byte
 	go func() {
-		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
-			ag.lock.Lock()
-			if ag.isClose {
-				ag.lock.Unlock()
-				return
+			ag.nodeInit()
+			if ag.node == nil {
+				log.Warnf("node is nil")
+				time.Sleep(time.Second * 3)
+				continue
 			}
-			ag.lock.Unlock()
+			if ag.node.conn == nil {
+				log.Warnf("conn is nil")
+				ag.nodeInit()
+			}
 			if !ag.node.isConnect {
+				log.Warnf("isConnect false")
 				ag.nodeInit()
 			}
 			if ag.node.conn == nil {
-				time.Sleep(time.Second * 1)
+				log.Warnf("conn is nil, seleep 3 second, retry")
+				time.Sleep(time.Second * 3)
 				continue
 			}
+			if ag.isClose {
+				return
+			}
+			log.Debugf("====================agent start====================")
 			//握手
 			ag.node.conn.Write(agentH)
 			for {
-				ag.lock.Lock()
 				if ag.isClose {
-					ag.lock.Unlock()
 					return
 				}
-				ag.lock.Unlock()
 				buf := readBuffer[:tcpDefaultReadBufferSize]
 				//清空旧数据 memset
 				for i := range buf {
@@ -130,8 +140,6 @@ func (ag *Agent) Start(serviceIp string, port int) {
 }
 
 func (ag *Agent) disconnect() {
-	ag.lock.Lock()
-	defer ag.lock.Unlock()
 	if ag.node == nil || !ag.node.isConnect {
 		return
 	}
@@ -147,9 +155,7 @@ func (ag *Agent) Close() {
 	}
 	log.Warnf("---------------agent close---------------")
 	ag.disconnect()
-	ag.lock.Lock()
 	ag.isClose = true
-	ag.lock.Unlock()
 }
 
 func (ag *Agent) onMessage(msg []byte) {
