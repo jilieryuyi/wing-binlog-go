@@ -14,6 +14,7 @@ import (
 	"library/app"
 	"github.com/siddontang/go-mysql/schema"
 	"reflect"
+	"bytes"
 )
 
 func (h *Binlog) handlerInit() {
@@ -362,31 +363,14 @@ func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 		log.Warnf("handler is closed")
 		return "", 0, 0
 	}
-	// read 2 bytes is file data length
-	l := make([]byte, 2)
+	data := make([]byte, bytes.MinRead)
 	h.cacheHandler.Seek(0, io.SeekStart)
-	n, err := h.cacheHandler.Read(l)
+	n, err := h.cacheHandler.Read(data)
 	if n <= 0 || err != nil {
 		if err != io.EOF {
 			log.Errorf("read pos error: %v", err)
 		}
 		return "", int64(0), int64(0)
 	}
-	// dl is file data length
-	dl := int64(l[0]) | int64(l[1]) << 8
-	data := make([]byte, dl)
-	h.cacheHandler.Read(data)
-	if len(data) < 18 {
-		log.Errorf("datalen is %d", len(data))
-		return "", 0, 0
-	}
-	pos := int64(data[0]) | int64(data[1]) << 8 | int64(data[2]) << 16 |
-			int64(data[3]) << 24 | int64(data[4]) << 32 | int64(data[5]) << 40 |
-			int64(data[6]) << 48 | int64(data[7]) << 56
-	eventIndex := int64(data[8]) | int64(data[9]) << 8 |
-			int64(data[10]) << 16 | int64(data[11]) << 24 |
-			int64(data[12]) << 32 | int64(data[13]) << 40 |
-			int64(data[14]) << 48 | int64(data[15]) << 56
-	log.Debugf("read pos: %v, %v, %v", string(data[16:]), pos, eventIndex)
-	return string(data[16:]), pos, eventIndex
+	return unpackPos(data)
 }

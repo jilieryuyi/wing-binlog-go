@@ -69,6 +69,7 @@ func packPos(binFile string, pos int64, eventIndex int64) []byte {
 }
 
 func unpackPos(data []byte) (string, int64, int64) {
+	dl := int64(data[0]) | int64(data[1]) << 8
 	pos := int64(data[2]) | int64(data[3]) << 8 | int64(data[4]) << 16 |
 		int64(data[5]) << 24 | int64(data[6]) << 32 | int64(data[7])<<40 |
 		int64(data[8]) << 48 | int64(data[9]) << 56
@@ -76,7 +77,7 @@ func unpackPos(data []byte) (string, int64, int64) {
 		int64(data[12]) << 16 | int64(data[13]) << 24 |
 		int64(data[14]) << 32 | int64(data[15]) << 40 |
 		int64(data[16]) << 48 | int64(data[17]) << 56
-	return string(data[18:]), pos, eventIndex
+	return string(data[18:dl+2]), pos, eventIndex
 }
 
 func getConfig() (*Config, error) {
