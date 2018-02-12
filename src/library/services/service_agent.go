@@ -23,20 +23,17 @@ const (
 )
 
 type Agent struct {
-	node *agentNode
-	serviceIp string
-	servicePort int
-	lock *sync.Mutex
-	buffer []byte
-	ctx    *app.Context
+	node         *agentNode
+	lock         *sync.Mutex
+	buffer       []byte
+	ctx          *app.Context
 	sendAllChan1 chan map[string] interface{}
 	sendAllChan2 chan []byte
-	status int
+	status       int
 }
 
 type agentNode struct {
 	conn *net.TCPConn
-	//isConnect bool
 }
 
 func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendAllChan2 chan []byte) *Agent{
@@ -47,11 +44,8 @@ func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendA
 		lock    : new(sync.Mutex),
 		buffer  : make([]byte, 0),
 		ctx     : ctx,
-		//serviceChan: make(chan struct{}, 100),
 		status  : AgentStatusOffline | AgentStatusDisconnect,
 	}
-	log.Debugf("status======%d", agent.status)
-	//go agent.lookAgent()
 	go agent.keepalive()
 	return agent
 }
@@ -74,11 +68,11 @@ func (ag *Agent) keepalive() {
 	}
 }
 
-func (ag *Agent) nodeInit() {
+func (ag *Agent) nodeInit(ip string, port int) {
 	if ag.node != nil && ag.node.conn != nil {
 		ag.disconnect()
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ag.serviceIp, ag.servicePort))
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		log.Panicf("start agent with error: %+v", err)
 	}
@@ -101,11 +95,8 @@ func (ag *Agent) Start(serviceIp string, port int) {
 		ag.status ^= AgentStatusOffline
 		ag.status |= AgentStatusOnline
 	}
-	log.Debugf("status======%d", ag.status)
-	ag.serviceIp   = serviceIp
-	ag.servicePort = port
-	if ag.serviceIp == "" || ag.servicePort == 0 {
-		log.Warnf("ip and port empty")
+	if serviceIp == "" || port == 0 {
+		log.Warnf("ip or port empty %s:%d", serviceIp, port)
 		return
 	}
 	agentH := pack(CMD_AGENT, "")
@@ -115,7 +106,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			log.Warnf("AgentStatusOffline return")
 			return
 		}
-		ag.nodeInit()
+		ag.nodeInit(serviceIp, port)
 		if ag.node == nil || ag.node.conn == nil {
 			log.Warnf("node | conn is nil")
 			time.Sleep(time.Second * 3)
@@ -126,11 +117,14 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			ag.status ^= AgentStatusDisconnect
 			ag.status |= AgentStatusConnect
 		}
-		log.Debugf("status======%d", ag.status)
-
 		log.Debugf("====================agent start====================")
-		//握手
-		ag.node.conn.Write(agentH)
+		// 简单的握手
+		n, err := ag.node.conn.Write(agentH)
+		if n <= 0 || err != nil {
+			log.Warnf("write agent header data with error: %d, err", n, err)
+			ag.disconnect()
+			continue
+		}
 		for {
 			log.Debugf("====agent is running====")
 			if ag.status & AgentStatusOffline > 0 {
@@ -151,10 +145,9 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
 			ag.onMessage(buf[:size])
 			select {
-			case <-ag.ctx.Ctx.Done():
-				log.Warnf("agent context quit")
-			return
-			default:
+				case <-ag.ctx.Ctx.Done():
+					return
+				default:
 			}
 		}
 	}
@@ -164,13 +157,12 @@ func (ag *Agent) disconnect() {
 	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
 		return
 	}
-	log.Warnf("---------------agent disconnect---------------")
+	log.Warnf("====================agent disconnect====================")
 	ag.node.conn.Close()
 	if ag.status & AgentStatusConnect > 0 {
 		ag.status ^= AgentStatusConnect
 		ag.status |= AgentStatusDisconnect
 	}
-	log.Debugf("status======%d", ag.status)
 }
 
 func (ag *Agent) Close() {
@@ -178,19 +170,16 @@ func (ag *Agent) Close() {
 		//log.Debugf("agent close was called, but not running")
 		return
 	}
-	log.Warnf("---------------agent close---------------")
+	log.Warnf("====================agent close====================")
 	ag.disconnect()
 	if ag.status & AgentStatusOnline > 0 {
 		ag.status ^= AgentStatusOnline
 		ag.status |= AgentStatusOffline
 	}
-	log.Debugf("status======%d", ag.status)
 }
 
 func (ag *Agent) onMessage(msg []byte) {
 	ag.buffer = append(ag.buffer, msg...)
-	//todo send broadcast
-	//这里还需要解包数据
 	for {
 		bufferLen := len(ag.buffer)
 		if bufferLen < 6 {
