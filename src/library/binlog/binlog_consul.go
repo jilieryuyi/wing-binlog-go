@@ -21,6 +21,7 @@ func (h *Binlog) consulInit() {
 	h.isLock      = 0
 	h.sessionId   = GetSession()
 	h.enable      = consulConfig.Enable
+	h.kvChan      = make(chan []byte, kvChanLen)
 
 	ConsulConfig := api.DefaultConfig()
 	ConsulConfig.Address = h.Address
@@ -58,6 +59,29 @@ func (h *Binlog) consulInit() {
 	// 还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 	// watch pos change, if change, try to write cache
 	go h.watch()
+	go h.asyncWrite()
+}
+
+func (h *Binlog) asyncWrite() {
+	h.wg.Add(1)
+	defer h.wg.Done()
+	for {
+		select {
+		case data, ok := <- h.kvChan:
+			if !ok {
+				return
+			}
+			log.Debugf("write consul pos kv: %s, %v", posKey + h.LockKey, data)
+			_, err := h.Kv.Put(&api.KVPair{Key: posKey + h.LockKey, Value: data}, nil)
+			if err != nil {
+				log.Errorf("write consul pos kv with error: %+v", err)
+			}
+			case <- h.ctx.Ctx.Done():
+				if len(h.kvChan) <= 0 {
+					return
+				}
+		}
+	}
 }
 
 func (h *Binlog) getService() *ClusterMember{
@@ -346,15 +370,15 @@ func (h *Binlog) closeConsul() {
 // write pos kv to consul
 // use by src/library/binlog/handler.go SaveBinlogPostionCache
 func (h *Binlog) Write(data []byte) bool {
-	if !h.enable {
+	if !h.enable || len(data) <= 0 {
 		return true
 	}
-	log.Debugf("write consul pos kv: %s, %v", posKey + h.LockKey, data)
-	_, err := h.Kv.Put(&api.KVPair{Key: posKey + h.LockKey, Value: data}, nil)
-	if err != nil {
-		log.Errorf("write consul pos kv with error: %+v", err)
+	if len(h.kvChan) < cap(h.kvChan) {
+		h.kvChan <- data
+		return true
 	}
-	return nil == err
+	log.Warnf("kvchan full")
+	return false
 }
 
 // lock if success, the current will be a leader

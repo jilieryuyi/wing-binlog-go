@@ -52,7 +52,26 @@ func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendA
 	}
 	log.Debugf("status======%d", agent.status)
 	//go agent.lookAgent()
+	go agent.keepalive()
 	return agent
+}
+
+func (ag *Agent) keepalive() {
+	data := pack(CMD_TICK, "agent keep alive")
+	for {
+		if ag.node == nil || ag.node.conn == nil ||
+			ag.status & (AgentStatusDisconnect) > 0 ||
+			ag.status & AgentStatusOffline > 0{
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		n, err := ag.node.conn.Write(data)
+		if n <= 0 || err != nil {
+			log.Errorf("agent keepalive error: %d, %v", n, err)
+			ag.disconnect()
+		}
+		time.Sleep(3 * time.Second)
+	}
 }
 
 func (ag *Agent) nodeInit() {
@@ -113,12 +132,13 @@ func (ag *Agent) Start(serviceIp string, port int) {
 		//握手
 		ag.node.conn.Write(agentH)
 		for {
+			log.Debugf("====agent is running====")
 			if ag.status & AgentStatusOffline > 0 {
 				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
 				return
 			}
 			buf := readBuffer[:tcpDefaultReadBufferSize]
-			//清空旧数据 memset
+			//clear data
 			for i := range buf {
 				buf[i] = byte(0)
 			}
@@ -180,12 +200,14 @@ func (ag *Agent) onMessage(msg []byte) {
 		contentLen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
 		//2字节 command
 		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
+		log.Debugf("bufferLen=%d, contentLen=%d, cmd=%d", bufferLen, contentLen, cmd)
 		//数据未接收完整，等待下一次处理
 		if bufferLen < 4 + contentLen {
 			return
 		}
+		log.Debugf("%v", ag.buffer)
 		dataB := ag.buffer[6:4 + contentLen]
-		log.Debugf("clen=%d, cmd=%d, %+v", contentLen, cmd, dataB)
+		log.Debugf("clen=%d, cmd=%d, (%d)%+v\n", contentLen, cmd, len(dataB), dataB)
 
 		switch cmd {
 		case CMD_EVENT:
@@ -200,6 +222,9 @@ func (ag *Agent) onMessage(msg []byte) {
 			} else {
 				log.Errorf("json Unmarshal error: %+v, %+v", dataB, err)
 			}
+			log.Debugf("%+v", data)
+		case CMD_TICK:
+			log.Debugf("keepalive: %s", string(dataB))
 		default:
 			if len(ag.sendAllChan2) < cap(ag.sendAllChan2) {
 				ag.sendAllChan2 <- pack(cmd, string(msg))
@@ -207,7 +232,22 @@ func (ag *Agent) onMessage(msg []byte) {
 				log.Warnf("ag.sendAllChan2 was full")
 			}
 		}
-		//数据移动，清除已读数据
+		//remove(&ag.buffer, contentLen + 4)
 		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
+		log.Debugf("%v", ag.buffer)
+
+		//var i = 0
+		//var si = 0
+		////数据移动，清除已读数据
+		//for i = 0; i < contentLen + 4; i++ {
+		//	ag.buffer[i] = byte(0)
+		//}
+		////if bufferLen > contentLen + 4 {
+		//	for i = contentLen + 4; i < bufferLen; i ++ {
+		//		ag.buffer[si] = ag.buffer[i]
+		//		si++
+		//	}
+		//}
+		//ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
 	}
 }

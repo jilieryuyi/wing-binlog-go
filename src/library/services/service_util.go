@@ -61,3 +61,22 @@ func pack(cmd int, msg string) []byte {
 	copy(r[6:], m)
 	return r
 }
+
+
+//func remove(buffer *[]byte, index int) {
+//	var i = 0
+//	var si = 0
+//	var blen = len(*buffer)
+//	if index > blen {
+//		index = blen
+//	}
+//	//数据移动，清除已读数据
+//	for i = 0; i < index; i++ {
+//		(*buffer)[i] = byte(0)
+//	}
+//	//if bufferLen > contentLen + 4 {
+//	for i = index; i < blen; i ++ {
+//		(*buffer)[si] = (*buffer)[i]
+//		si++
+//	}
+//}
