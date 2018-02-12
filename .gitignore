@@ -22,3 +22,5 @@
 /tools
 /tests/bin/*
 /tests/bin/cache/*
+/tests/*
+/dev/*
