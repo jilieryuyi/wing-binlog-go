@@ -18,9 +18,12 @@ func (h *Binlog) consulInit() {
 	h.LockKey     = consulConfig.Lock
 	//consul config
 	h.Address     = consulConfig.Consul.Address
-	h.isLock      = 0
+	//h.isLock      = 0
 	h.sessionId   = GetSession()
-	h.enable      = consulConfig.Enable
+	if consulConfig.Enable {
+		h.status ^= disableConsul
+		h.status |= enableConsul
+	}
 	h.kvChan      = make(chan []byte, kvChanLen)
 
 	ConsulConfig := api.DefaultConfig()
@@ -85,7 +88,7 @@ func (h *Binlog) asyncWrite() {
 }
 
 func (h *Binlog) getService() *ClusterMember{
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return nil
 	}
 	members := h.GetMembers()
@@ -102,7 +105,7 @@ func (h *Binlog) getService() *ClusterMember{
 
 // register service
 func (h *Binlog) registerService() {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return
 	}
 	h.lock.Lock()
@@ -112,10 +115,14 @@ func (h *Binlog) registerService() {
 		hostname = ""
 	}
 	t := time.Now().Unix()
+	isLeader := 0
+	if h.status & consulIsLock > 0 {
+		isLeader = 1
+	}
 	service := &api.AgentServiceRegistration{
 		ID:                h.sessionId,
 		Name:              h.LockKey,
-		Tags:              []string{fmt.Sprintf("%d", h.isLock), h.sessionId, fmt.Sprintf("%d", t), hostname, h.LockKey},
+		Tags:              []string{fmt.Sprintf("%d", isLeader), h.sessionId, fmt.Sprintf("%d", t), hostname, h.LockKey},
 		Port:              h.ServicePort,
 		Address:           h.ServiceIp,
 		EnableTagOverride: false,
@@ -134,7 +141,7 @@ func (h *Binlog) GetCurrent() (string, int) {
 }
 // keepalive
 func (h *Binlog) keepalive() {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return
 	}
 	for {
@@ -146,7 +153,7 @@ func (h *Binlog) keepalive() {
 
 // get all members nodes
 func (h *Binlog) GetMembers() []*ClusterMember {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return nil
 	}
 	members, err := h.agent.Services()
@@ -188,7 +195,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 // check service is alive
 // if leader is not alive, try to select a new one
 func (h *Binlog) checkAlive() {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return
 	}
 	// 延迟执行
@@ -231,7 +238,11 @@ func (h *Binlog) checkAlive() {
 				log.Debugf("member: %+v", *v)
 			}
 			//h.newleader()
-			h.Delete(h.LockKey)
+			// current not leader
+			if h.status & consulIsUnlock > 0 {
+				log.Warnf("current is not leader, will unlock")
+				h.Delete(h.LockKey)
+			}
 		}
 		if leaderCount > 1 {
 			log.Warnf("%d leaders is running", leaderCount)
@@ -290,12 +301,12 @@ func (h *Binlog) alive(ip string, port int) bool {
 // if pos write by other node
 // all nodes will get change
 func (h *Binlog) watch() {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return
 	}
 	for {
 		h.lock.Lock()
-		if h.isLock == 1 {
+		if h.status & consulIsLock > 0 {
 			h.lock.Unlock()
 			// leader does not need watch
 			time.Sleep(time.Second * 3)
@@ -336,7 +347,7 @@ func (h *Binlog) watch() {
 // if not found or some error happened
 // return empty string and 0
 func (h *Binlog) GetLeader() (string, int) {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		log.Debugf("not enable")
 		return "", 0
 	}
@@ -355,15 +366,15 @@ func (h *Binlog) GetLeader() (string, int) {
 
 // if app is close, it will be call for clear some source
 func (h *Binlog) closeConsul() {
-	if !h.enable {
+	if h.status & disableConsul > 0  {
 		return
 	}
 	h.Delete(prefixKeepalive + h.sessionId)
-	log.Debugf("current is leader %d", h.isLock)
-	h.lock.Lock()
-	l := h.isLock
-	h.lock.Unlock()
-	if l == 1 {
+	//log.Debugf("current is leader", h.isLock)
+	//h.lock.Lock()
+	//l := h.isLock
+	//h.lock.Unlock()
+	if h.status & consulIsLock > 0 {
 		log.Debugf("delete lock %s", h.LockKey)
 		h.Unlock()
 		h.Delete(h.LockKey)
@@ -374,7 +385,7 @@ func (h *Binlog) closeConsul() {
 // write pos kv to consul
 // use by src/library/binlog/handler.go SaveBinlogPostionCache
 func (h *Binlog) Write(data []byte) bool {
-	if !h.enable || len(data) <= 0 {
+	if h.status & disableConsul > 0 || len(data) <= 0 {
 		return true
 	}
 	if len(h.kvChan) < cap(h.kvChan) {
@@ -387,7 +398,7 @@ func (h *Binlog) Write(data []byte) bool {
 
 // lock if success, the current will be a leader
 func (h *Binlog) Lock() bool {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return true
 	}
 	if h.Session.ID == "" {
@@ -403,15 +414,16 @@ func (h *Binlog) Lock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
-	if success {
-		h.isLock = 1
+	if success && h.status & consulIsUnlock > 0 {
+		h.status ^= consulIsUnlock
+		h.status |= consulIsLock
 	}
 	return success
 }
 
 // unlock
 func (h *Binlog) Unlock() bool {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return true
 	}
 	if h.Session.ID == "" {
@@ -426,17 +438,19 @@ func (h *Binlog) Unlock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
-	if success {
-		h.lock.Lock()
-		h.isLock = 0
-		h.lock.Unlock()
+	if success && h.status & consulIsLock > 0 {
+		//h.lock.Lock()
+		//h.isLock = 0
+		//h.lock.Unlock()
+		h.status ^= consulIsLock
+		h.status |= consulIsUnlock
 	}
 	return success
 }
 
 // delete a lock
 func (h *Binlog) Delete(key string) error {
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		return nil
 	}
 	if h.Session.ID == "" {
@@ -446,12 +460,9 @@ func (h *Binlog) Delete(key string) error {
 		return nil
 	}
 	_, err := h.Kv.Delete(key, nil)
-	if err == nil {
-		h.lock.Lock()
-		if key == h.LockKey {
-			h.isLock = 0
-		}
-		h.lock.Unlock()
+	if err == nil && key == h.LockKey && h.status & consulIsLock > 0 {
+		h.status ^= consulIsLock
+		h.status |= consulIsUnlock
 	}
 	return err
 }

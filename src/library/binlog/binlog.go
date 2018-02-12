@@ -25,7 +25,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		ServicePort : tcpConfig.Port,
 		startServiceChan:make(chan struct{}, 100),
 		stopServiceChan:make(chan bool, 100),
-		status : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed,
+		status : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsUnlock | disableConsul,
 	}
 	//init consul
 	binlog.consulInit()
@@ -127,9 +127,9 @@ func (h *Binlog) lookService() {
 				if exit {
 					r := packPos(h.lastBinFile, int64(h.lastPos), atomic.LoadInt64(&h.EventIndex))
 					h.SaveBinlogPositionCache(r)
-					if h.status & cacheHAndlerOpened > 0 {
+					if h.status & cacheHandlerOpened > 0 {
 						h.cacheHandler.Close()
-						h.status ^= cacheHAndlerOpened
+						h.status ^= cacheHandlerOpened
 						h.status |= cacheHandlerClosed
 					}
 				}
@@ -163,7 +163,7 @@ func (h *Binlog) Start() {
 	for _, service := range h.services {
 		service.Start()
 	}
-	if !h.enable {
+	if h.status & disableConsul > 0 {
 		log.Debugf("is not enable consul")
 		h.StartService()
 		return

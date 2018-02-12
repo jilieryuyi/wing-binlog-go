@@ -40,9 +40,6 @@ type Binlog struct {
 	Config        *AppConfig
 	// github.com/siddontang/go-mysql mysql protocol handler
 	handler       *canal.Canal
-	// binlog status, true means that was closed
-	//isClosed      bool
-	//isRunning     int32 // > 0 is running
 	// context, like that use for wait coroutine exit
 	ctx           *app.Context
 	// use for wait coroutine exit
@@ -50,7 +47,7 @@ type Binlog struct {
 	// lock
 	lock          *sync.Mutex
 	// event unique index
-	EventIndex int64
+	EventIndex    int64
 	// registered service, key is the name of the service
 	services      map[string]services.Service
 	// cache handler, use for read and write cache file
@@ -71,37 +68,46 @@ type Binlog struct {
 	ServicePort int
 	// consul session client
 	Session *Session
-	// consul status, if == 1 means that current node is lock success, current is the leader
-	isLock int
 	// unique session id
 	sessionId string
-	// if true enable consul
-	enable bool
 	// consul client api
 	Client *api.Client
 	// consul kv service
 	Kv *api.KV
 	// consul agent, use for register service
 	agent *api.Agent
-
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
-
 	kvChan chan []byte
 	posChan chan []byte
+	// binlog status
 	status int
 }
 
 const (
 	// 针对停止服务 和 开始服务
+	// binlog is stop service status
 	binlogStatusIsStop = 1 << iota
+	// binlog is start service status
 	binlogStatusIsRunning
 	// 最后两个状态成对
+	// normal status
 	binlogStatusIsNormal
+	// binlog is in exit status, will exit later
 	binlogStatusIsExit
 	//针对binlog cache
+	// binlog cache handler is closed
 	cacheHandlerClosed
-	cacheHAndlerOpened
+	// binlog cache handler is opened
+	cacheHandlerOpened
+	// consul is in locked status
+	consulIsLock
+	// consul is in unlock status
+	consulIsUnlock
+	// enable consul
+	enableConsul
+	// disable consul
+	disableConsul
 )
 const (
 	serviceKeepaliveTimeout  = 36 // timeout, unit is second
