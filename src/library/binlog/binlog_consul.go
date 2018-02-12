@@ -429,7 +429,10 @@ func (h *Binlog) Lock() bool {
 	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
 	success, _, err := h.Kv.Acquire(p, nil)
 	if err != nil {
+		// try to create a new session
 		log.Errorf("lock error: %+v", err)
+		log.Debugf("try to create a new session")
+		h.Session.create()
 	}
 	if success && h.status & consulIsFollower > 0 {
 		h.status ^= consulIsFollower
@@ -453,7 +456,9 @@ func (h *Binlog) Unlock() bool {
 	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
 	success, _, err := h.Kv.Release(p, nil)
 	if err != nil {
-		log.Errorf("lock error: %+v", err)
+		log.Errorf("unlock error: %+v", err)
+		log.Debugf("try to create a new session")
+		h.Session.create()
 	}
 	if success && h.status & consulIsLeader > 0 {
 		//h.lock.Lock()
