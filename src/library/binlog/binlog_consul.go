@@ -129,6 +129,9 @@ func (h *Binlog) registerService() {
 	}
 }
 
+func (h *Binlog) GetCurrent() (string, int) {
+	return h.ServiceIp, h.ServicePort
+}
 // keepalive
 func (h *Binlog) keepalive() {
 	if !h.enable {

@@ -45,13 +45,14 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			server.binlog.Reload(string(content))
 		case CMD_SHOW_MEMBERS:
 			members := server.binlog.GetMembers()
+			currentIp, currentPort := server.binlog.GetCurrent()
 			if members != nil {
 				hostname, err := os.Hostname()
 				if err != nil {
 					hostname = ""
 				}
 				l := len(members)
-				res := fmt.Sprintf("current node: %s\r\n", hostname)
+				res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, currentIp, currentPort)
 				res += fmt.Sprintf("cluster size: %d node(s)\r\n", l)
 				res += fmt.Sprintf("======+==========================================+==========+===============\r\n")
 				res += fmt.Sprintf("%-6s| %-40s | %-8s | %s\r\n", "index", "node", "role", "status")
