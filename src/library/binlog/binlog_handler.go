@@ -27,7 +27,7 @@ func (h *Binlog) handlerInit() {
 		log.Panicf("open cache file with error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
 	h.status ^= cacheHandlerClosed
-	h.status |= cacheHAndlerOpened
+	h.status |= cacheHandlerOpened
 	f, p, index := h.getBinlogPositionCache()
 	h.EventIndex = index
 	h.setHandler()
@@ -65,7 +65,7 @@ func (h *Binlog) syncSavePosition() {
 				return
 			}
 			log.Debugf("write binlog pos cache: %+v", r)
-			if h.status & cacheHAndlerOpened > 0 {
+			if h.status & cacheHandlerOpened > 0 {
 				n, err := h.cacheHandler.WriteAt(r, 0)
 				if err != nil || n <= 0 {
 					log.Errorf("write binlog cache file with error: %+v", err)
