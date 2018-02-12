@@ -208,10 +208,10 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
 	rowData := make(map[string] interface{})
-	rowData["database"] = e.Table.Schema
+	rowData["database"]   = e.Table.Schema
 	rowData["event_type"] = e.Action
-	rowData["time"] = time.Now().Unix()
-	rowData["table"] = e.Table.Name
+	rowData["time"]       = time.Now().Unix()
+	rowData["table"]      = e.Table.Name
 
 	data := make(map[string] interface{})
 	ed   := make(map[string] interface{})
