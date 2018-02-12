@@ -34,11 +34,9 @@ const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024
-	tcpRecviveDefaultSize         = 4096
-
-	HTTP_CACHE_LEN         = 10000
+	tcpReceiveDefaultSize         = 4096
+	httpCacheLen                  = 10000
 )
-
 
 type httpNodeConfig struct {
 	Name   string

@@ -81,8 +81,8 @@ func (client *HttpService) cacheInit(node *httpNode) {
 	if node.cacheIsInit {
 		return
 	}
-	node.cache = make([][]byte, HTTP_CACHE_LEN)
-	for k := 0; k < HTTP_CACHE_LEN; k++ {
+	node.cache = make([][]byte, httpCacheLen)
+	for k := 0; k < httpCacheLen; k++ {
 		node.cache[k] = nil //make([]byte, HTTP_CACHE_BUFFER_SIZE)
 	}
 	node.cacheIsInit = true
@@ -94,7 +94,7 @@ func (client *HttpService) addCache(node *httpNode, msg []byte) {
 	log.Debugf("http service add failure cache: %s", node.url)
 	node.cache[node.cacheIndex] = append(node.cache[node.cacheIndex][:0], msg...)
 	node.cacheIndex++
-	if node.cacheIndex >= HTTP_CACHE_LEN {
+	if node.cacheIndex >= httpCacheLen {
 		node.cacheIndex = 0
 		node.cacheFull = true
 	}
@@ -104,7 +104,7 @@ func (client *HttpService) sendCache(node *httpNode) {
 	if node.cacheIndex > 0 {
 		log.Debugf("http service send failure cache: %s", node.url)
 		if node.cacheFull {
-			for j := node.cacheIndex; j < HTTP_CACHE_LEN; j++ {
+			for j := node.cacheIndex; j < httpCacheLen; j++ {
 				node.sendQueue <- string(node.cache[j])
 			}
 		}
