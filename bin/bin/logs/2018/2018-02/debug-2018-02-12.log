@@ -1,0 +1,8 @@
+[37mDEBU[0m[2018-02-12 13:55:54] cache path: /Users/yuyi/Code/go/wing-binlog-go/bin/bin/cache  [37mcaller[0m="[app.go(Init):108]"
+[37mDEBU[0m[2018-02-12 13:55:54] log path: /Users/yuyi/Code/go/wing-binlog-go/bin/bin/logs  [37mcaller[0m="[app.go(Init):109]"
+[37mDEBU[0m[2018-02-12 13:55:54] app config: {LogLevel:5 PprofListen:0.0.0.0:6060 TimeZone:Local CachePath:/Users/yuyi/Code/go/wing-binlog-go/bin/bin/cache LogPath:/Users/yuyi/Code/go/wing-binlog-go/bin/bin/logs PidFile:/Users/yuyi/Code/go/wing-binlog-go/bin/bin/wing-binlog-go.pid SockFile:/Users/yuyi/Code/go/wing-binlog-go/bin/bin/wing-binlog-go.sock}  [37mcaller[0m="[app.go(Init):110]"
+[37mDEBU[0m[2018-02-12 13:55:54] run as daemon process                         [37mcaller[0m="[app.go(DaemonProcess):164]"
+[37mDEBU[0m[2018-02-12 13:55:54] params: [./bin/wing-binlog-go -daemon -config-path /Users/yuyi/Code/go/wing-binlog-go/bin/config]  [37mcaller[0m="[app.go(DaemonProcess):167]"
+[37mDEBU[0m[2018-02-12 13:55:54] start http service with config: &{Enable:true TimeTick:1ns Groups:map[1:{Name:group1 Nodes:[http://test.com/test1.php http://test.com/test2.php] Filter:[]} 2:{Name:group2 Nodes:[http://test.com/test3.php http://test.com/test4.php] Filter:[]}]}  [37mcaller[0m="[service_http.go(NewHttpService):18]"
+[37mDEBU[0m[2018-02-12 13:55:54] status======9                                 [37mcaller[0m="[service_agent.go(newAgent):53]"
+[37mDEBU[0m[2018-02-12 13:55:54] session file: /Users/yuyi/Code/go/wing-binlog-go/bin/bin/cache/session  [37mcaller[0m="[binlog_session.go(GetSession):51]"
