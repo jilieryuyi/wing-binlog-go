@@ -116,7 +116,7 @@ func (h *Binlog) registerService() {
 	}
 	t := time.Now().Unix()
 	isLeader := 0
-	if h.status & consulIsLock > 0 {
+	if h.status & consulIsLeader > 0 {
 		isLeader = 1
 	}
 	service := &api.AgentServiceRegistration{
@@ -239,7 +239,7 @@ func (h *Binlog) checkAlive() {
 			}
 			//h.newleader()
 			// current not leader
-			if h.status & consulIsUnlock > 0 {
+			if h.status & consulIsFollower > 0 {
 				log.Warnf("current is not leader, will unlock")
 				h.Delete(h.LockKey)
 			}
@@ -306,7 +306,7 @@ func (h *Binlog) watch() {
 	}
 	for {
 		h.lock.Lock()
-		if h.status & consulIsLock > 0 {
+		if h.status & consulIsLeader > 0 {
 			h.lock.Unlock()
 			// leader does not need watch
 			time.Sleep(time.Second * 3)
@@ -374,7 +374,7 @@ func (h *Binlog) closeConsul() {
 	//h.lock.Lock()
 	//l := h.isLock
 	//h.lock.Unlock()
-	if h.status & consulIsLock > 0 {
+	if h.status & consulIsLeader > 0 {
 		log.Debugf("delete lock %s", h.LockKey)
 		h.Unlock()
 		h.Delete(h.LockKey)
@@ -414,9 +414,9 @@ func (h *Binlog) Lock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
-	if success && h.status & consulIsUnlock > 0 {
-		h.status ^= consulIsUnlock
-		h.status |= consulIsLock
+	if success && h.status & consulIsFollower > 0 {
+		h.status ^= consulIsFollower
+		h.status |= consulIsLeader
 	}
 	return success
 }
@@ -438,12 +438,12 @@ func (h *Binlog) Unlock() bool {
 	if err != nil {
 		log.Errorf("lock error: %+v", err)
 	}
-	if success && h.status & consulIsLock > 0 {
+	if success && h.status & consulIsLeader > 0 {
 		//h.lock.Lock()
 		//h.isLock = 0
 		//h.lock.Unlock()
-		h.status ^= consulIsLock
-		h.status |= consulIsUnlock
+		h.status ^= consulIsLeader
+		h.status |= consulIsFollower
 	}
 	return success
 }
@@ -460,9 +460,9 @@ func (h *Binlog) Delete(key string) error {
 		return nil
 	}
 	_, err := h.Kv.Delete(key, nil)
-	if err == nil && key == h.LockKey && h.status & consulIsLock > 0 {
-		h.status ^= consulIsLock
-		h.status |= consulIsUnlock
+	if err == nil && key == h.LockKey && h.status & consulIsLeader > 0 {
+		h.status ^= consulIsLeader
+		h.status |= consulIsFollower
 	}
 	return err
 }

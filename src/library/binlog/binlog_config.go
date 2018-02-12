@@ -101,9 +101,9 @@ const (
 	// binlog cache handler is opened
 	cacheHandlerOpened
 	// consul is in locked status
-	consulIsLock
+	consulIsLeader//Lock
 	// consul is in unlock status
-	consulIsUnlock
+	consulIsFollower
 	// enable consul
 	enableConsul
 	// disable consul

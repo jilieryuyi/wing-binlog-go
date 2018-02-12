@@ -25,7 +25,7 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		ServicePort : tcpConfig.Port,
 		startServiceChan:make(chan struct{}, 100),
 		stopServiceChan:make(chan bool, 100),
-		status : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsUnlock | disableConsul,
+		status : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,
 	}
 	//init consul
 	binlog.consulInit()
