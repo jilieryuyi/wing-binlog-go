@@ -11,6 +11,7 @@ import (
 var userDataPath string
 
 func init() {
+	return
 	// 默认的数据目录
 	dataPath := path.CurrentPath + "/data"
 
