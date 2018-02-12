@@ -18,15 +18,13 @@ import (
 )
 
 func (h *Binlog) handlerInit() {
-	var (
-		err error
-	)
+	var err error
 	mysqlBinlogCacheFile := app.CachePath + "/mysql_binlog_position.pos"
 	path.Mkdir(path.GetParent(mysqlBinlogCacheFile))
-	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC // | os.O_TRUNC
+	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC
 	h.cacheHandler, err = os.OpenFile(mysqlBinlogCacheFile, flag, 0755)
 	if err != nil {
-		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
+		log.Panicf("open cache file with error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
 	h.status ^= cacheHandlerClosed
 	h.status |= cacheHAndlerOpened
@@ -34,29 +32,26 @@ func (h *Binlog) handlerInit() {
 	h.EventIndex = index
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
-	log.Debugf("==================>master pos: %+v<==================", currentPos)
-	if f != "" {
-		h.Config.BinFile = f
-	} else {
-		if err != nil {
-			log.Panicf("binlog get cache error：%+v", err)
-		} else {
-			h.Config.BinFile = currentPos.Name
-		}
+	if err != nil {
+		log.Panicf("get master pos with error：%+v", err)
 	}
-	if p > 0 {
-		h.Config.BinPos = uint32(p)
-	} else {
-		if err != nil {
-			log.Panicf("binlog get cache error：%+v", err)
-		} else {
+	log.Debugf("==================>master pos: %+v<==================", currentPos)
+	if f != "" && p > 0 {
+		h.Config.BinFile = f
+		h.Config.BinPos  = uint32(p)
+		if f == currentPos.Name && h.Config.BinPos > currentPos.Pos {
+			//pos set error, auto start form current pos
 			h.Config.BinPos = currentPos.Pos
+			log.Warnf("pos set error, auto start form: %d", h.Config.BinPos)
 		}
+	} else {
+		h.Config.BinFile = currentPos.Name
+		h.Config.BinPos  = currentPos.Pos
 	}
 	h.lastBinFile = h.Config.BinFile
-	h.lastPos = uint32(h.Config.BinPos)
-	log.Debugf("==================>last pos: %+v, %+v<==================", h.lastBinFile, h.lastPos)
-	h.posChan = make(chan []byte, posChanLen)
+	h.lastPos     = uint32(h.Config.BinPos)
+	h.posChan     = make(chan []byte, posChanLen)
+	log.Debugf("==================>  last pos: (%+v, %+v)<==================", h.lastBinFile, h.lastPos)
 	go h.syncSavePosition()
 }
 
@@ -73,7 +68,7 @@ func (h *Binlog) syncSavePosition() {
 			if h.status & cacheHAndlerOpened > 0 {
 				n, err := h.cacheHandler.WriteAt(r, 0)
 				if err != nil || n <= 0 {
-					log.Errorf("binlog cache file with error: %+v", err)
+					log.Errorf("write binlog cache file with error: %+v", err)
 				}
 			} else {
 				log.Warnf("handler is closed")
@@ -91,11 +86,11 @@ func (h *Binlog) setHandler()  {
 	defer h.lock.Unlock()
 	cfg, err := canal.NewConfigWithFile(app.ConfigPath + "/canal.toml")
 	if err != nil {
-		log.Panicf("binlog create canal config error：%+v", err)
+		log.Panicf("new canal config with error：%+v", err)
 	}
 	handler, err := canal.NewCanal(cfg)
 	if err != nil {
-		log.Panicf("binlog create canal error：%+v", err)
+		log.Panicf("new canal with error：%+v", err)
 	}
 	h.handler = handler
 	h.handler.SetEventHandler(h)
@@ -212,7 +207,6 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	// delete的数据delete [[3 1 3074961 [97 115 100 99 97 100 115] 1,2,2 1 1485768268 1485768268]]
 	// 一次插入多条的时候，同时返回
 	// insert的数据insert xsl.x_reports [[6 0 0 [] 0 1 0 0]]
-	//log.Debugf("binlog base data: %+v", e.Rows)
 	rowData := make(map[string] interface{})
 	rowData["database"] = e.Table.Schema
 	rowData["event_type"] = e.Action
@@ -220,7 +214,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	rowData["table"] = e.Table.Name
 
 	data := make(map[string] interface{})
-	ed := make(map[string] interface{})
+	ed   := make(map[string] interface{})
 
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i += 2 {
@@ -297,10 +291,6 @@ func (h *Binlog) OnGTID(g mysql.GTIDSet) error {
 	return nil
 }
 
-func (h *Binlog) handlerClose() {
-
-}
-
 func (h *Binlog) onPosChange(data []byte) {
 	if data == nil {
 		return
@@ -308,25 +298,15 @@ func (h *Binlog) onPosChange(data []byte) {
 	if len(data) < 19 {
 		return
 	}
-	log.Debugf("onPos")
-	// dl is file data length
-	//pos := int64(data[2]) | int64(data[3])<<8 | int64(data[4])<<16 |
-	//	int64(data[5])<<24 | int64(data[6])<<32 | int64(data[7])<<40 |
-	//	int64(data[8])<<48 | int64(data[9])<<56
-	//eventIndex := int64(data[10]) | int64(data[11])<<8 |
-	//	int64(data[12])<<16 | int64(data[13])<<24 |
-	//	int64(data[14])<<32 | int64(data[15])<<40 |
-	//	int64(data[16])<<48 | int64(data[17])<<56
-	//log.Debugf("onPos %s, %d, %d", string(data[18:]), pos, eventIndex)
-	//
+	log.Debugf("onPosChange")
 	file, pos, index := unpackPos(data)
 	if file == "" || pos <= 0 {
 		log.Warnf("error with: %s, %d", file, pos)
 		return
 	}
-	h.lastBinFile = file//string(data[18:])
-	h.lastPos = uint32(pos)
-	h.EventIndex = index//eventIndex
+	h.lastBinFile = file
+	h.lastPos     = uint32(pos)
+	h.EventIndex  = index
 	r := packPos(file, pos, index)
 	h.SaveBinlogPositionCache(r)
 }
@@ -335,22 +315,15 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("OnPosSynced fired with data: %+v %b", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
 	pos := int64(p.Pos)
-	r := packPos(p.Name, pos, eventIndex)
-	h.SaveBinlogPositionCache(r)
-	//r := packPos(p.Name, pos, eventIndex)
-	h.Write(r)
+	data := packPos(p.Name, pos, eventIndex)
+	h.SaveBinlogPositionCache(data)
+	h.Write(data)
 	h.lastBinFile = p.Name
 	h.lastPos = p.Pos
 	return nil
 }
 
 func (h *Binlog) SaveBinlogPositionCache(r []byte) {
-	//log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
-	//n, err := h.cacheHandler.WriteAt(r, 0)
-	//if err != nil || n <= 0 {
-	//	log.Errorf("binlog cache file with error: %+v", err)
-	//	return
-	//}
 	if len(h.posChan) < cap(h.posChan) {
 		h.posChan <- r
 	} else {
