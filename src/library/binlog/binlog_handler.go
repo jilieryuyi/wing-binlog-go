@@ -51,6 +51,30 @@ func (h *Binlog) handlerInit() {
 	h.lastBinFile = h.Config.BinFile
 	h.lastPos = uint32(h.Config.BinPos)
 	log.Debugf("==================>last pos: %+v, %+v<==================", h.lastBinFile, h.lastPos)
+	h.posChan = make(chan []byte, posChanLen)
+	go h.syncSavePosition()
+}
+
+func (h *Binlog) syncSavePosition() {
+	h.wg.Add(1)
+	defer h.wg.Done()
+	for {
+		select {
+		case r, ok := <- h.posChan:
+			if !ok {
+				return
+			}
+			log.Debugf("write binlog pos cache: %+v", r)
+			n, err := h.cacheHandler.WriteAt(r, 0)
+			if err != nil || n <= 0 {
+				log.Errorf("binlog cache file with error: %+v", err)
+			}
+		case <- h.ctx.Ctx.Done():
+			if len(h.posChan) <= 0 {
+				return
+			}
+		}
+	}
 }
 
 func (h *Binlog) setHandler()  {
@@ -194,11 +218,15 @@ func (h *Binlog) onPosChange(data []byte) {
 	//log.Debugf("onPos %s, %d, %d", string(data[18:]), pos, eventIndex)
 	//
 	file, pos, index := unpackPos(data)
-
+	if file == "" || pos <= 0 {
+		log.Warnf("error with: %s, %d", file, pos)
+		return
+	}
 	h.lastBinFile = file//string(data[18:])
 	h.lastPos = uint32(pos)
 	h.EventIndex = index//eventIndex
-	h.SaveBinlogPostionCache(string(data[18:]), pos, index)
+	r := packPos(file, pos, index)
+	h.SaveBinlogPositionCache(r)
 }
 
 
@@ -206,21 +234,26 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("OnPosSynced fired with data: %+v %b", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
 	pos := int64(p.Pos)
-	h.SaveBinlogPostionCache(p.Name, pos, eventIndex)
 	r := packPos(p.Name, pos, eventIndex)
+	h.SaveBinlogPositionCache(r)
+	//r := packPos(p.Name, pos, eventIndex)
 	h.Write(r)
 	h.lastBinFile = p.Name
 	h.lastPos = p.Pos
 	return nil
 }
 
-func (h *Binlog) SaveBinlogPostionCache(binFile string, pos int64, eventIndex int64) {
-	r := packPos(binFile, pos, eventIndex)
-	log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
-	n, err := h.cacheHandler.WriteAt(r, 0)
-	if err != nil || n <= 0 {
-		log.Errorf("binlog cache file with error: %+v", err)
-		return
+func (h *Binlog) SaveBinlogPositionCache(r []byte) {
+	//log.Debugf("write binlog cache: %s, %d, %d, %+v", binFile, pos, eventIndex, r)
+	//n, err := h.cacheHandler.WriteAt(r, 0)
+	//if err != nil || n <= 0 {
+	//	log.Errorf("binlog cache file with error: %+v", err)
+	//	return
+	//}
+	if len(h.posChan) < cap(h.posChan) {
+		h.posChan <- r
+	} else {
+		log.Warnf("posChan full")
 	}
 }
 

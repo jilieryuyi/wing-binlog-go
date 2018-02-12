@@ -29,7 +29,8 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	if err != nil {
 		t.Errorf("binlog open cache file error: %+v", err)
 	}
-	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
+	r := packPos(binfile, pos, eventIndex)
+	h.SaveBinlogPositionCache(r)
 	s, p, e := h.getBinlogPositionCache()
 	fmt.Printf("%v, %v, %v\n", s, p, e)
 	if s != binfile {
@@ -44,7 +45,8 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	binfile = "mysql-bin.00005"
 	pos = int64(12345)
 	eventIndex = int64(2)
-	h.SaveBinlogPostionCache(binfile, pos, eventIndex)
+	r = packPos(binfile, pos, eventIndex)
+	h.SaveBinlogPositionCache(r)
 	s, p, e = h.getBinlogPositionCache()
 	fmt.Printf("%v, %v, %v\n", s, p, e)
 	if s != binfile {

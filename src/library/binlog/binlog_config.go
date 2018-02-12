@@ -87,17 +87,18 @@ type Binlog struct {
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
 
+	kvChan chan []byte
+	posChan chan []byte
 	status int
 }
 
 const (
 	// 针对停止服务 和 开始服务
-	binlogStatusIsStop = 1 <<iota
+	binlogStatusIsStop = 1 << iota
 	binlogStatusIsRunning
 	// 最后两个状态成对
 	binlogStatusIsNormal
 	binlogStatusIsExit
-
 )
 const (
 	serviceKeepaliveTimeout  = 36 // timeout, unit is second
@@ -111,6 +112,8 @@ const (
 	serviceNameTcp  = "tcp"
 	serviceNameHttp = "http"
 	serviceNameAll  = "all"
+	kvChanLen       = 10000000
+	posChanLen      = 10000000
 )
 
 type ConsulConfig struct{

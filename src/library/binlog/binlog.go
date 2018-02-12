@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/app"
 	"time"
+	"math/rand"
 )
 
 func NewBinlog(ctx *app.Context) *Binlog {
@@ -124,9 +125,8 @@ func (h *Binlog) lookService() {
 					h.setHandler()
 				}
 				if exit {
-					h.SaveBinlogPostionCache(h.lastBinFile,
-						int64(h.lastPos),
-						atomic.LoadInt64(&h.EventIndex))
+					r := packPos(h.lastBinFile, int64(h.lastPos), atomic.LoadInt64(&h.EventIndex))
+					h.SaveBinlogPositionCache(r)
 					h.cacheHandler.Close()
 				}
 				if h.status & binlogStatusIsRunning > 0 {
@@ -190,7 +190,7 @@ func (h *Binlog) agentStart() {
 			serviceIp, port = h.GetLeader()
 			if serviceIp == "" || port == 0 {
 				log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
-				time.Sleep(time.Second)
+				time.Sleep(time.Second * time.Duration(rand.Int31n(6)))
 				continue
 			}
 			//log.Debugf("leader ip and port: %s:%d", serviceIp, port)
