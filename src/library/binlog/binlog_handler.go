@@ -292,10 +292,7 @@ func (h *Binlog) OnGTID(g mysql.GTIDSet) error {
 }
 
 func (h *Binlog) onPosChange(data []byte) {
-	if data == nil {
-		return
-	}
-	if len(data) < 19 {
+	if data == nil || len(data) < 19 {
 		return
 	}
 	log.Debugf("onPosChange")
@@ -312,14 +309,16 @@ func (h *Binlog) onPosChange(data []byte) {
 }
 
 func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
-	log.Debugf("OnPosSynced fired with data: %+v %b", p, b)
+	log.Debugf("OnPosSynced fired with data: %+v, %b", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
-	pos := int64(p.Pos)
-	data := packPos(p.Name, pos, eventIndex)
+	pos        := int64(p.Pos)
+	data       := packPos(p.Name, pos, eventIndex)
+
 	h.SaveBinlogPositionCache(data)
 	h.Write(data)
+
 	h.lastBinFile = p.Name
-	h.lastPos = p.Pos
+	h.lastPos     = p.Pos
 	return nil
 }
 
@@ -336,8 +335,8 @@ func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 		log.Warnf("handler is closed")
 		return "", 0, 0
 	}
-	data := make([]byte, bytes.MinRead)
 	h.cacheHandler.Seek(0, io.SeekStart)
+	data   := make([]byte, bytes.MinRead)
 	n, err := h.cacheHandler.Read(data)
 	if n <= 0 || err != nil {
 		if err != io.EOF {
