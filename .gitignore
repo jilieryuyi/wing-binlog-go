@@ -24,3 +24,4 @@
 /tests/bin/cache/*
 /tests/*
 /dev/*
+/clients/web/*.log
