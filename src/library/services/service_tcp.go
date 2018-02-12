@@ -368,7 +368,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		default:
 			node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 			//clear all data
-			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
+			node.recvBuf = make([]byte, tcpReceiveDefaultSize)
 			node.recvBytes = 0
 			return
 		}
