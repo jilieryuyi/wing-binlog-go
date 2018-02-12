@@ -16,17 +16,20 @@ import (
 func NewHttpService(ctx *app.Context) *HttpService {
 	config, _ := getHttpConfig()
 	log.Debugf("start http service with config: %+v", config)
+	status := serviceDisable
 	if !config.Enable {
 		return &HttpService{
-			enable: config.Enable,
+			status: status,
 		}
 	}
+	status ^= serviceDisable
+	status |= serviceEnable
 	gc := len(config.Groups)
 	client := &HttpService{
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*httpGroup, gc),
 		sendFailureTimes: int64(0),
-		enable:           config.Enable,
+		status:           status,
 		timeTick:         config.TimeTick,
 		wg:               new(sync.WaitGroup),
 		ctx:              ctx,
@@ -46,11 +49,10 @@ func NewHttpService(ctx *app.Context) *HttpService {
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
-				isDown:           false,
 				lock:             new(sync.Mutex),
 				failureTimesFlag: int32(0),
-				cacheIsInit:      false,
 				errorCheckTimes:  int64(0),
+				status:           online | cacheNotReady | cacheNotFull,
 			}
 		}
 		client.groups[cgroup.Name] = group
@@ -61,7 +63,7 @@ func NewHttpService(ctx *app.Context) *HttpService {
 
 // 开始服务
 func (client *HttpService) Start() {
-	if !client.enable {
+	if client.status & serviceDisable > 0 {
 		return
 	}
 	cpu := runtime.NumCPU()
@@ -78,16 +80,22 @@ func (client *HttpService) Start() {
 }
 
 func (client *HttpService) cacheInit(node *httpNode) {
-	if node.cacheIsInit {
+	if node.status & cacheReady > 0 {
 		return
 	}
 	node.cache = make([][]byte, httpCacheLen)
 	for k := 0; k < httpCacheLen; k++ {
-		node.cache[k] = nil //make([]byte, HTTP_CACHE_BUFFER_SIZE)
+		node.cache[k] = nil
 	}
-	node.cacheIsInit = true
+	node.status ^= cacheNotReady
+	node.status |= cacheReady
+	//node.cacheIsInit = true
 	node.cacheIndex = 0
-	node.cacheFull = false
+	if node.status & cacheFull > 0 {
+		//node.cacheFull = false
+		node.status ^= cacheFull
+		node.status |= cacheNotFull
+	}
 }
 
 func (client *HttpService) addCache(node *httpNode, msg []byte) {
@@ -96,14 +104,17 @@ func (client *HttpService) addCache(node *httpNode, msg []byte) {
 	node.cacheIndex++
 	if node.cacheIndex >= httpCacheLen {
 		node.cacheIndex = 0
-		node.cacheFull = true
+		if node.status & cacheNotFull > 0 {
+			node.status ^= cacheNotFull
+			node.status |= cacheFull
+		}
 	}
 }
 
 func (client *HttpService) sendCache(node *httpNode) {
 	if node.cacheIndex > 0 {
 		log.Debugf("http service send failure cache: %s", node.url)
-		if node.cacheFull {
+		if node.status & cacheFull > 0 {
 			for j := node.cacheIndex; j < httpCacheLen; j++ {
 				node.sendQueue <- string(node.cache[j])
 			}
@@ -111,7 +122,10 @@ func (client *HttpService) sendCache(node *httpNode) {
 		for j := 0; j < node.cacheIndex; j++ {
 			node.sendQueue <- string(node.cache[j])
 		}
-		node.cacheFull = false
+		if node.status & cacheFull > 0 {
+			node.status ^= cacheFull
+			node.status |= cacheNotFull
+		}
 		node.cacheIndex = 0
 	}
 }
@@ -121,7 +135,7 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 	for {
 		node.lock.Lock()
 		sleepTime := time.Second * client.timeTick
-		if node.isDown {
+		if node.status & offline > 0 {
 			times := atomic.LoadInt64(&node.errorCheckTimes)
 			step := float64(times) / float64(1000)
 			if step > float64(1) {
@@ -136,7 +150,9 @@ func (client *HttpService) errorCheckService(node *httpNode) {
 			_, err := http.Post(node.url, []byte{byte(0)})
 			if err == nil {
 				//重新上线
-				node.isDown = false
+				//node.isDown = false
+				node.status ^= offline
+				node.status |= online
 				atomic.StoreInt64(&node.errorCheckTimes, 0)
 				log.Warn("http服务节点恢复", node.url)
 				//对失败的cache进行重发
@@ -167,7 +183,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 				log.Warnf("http service, sendQueue channel was closed")
 				return
 			}
-			if !node.isDown {
+			if node.status & online > 0 {
 				atomic.AddInt64(&node.sendTimes, int64(1))
 				log.Debugf("http service post to %s: %+v", node.url, string(msg))
 				data, err := http.Post(node.url, []byte(msg))
@@ -181,7 +197,9 @@ func (client *HttpService) clientSendService(node *httpNode) {
 						//发生故障
 						log.Warnf("http service url %s post error happened max then 3, will be offline %s", node.url)
 						node.lock.Lock()
-						node.isDown = true
+						//node.isDown = true
+						node.status ^= online
+						node.status |= offline
 						node.lock.Unlock()
 					}
 					log.Warnf("http service node %s failure times：%d", node.url, node.sendFailureTimes)
@@ -189,8 +207,9 @@ func (client *HttpService) clientSendService(node *httpNode) {
 					client.addCache(node, []byte(msg))
 				} else {
 					node.lock.Lock()
-					if node.isDown {
-						node.isDown = false
+					if node.status & offline > 0 {
+						node.status ^= offline
+						node.status |= online
 					}
 					node.lock.Unlock()
 					failure_times := atomic.LoadInt32(&node.failureTimesFlag)
@@ -218,7 +237,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 }
 
 func (client *HttpService) SendAll(data map[string] interface{}) bool {
-	if !client.enable {
+	if client.status & serviceDisable > 0 {
 		return false
 	}
 	client.lock.Lock()
@@ -277,7 +296,15 @@ func (client *HttpService) Close() {
 func (client *HttpService) Reload() {
 	config, _ := getHttpConfig()
 	log.Debug("http service reloading...")
-	client.enable = config.Enable
+
+	status := serviceDisable
+	if config.Enable {
+		status ^= serviceDisable
+		status |= serviceEnable
+	}
+
+
+	client.status = status//config.Enable
 	for name := range client.groups {
 		delete(client.groups, name)
 	}
@@ -297,11 +324,10 @@ func (client *HttpService) Reload() {
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
 				sendTimes:        int64(0),
 				sendFailureTimes: int64(0),
-				isDown:           false,
 				lock:             new(sync.Mutex),
 				failureTimesFlag: int32(0),
-				cacheIsInit:      false,
 				errorCheckTimes:  int64(0),
+				status:           online | cacheNotReady | cacheNotFull,
 			}
 		}
 		client.groups[cgroup.Name] = group

@@ -16,6 +16,10 @@ import (
 // new tcp service, usr for handler.go RegisterService
 func NewTcpService(ctx *app.Context) *TcpService {
 	config, _ := GetTcpConfig()
+	status := serviceDisable
+	if config.Enable {
+		status = serviceEnable
+	}
 	tcp := &TcpService {
 		Ip:               config.Listen,
 		Port:             config.Port,
@@ -24,7 +28,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		recvTimes:        0,
 		sendTimes:        0,
 		sendFailureTimes: 0,
-		enable:           config.Enable,
+		//enable:           config.Enable,
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
@@ -32,6 +36,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Agents:           make([]*tcpClientNode, 0),
 		sendAllChan1:     make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE),
 		sendAllChan2:     make(chan []byte, TCP_MAX_SEND_QUEUE),
+		status:           status,
 	}
 
 	tcp.agentService()
@@ -91,7 +96,7 @@ func (tcp *TcpService) agentService() {
 
 // send event data to all connects client
 func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
-	if !tcp.enable {
+	if tcp.status & serviceDisable > 0 {
 		return false
 	}
 	log.Debugf("tcp broadcast: %+v", data)
@@ -103,7 +108,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	log.Debugf("datalen=%d", len(jsonData))
 	//send agent
 	for _, agent := range tcp.Agents {
-		if agent.isConnected {
+		if agent.status & tcpNodeOnline > 0 {
 			agent.sendQueue <- pack(CMD_EVENT, string(jsonData))
 		}
 	}
@@ -136,7 +141,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 			}
 		}
 		for _, cnode := range cgroup.nodes {
-			if !cnode.isConnected {
+			if cnode.status & tcpNodeOffline > 0 {
 				continue
 			}
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
@@ -152,7 +157,7 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 // send raw bytes data to all connects client
 // msg is the pack frame form func: pack
 func (tcp *TcpService) sendAllB(msg []byte) bool {
-	if !tcp.enable {
+	if tcp.status & serviceDisable > 0 {
 		return false
 	}
 	log.Debugf("tcp SendAll2 broadcast: %+v", msg)
@@ -173,7 +178,7 @@ func (tcp *TcpService) sendAllB(msg []byte) bool {
 			continue
 		}
 		for _, cnode := range cgroup.nodes {
-			if !cnode.isConnected {
+			if cnode.status & tcpNodeOffline > 0  {
 				continue
 			}
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
@@ -206,11 +211,14 @@ func (tcp *TcpService) sendAllB(msg []byte) bool {
 func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	if node.isConnected {
+	if node.status & tcpNodeOnline > 0 {
 		close(node.sendQueue)
 	}
-	node.isConnected = false
-	if node.isAgent {
+	if node.status & tcpNodeOnline > 0 {
+		node.status ^= tcpNodeOnline
+		node.status |= tcpNodeOffline
+	}
+	if node.status & tcpNodeIsAgent > 0 {
 		for index, n := range tcp.Agents {
 			if n == node {
 				tcp.Agents = append(tcp.Agents[:index], tcp.Agents[index+1:]...)
@@ -237,7 +245,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 	tcp.wg.Add(1)
 	defer tcp.wg.Done()
 	for {
-		if !node.isConnected {
+		if node.status & tcpNodeOffline > 0 {
 			log.Info("tcp service, clientSendService exit.")
 			return
 		}
@@ -269,7 +277,6 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 	log.Debugf("tcp service, new connect: %s", conn.RemoteAddr().String())
 	cnode := &tcpClientNode{
 		conn:             &conn,
-		isConnected:      true,
 		sendQueue:        make(chan []byte, TCP_MAX_SEND_QUEUE),
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
@@ -277,7 +284,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		recvBuf:          make([]byte, tcpReceiveDefaultSize),
 		recvBytes:        0,
 		group:            "",
-		isAgent:          false,
+		status:           tcpNodeOnline|tcpNodeIsNotAgent,
 	}
 	go tcp.clientSendService(cnode)
 	var readBuffer [tcpDefaultReadBufferSize]byte
@@ -359,7 +366,10 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			//心跳包
 		case CMD_AGENT:
 			tcp.lock.Lock()
-			node.isAgent = true
+			if node.status & tcpNodeIsNotAgent > 0 {
+				node.status ^= tcpNodeIsNotAgent
+				node.status |= tcpNodeIsAgent
+			}
 			(*node.conn).SetReadDeadline(time.Time{})
 			tcp.Agents = append(tcp.Agents, node)
 			tcp.lock.Unlock()
@@ -382,7 +392,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 //}
 
 func (tcp *TcpService) Start() {
-	if !tcp.enable {
+	if tcp.status & serviceDisable > 0 {
 		return
 	}
 	//go tcp.Drive.RegisterService(tcp.ServiceIp, tcp.Port)
@@ -430,7 +440,10 @@ func (tcp *TcpService) Close() {
 		for _, cnode := range cgroup.nodes {
 			close(cnode.sendQueue)
 			(*cnode.conn).Close()
-			cnode.isConnected = false
+			if cnode.status & tcpNodeOnline > 0 {
+				cnode.status ^= tcpNodeOnline
+				cnode.status |= tcpNodeOffline
+			}
 		}
 	}
 	log.Debugf("tcp service closed.")
@@ -447,7 +460,14 @@ func (tcp *TcpService) Reload() {
 		return
 	}
 	log.Debugf("tcp service reload with new config：%+v", config)
-	tcp.enable = config.Enable
+	if config.Enable && tcp.status & serviceDisable > 0 {
+		tcp.status ^= serviceDisable
+		tcp.status |= serviceEnable
+	}
+	if !config.Enable && tcp.status & serviceEnable > 0 {
+		tcp.status ^= serviceEnable
+		tcp.status |= serviceDisable
+	}
 	// flag to mark if need restart
 	restart := false
 	// check if is need restart
@@ -467,7 +487,11 @@ func (tcp *TcpService) Reload() {
 		for name, cgroup := range tcp.groups {
 			for _, cnode := range cgroup.nodes {
 				log.Debugf("closing service：%s", (*cnode.conn).RemoteAddr().String())
-				cnode.isConnected = false
+				//cnode.isConnected = false
+				if cnode.status & tcpNodeOnline > 0 {
+					cnode.status ^= tcpNodeOnline
+					cnode.status |= tcpNodeOffline
+				}
 				close(cnode.sendQueue)
 				(*cnode.conn).Close()
 			}
@@ -503,7 +527,11 @@ func (tcp *TcpService) Reload() {
 				for _, cnode := range cgroup.nodes {
 					log.Debugf("closing connection: %s", (*cnode.conn).RemoteAddr().String())
 					close(cnode.sendQueue)
-					cnode.isConnected = false
+					//cnode.isConnected = false
+					if cnode.status & tcpNodeOnline > 0 {
+						cnode.status ^= tcpNodeOnline
+						cnode.status |= tcpNodeOffline
+					}
 					(*cnode.conn).Close()
 				}
 				delete(tcp.groups, name)
