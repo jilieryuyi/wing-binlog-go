@@ -276,7 +276,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
-		recvBuf:          make([]byte, tcpRecviveDefaultSize),
+		recvBuf:          make([]byte, tcpReceiveDefaultSize),
 		recvBytes:        0,
 		group:            "",
 		isAgent:          false,
@@ -319,9 +319,9 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		size := len(node.recvBuf)
 		if size < 6 {
 			return
-		} else if size > tcpRecviveDefaultSize {
+		} else if size > tcpReceiveDefaultSize {
 			// 清除所有的读缓存，防止发送的脏数据不断的累计
-			node.recvBuf = make([]byte, tcpRecviveDefaultSize)
+			node.recvBuf = make([]byte, tcpReceiveDefaultSize)
 			node.recvBytes = 0
 			log.Info("tcp服务-新建缓冲区")
 			return
