@@ -21,7 +21,7 @@ type Session struct {
 func (ses *Session) create() {
 	se := &api.SessionEntry{
 		Behavior : api.SessionBehaviorDelete,
-		TTL: "60s",
+		TTL: "3600s",
 	}
 	ID, _, err := ses.s.Create(se, nil)
 	if err != nil {
