@@ -112,28 +112,27 @@ func (h *Binlog) notify(data map[string] interface{}) {
 }
 
 func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
-	//log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
 	switch edata.(type) {
 	case string:
 		return edata
 	case []uint8:
-		return edata//encode(buf, string(edata.([]byte)))
+		return edata
 	case int:
-		return edata//*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
+		return edata
 	case int8:
 		var r int64 = 0
 		r = int64(edata.(int8))
 		if column.IsUnsigned && r < 0 {
 			r = int64(int64(256) + int64(edata.(int8)))
 		}
-		return r//*buf = strconv.AppendInt(*buf, r, 10)
+		return r
 	case int16:
 		var r int64 = 0
 		r = int64(edata.(int16))
 		if column.IsUnsigned && r < 0 {
 			r = int64(int64(65536) + int64(edata.(int16)))
 		}
-		return r//*buf = strconv.AppendInt(*buf, r, 10)
+		return r
 	case int32:
 		var r int64 = 0
 		r = int64(edata.(int32))
@@ -145,13 +144,13 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 				r = int64(int64(4294967296) + int64(edata.(int32)))
 			}
 		}
-		return r//*buf = strconv.AppendInt(*buf, r, 10)
+		return r
 	case int64:
 		// 枚举类型支持
 		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
 			i   := int(edata.(int64))-1
 			str := column.EnumValues[i]
-			return str//encode(buf, str)
+			return str
 		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
 			v   := uint(edata.(int64))
 			l   := uint(len(column.SetValues))
@@ -164,7 +163,7 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 					res += column.SetValues[i]
 				}
 			}
-			return res//encode(buf, res)
+			return res
 		} else {
 			if column.IsUnsigned {
 				var ur uint64 = 0
@@ -172,35 +171,31 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 				if ur < 0 {
 					ur = 1 << 63 + (1 << 63 + ur)
 				}
-				return ur//*buf = strconv.AppendUint(*buf, ur, 10)
+				return ur
 			} else {
-				return edata//*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+				return edata
 			}
 		}
 	case uint:
-		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint)), 10)
+		return edata
 	case uint8:
-		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint8)), 10)
+		return edata
 	case uint16:
-		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint16)), 10)
+		return edata
 	case uint32:
-		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint32)), 10)
+		return edata
 	case uint64:
-		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint64)), 10)
+		return edata
 	case float64:
-		return edata//
-		//f := big.NewFloat(edata.(float64))
-		//*buf = append(*buf, f.String()...)
+		return edata
 	case float32:
-		return edata//f := big.NewFloat(float64(edata.(float32)))
-		//*buf = append(*buf, f.String()...)
+		return edata
 	default:
 		if edata != nil {
 			log.Warnf("binlog不支持的类型：%s %+v", column.Name, reflect.TypeOf(edata))
-			return edata//"--unkonw type--"
-			//*buf = append(*buf, "\"--unkonw type--\""...)
+			return edata
 		} else {
-			return "null"//*buf = append(*buf, "null"...)
+			return "null"
 		}
 	}
 }
