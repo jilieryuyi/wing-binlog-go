@@ -129,7 +129,9 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	//log.Debugf("register service: %+v", *service)
+	//if isLeader == 0 {
+		//log.Debugf("register service: %+v", *service)
+	//}
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -179,6 +181,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m.Status = statusOnline
 		if time.Now().Unix() - t > serviceKeepaliveTimeout {
 			m.Status = statusOffline
+			log.Debugf("now: %d, t:%d, diff: %d", time.Now().Unix(), t, time.Now().Unix() - t)
 		}
 		m.IsLeader  = v.Tags[0] == "1"
 		m.Hostname  = v.Tags[3]
