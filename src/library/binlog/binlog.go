@@ -159,6 +159,11 @@ func (h *Binlog) Start() {
 	for _, service := range h.services {
 		service.Start()
 	}
+	if !h.enable {
+		log.Debugf("is not enable consul")
+		h.StartService()
+		return
+	}
 	go func() {
 		for {
 			if h.Lock() {
