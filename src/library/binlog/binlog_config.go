@@ -99,6 +99,9 @@ const (
 	// 最后两个状态成对
 	binlogStatusIsNormal
 	binlogStatusIsExit
+	//针对binlog cache
+	cacheHandlerClosed
+	cacheHAndlerOpened
 )
 const (
 	serviceKeepaliveTimeout  = 36 // timeout, unit is second

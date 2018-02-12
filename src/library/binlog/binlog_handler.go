@@ -12,6 +12,8 @@ import (
 	"library/path"
 	"io"
 	"library/app"
+	"github.com/siddontang/go-mysql/schema"
+	"reflect"
 )
 
 func (h *Binlog) handlerInit() {
@@ -25,6 +27,8 @@ func (h *Binlog) handlerInit() {
 	if err != nil {
 		log.Panicf("binlog open cache file error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
+	h.status ^= cacheHandlerClosed
+	h.status |= cacheHAndlerOpened
 	f, p, index := h.getBinlogPositionCache()
 	h.EventIndex = index
 	h.setHandler()
@@ -65,9 +69,13 @@ func (h *Binlog) syncSavePosition() {
 				return
 			}
 			log.Debugf("write binlog pos cache: %+v", r)
-			n, err := h.cacheHandler.WriteAt(r, 0)
-			if err != nil || n <= 0 {
-				log.Errorf("binlog cache file with error: %+v", err)
+			if h.status & cacheHAndlerOpened > 0 {
+				n, err := h.cacheHandler.WriteAt(r, 0)
+				if err != nil || n <= 0 {
+					log.Errorf("binlog cache file with error: %+v", err)
+				}
+			} else {
+				log.Warnf("handler is closed")
 			}
 		case <- h.ctx.Ctx.Done():
 			if len(h.posChan) <= 0 {
@@ -103,6 +111,100 @@ func (h *Binlog) notify(data map[string] interface{}) {
 	}
 }
 
+func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
+	//log.Debugf("%+v,===,%+v, == %+v", column, reflect.TypeOf(edata), edata)
+	switch edata.(type) {
+	case string:
+		return edata
+	case []uint8:
+		return edata//encode(buf, string(edata.([]byte)))
+	case int:
+		return edata//*buf = strconv.AppendInt(*buf, int64(edata.(int)), 10)
+	case int8:
+		var r int64 = 0
+		r = int64(edata.(int8))
+		if column.IsUnsigned && r < 0 {
+			r = int64(int64(256) + int64(edata.(int8)))
+		}
+		return r//*buf = strconv.AppendInt(*buf, r, 10)
+	case int16:
+		var r int64 = 0
+		r = int64(edata.(int16))
+		if column.IsUnsigned && r < 0 {
+			r = int64(int64(65536) + int64(edata.(int16)))
+		}
+		return r//*buf = strconv.AppendInt(*buf, r, 10)
+	case int32:
+		var r int64 = 0
+		r = int64(edata.(int32))
+		if column.IsUnsigned && r < 0 {
+			t := string([]byte(column.RawType)[0:3])
+			if t != "int" {
+				r = int64(int64(1 << 24) + int64(edata.(int32)))
+			} else {
+				r = int64(int64(4294967296) + int64(edata.(int32)))
+			}
+		}
+		return r//*buf = strconv.AppendInt(*buf, r, 10)
+	case int64:
+		// 枚举类型支持
+		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
+			i   := int(edata.(int64))-1
+			str := column.EnumValues[i]
+			return str//encode(buf, str)
+		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
+			v   := uint(edata.(int64))
+			l   := uint(len(column.SetValues))
+			res := ""
+			for i := uint(0); i < l; i++  {
+				if (v & (1 << i)) > 0 {
+					if res != "" {
+						res += ","
+					}
+					res += column.SetValues[i]
+				}
+			}
+			return res//encode(buf, res)
+		} else {
+			if column.IsUnsigned {
+				var ur uint64 = 0
+				ur = uint64(edata.(int64))
+				if ur < 0 {
+					ur = 1 << 63 + (1 << 63 + ur)
+				}
+				return ur//*buf = strconv.AppendUint(*buf, ur, 10)
+			} else {
+				return edata//*buf = strconv.AppendInt(*buf, int64(edata.(int64)), 10)
+			}
+		}
+	case uint:
+		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint)), 10)
+	case uint8:
+		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint8)), 10)
+	case uint16:
+		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint16)), 10)
+	case uint32:
+		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint32)), 10)
+	case uint64:
+		return edata//*buf = strconv.AppendUint(*buf, uint64(edata.(uint64)), 10)
+	case float64:
+		return edata//
+		//f := big.NewFloat(edata.(float64))
+		//*buf = append(*buf, f.String()...)
+	case float32:
+		return edata//f := big.NewFloat(float64(edata.(float32)))
+		//*buf = append(*buf, f.String()...)
+	default:
+		if edata != nil {
+			log.Warnf("binlog不支持的类型：%s %+v", column.Name, reflect.TypeOf(edata))
+			return edata//"--unkonw type--"
+			//*buf = append(*buf, "\"--unkonw type--\""...)
+		} else {
+			return "null"//*buf = append(*buf, "null"...)
+		}
+	}
+}
+
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	// 发生变化的数据表e.Table，如xsl.x_reports
 	// 发生的操作类型e.Action，如update、insert、delete
@@ -133,7 +235,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				if k < rowsLen {
-					oldData[col.Name] = e.Rows[i][k]
+					oldData[col.Name] = fieldDecode(e.Rows[i][k], &col)
 				} else {
 					log.Warn("unknown line", col.Name)
 					oldData[col.Name] = nil
@@ -142,7 +244,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			rowsLen = len(e.Rows[i+1])
 			for k, col := range e.Table.Columns {
 				if k < rowsLen {
-					newData[col.Name] = e.Rows[i+1][k]
+					newData[col.Name] = fieldDecode(e.Rows[i+1][k], &col)
 				} else {
 					log.Warn("unknown line", col.Name)
 					newData[col.Name] = nil
@@ -161,7 +263,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				if k < rowsLen {
-					data[col.Name] = e.Rows[i][k]
+					data[col.Name] = fieldDecode(e.Rows[i][k], &col)
 				} else {
 					log.Warn("unknown line", col.Name)
 					data[col.Name] = nil
@@ -199,6 +301,10 @@ func (h *Binlog) OnGTID(g mysql.GTIDSet) error {
 	return nil
 }
 
+func (h *Binlog) handlerClose() {
+
+}
+
 func (h *Binlog) onPosChange(data []byte) {
 	if data == nil {
 		return
@@ -229,7 +335,6 @@ func (h *Binlog) onPosChange(data []byte) {
 	h.SaveBinlogPositionCache(r)
 }
 
-
 func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("OnPosSynced fired with data: %+v %b", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
@@ -258,6 +363,10 @@ func (h *Binlog) SaveBinlogPositionCache(r []byte) {
 }
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
+	if h.status & cacheHandlerClosed > 0 {
+		log.Warnf("handler is closed")
+		return "", 0, 0
+	}
 	// read 2 bytes is file data length
 	l := make([]byte, 2)
 	h.cacheHandler.Seek(0, io.SeekStart)
