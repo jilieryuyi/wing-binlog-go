@@ -11,6 +11,7 @@ import (
 	"library/app"
 	"encoding/json"
 	"runtime"
+	"io"
 )
 
 // new tcp service, usr for handler.go RegisterService
@@ -298,12 +299,14 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		}
 		size, err := conn.Read(buf)
 		if err != nil {
-			log.Warn("tcp服务-连接发生错误: ", conn.RemoteAddr().String(), err)
+			if err != io.EOF {
+				log.Warnf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
+			}
 			tcp.onClose(cnode)
 			conn.Close()
 			return
 		}
-		log.Debug("tcp服务-收到消息", size, "字节：", buf[:size], string(buf))
+		log.Debugf("tcp service receive %d bytes: %+v, %s", size, buf[:size], string(buf))
 		atomic.AddInt64(&tcp.recvTimes, int64(1))
 		cnode.recvBytes += size
 		tcp.onMessage(cnode, buf, size)

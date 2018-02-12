@@ -215,7 +215,7 @@ func (h *Binlog) checkAlive() {
 		}
 		leaderCount := 0
 		for _, v := range members {
-			if v.IsLeader && v.Status != statusOffline {
+			if v.IsLeader && (v.Status != statusOffline || h.alive(v.ServiceIp, v.Port)) {
 				leaderCount++
 			}
 			if v.SessionId == h.sessionId {
@@ -358,13 +358,27 @@ func (h *Binlog) GetLeader() (string, int) {
 	if members == nil || len(members) == 0 {
 		return "", 0
 	}
+
+	ip := ""
+	port := 0
 	for _, v := range members {
 		//log.Debugf("GetLeader--%+v", v)
 		if v.IsLeader && v.Status == statusOnline {
-			return v.ServiceIp, v.Port
+			ip, port = v.ServiceIp, v.Port
+			break
 		}
 	}
-	return "", 0
+	// reselect again
+	if ip == "" || port == 0 {
+		for _, v := range members {
+			// check alive
+			if v.IsLeader && h.alive(v.ServiceIp, v.Port) {
+				ip, port = v.ServiceIp, v.Port
+				break
+			}
+		}
+	}
+	return ip, port
 }
 
 // if app is close, it will be call for clear some source
