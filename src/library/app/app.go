@@ -266,7 +266,7 @@ func NewContext() *Context {
 	return ctx
 }
 
-func (ctx *Context)signalHandler() {
+func (ctx *Context) signalHandler() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,
 		os.Kill,
