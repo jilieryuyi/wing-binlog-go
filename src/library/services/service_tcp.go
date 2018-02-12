@@ -34,8 +34,6 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		sendAllChan2:     make(chan []byte, TCP_MAX_SEND_QUEUE),
 	}
 
-	//sendAllChan1 := make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE)
-	//sendAllChan2 := make(chan []byte, TCP_MAX_SEND_QUEUE)
 	tcp.agentService()
 	tcp.Agent = newAgent(ctx, tcp.sendAllChan1, tcp.sendAllChan2)
 	for _, cgroup := range config.Groups {
