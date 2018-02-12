@@ -73,8 +73,7 @@ func main() {
 	isCmd := hasCmd()
 	// app init
 	app.DEBUG = *debug
-	app.ConfigPathParse(*configPath)
-	app.Init(isCmd)
+	app.Init(isCmd, *configPath)
 
 	// clear some resource after exit
 	defer app.Release()

@@ -54,7 +54,8 @@ type Context struct {
 	CancelChan chan struct{}
 }
 
-func Init(hasCmd bool) {
+func Init(hasCmd bool, configPath string) {
+	configPathParse(configPath)
 	appConfig, _ := GetAppConfig()
 	Pid = appConfig.PidFile
 	SockFile = appConfig.SockFile
@@ -120,7 +121,7 @@ func pathParse(dir string, defaultValue string) string {
 	return dir
 }
 
-func ConfigPathParse(configPath string) {
+func configPathParse(configPath string) {
 	//if configPath != "" && path.Exists(configPath) {
 	//	ConfigPath = configPath
 	//}
@@ -160,7 +161,10 @@ func Usage() {
 // run as daemon process
 func DaemonProcess(d bool) bool {
 	if d {
-		params := os.Args[0] + " -daemon " +  ConfigPath
+		log.Debugf("run as daemon process")
+		params := []string{os.Args[0], "-daemon", "-config-path", ConfigPath}
+		//os.Args[0] + " -daemon -config-path " +  ConfigPath
+		log.Debugf("params: %v", params)
 		ctx = &daemon.Context{
 			PidFileName: Pid,
 			PidFilePerm: 0644,
@@ -168,7 +172,7 @@ func DaemonProcess(d bool) bool {
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
-			Args:        []string{params},
+			Args:        params,//[]string{params},
 		}
 		d, err := ctx.Reborn()
 		if err != nil {
