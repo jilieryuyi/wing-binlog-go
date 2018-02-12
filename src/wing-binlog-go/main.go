@@ -88,7 +88,6 @@ func main() {
 		return
 	}
 
-
 	appContext  := app.NewContext()
 	httpService := services.NewHttpService(appContext)
 	tcpService  := services.NewTcpService(appContext)
