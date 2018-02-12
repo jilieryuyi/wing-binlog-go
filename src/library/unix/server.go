@@ -7,13 +7,11 @@ import (
 	"library/file"
 	"net"
 	"os"
-	//"library/path"
 	"library/app"
 	"library/binlog"
 )
 
 func NewUnixServer(ctx *app.Context, binlog *binlog.Binlog) *UnixServer {
-	//addr := app.SockFile//path.CurrentPath + "/wing-binlog-go.sock"
 	server := &UnixServer{
 		addr: app.SockFile,
 		ctx : ctx,
@@ -70,10 +68,11 @@ func (server *UnixServer) onConnect(c net.Conn) {
 				c.Write([]byte("no members found"))
 			}
 		default:
-			log.Error("不支持的指令：%d：%s", cmd, string(content))
+			log.Errorf("does not support cmd：%d：%s", cmd, string(content))
 		}
 	}
 }
+
 func (server *UnixServer) clear() {
 	if file.Exists(server.addr) {
 		file.Delete(server.addr)

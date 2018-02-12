@@ -61,7 +61,7 @@ func (ag *Agent) keepalive() {
 	for {
 		if ag.node == nil || ag.node.conn == nil ||
 			ag.status & (AgentStatusDisconnect) > 0 ||
-			ag.status & AgentStatusOffline > 0{
+			ag.status & AgentStatusOffline > 0 {
 			time.Sleep(3 * time.Second)
 			continue
 		}

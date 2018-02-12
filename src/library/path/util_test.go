@@ -23,6 +23,10 @@ func TestGetCurrentPath(t *testing.T) {
 	}
 }
 
+func BenchmarkDelete(b *testing.B) {
+
+}
+
 func TestGetParentPath(t *testing.T) {
 	p := GetParent("/usr/local/")
 	if p != "/usr" {

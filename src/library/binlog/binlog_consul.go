@@ -205,7 +205,7 @@ func (h *Binlog) checkAlive() {
 		}
 		leaderCount := 0
 		for _, v := range members {
-			if v.IsLeader {
+			if v.IsLeader && v.Status != statusOffline {
 				leaderCount++
 			}
 			if v.SessionId == h.sessionId {
@@ -220,6 +220,7 @@ func (h *Binlog) checkAlive() {
 					//log.Warnf("will be deregister", v.SessionId)
 					//h.agent.ServiceDeregister(v.SessionId)
 					//h.newleader()
+					h.agent.ServiceDeregister(v.SessionId)
 					h.Delete(h.LockKey)
 				}
 			}
@@ -345,7 +346,7 @@ func (h *Binlog) GetLeader() (string, int) {
 	}
 	for _, v := range members {
 		//log.Debugf("GetLeader--%+v", v)
-		if v.IsLeader {
+		if v.IsLeader && v.Status == statusOnline {
 			return v.ServiceIp, v.Port
 		}
 	}
