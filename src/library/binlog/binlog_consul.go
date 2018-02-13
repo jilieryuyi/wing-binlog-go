@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"net"
 	"math/rand"
+	"strings"
 )
 
 func (h *Binlog) consulInit() {
@@ -273,15 +274,16 @@ func (h *Binlog) rand(min int, max int) int {
 	}
 	return n
 }
-func (h *Binlog) newleader() {
-	n := h.rand(500, 3000)
-	time.Sleep(time.Millisecond * time.Duration(n))
-	h.Delete(h.LockKey)
-	if h.Lock() {
-		log.Debugf("current is the new leader")
-		h.StartService()
-	}
-}
+
+//func (h *Binlog) newleader() {
+//	n := h.rand(500, 3000)
+//	time.Sleep(time.Millisecond * time.Duration(n))
+//	h.Delete(h.LockKey)
+//	if h.Lock() {
+//		log.Debugf("current is the new leader")
+//		h.StartService()
+//	}
+//}
 
 func (h *Binlog) alive(ip string, port int) bool {
 	log.Debugf("ping %s:%d", ip, port)
@@ -414,16 +416,16 @@ func (h *Binlog) Write(data []byte) bool {
 }
 
 // lock if success, the current will be a leader
-func (h *Binlog) Lock() bool {
+func (h *Binlog) Lock() (bool, error) {
 	if h.status & disableConsul > 0 {
-		return true
+		return true, nil
 	}
 	if h.Session.ID == "" {
 		h.Session.create()
 	}
 	if h.Session.ID == "" {
 		log.Errorf("error: %v", ErrorSessionEmpty)
-		return false
+		return false, sessionEmpty
 	}
 	//key string, value []byte, sessionID string
 	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
@@ -431,34 +433,40 @@ func (h *Binlog) Lock() bool {
 	if err != nil {
 		// try to create a new session
 		log.Errorf("lock error: %+v", err)
-		log.Debugf("try to create a new session")
-		h.Session.create()
+		if strings.Contains(strings.ToLower(err.Error()), "session") {
+			log.Debugf("try to create a new session")
+			h.Session.create()
+		}
+		return false, err
 	}
 	if success && h.status & consulIsFollower > 0 {
 		h.status ^= consulIsFollower
 		h.status |= consulIsLeader
 	}
-	return success
+	return success, nil
 }
 
 // unlock
-func (h *Binlog) Unlock() bool {
+func (h *Binlog) Unlock() (bool, error) {
 	if h.status & disableConsul > 0 {
-		return true
+		return true, nil
 	}
 	if h.Session.ID == "" {
 		h.Session.create()
 	}
 	if h.Session.ID == "" {
 		log.Errorf("error: %v", ErrorSessionEmpty)
-		return false
+		return false, sessionEmpty
 	}
 	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
 	success, _, err := h.Kv.Release(p, nil)
 	if err != nil {
 		log.Errorf("unlock error: %+v", err)
-		log.Debugf("try to create a new session")
-		h.Session.create()
+		if strings.Contains(strings.ToLower(err.Error()), "session") {
+			log.Debugf("try to create a new session")
+			h.Session.create()
+		}
+		return false, err
 	}
 	if success && h.status & consulIsLeader > 0 {
 		//h.lock.Lock()
@@ -467,7 +475,7 @@ func (h *Binlog) Unlock() bool {
 		h.status ^= consulIsLeader
 		h.status |= consulIsFollower
 	}
-	return success
+	return success, nil
 }
 
 // delete a lock
