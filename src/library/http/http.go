@@ -3,12 +3,12 @@ package http
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"library/data"
+	//"library/data"
 	"library/path"
 	"net/http"
 	"sync"
 	"time"
-	wstring "library/string"
+	//wstring "library/string"
 )
 
 var online_users map[string]*OnLineUser = make(map[string]*OnLineUser)
@@ -58,31 +58,31 @@ func output(code int, msg string, data string) string {
 
 func onUserLogin(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
-	username, ok1 := req.Form["username"]
-	password, ok2 := req.Form["password"]
-	log.Println("http服务", req.Form, username[0], password[0])
-	user := data.User{username[0], password[0]}
-	if ok1 && ok2 && user.Get() {
-		log.Infof("http服务，用户 %s 登陆成功", username[0])
-		user_sign := wstring.RandString(32)
-		online_users_lock.Lock()
-		online_users[user_sign] = &OnLineUser{
-			Name:         username[0],
-			Password:     password[0],
-			LastPostTime: time.Now().Unix(),
-		}
-		online_users_lock.Unlock()
-		cookie := http.Cookie{
-			Name:   "user_sign",
-			Value:  user_sign,
-			Path:   "/",
-			MaxAge: 86400,
-		}
-		http.SetCookie(w, &cookie)
-		w.Write([]byte(output(200, http_errors[200], "")))
-	} else {
-		w.Write([]byte(output(201, http_errors[201], "")))
-	}
+	//username, ok1 := req.Form["username"]
+	//password, ok2 := req.Form["password"]
+	//log.Println("http服务", req.Form, username[0], password[0])
+	//user := data.User{username[0], password[0]}
+	//if ok1 && ok2 && user.Get() {
+	//	log.Infof("http服务，用户 %s 登陆成功", username[0])
+	//	user_sign := wstring.RandString(32)
+	//	online_users_lock.Lock()
+	//	online_users[user_sign] = &OnLineUser{
+	//		Name:         username[0],
+	//		Password:     password[0],
+	//		LastPostTime: time.Now().Unix(),
+	//	}
+	//	online_users_lock.Unlock()
+	//	cookie := http.Cookie{
+	//		Name:   "user_sign",
+	//		Value:  user_sign,
+	//		Path:   "/",
+	//		MaxAge: 86400,
+	//	}
+	//	http.SetCookie(w, &cookie)
+	//	w.Write([]byte(output(200, http_errors[200], "")))
+	//} else {
+	//	w.Write([]byte(output(201, http_errors[201], "")))
+	//}
 }
 
 func onUserLogout(w http.ResponseWriter, req *http.Request) {
