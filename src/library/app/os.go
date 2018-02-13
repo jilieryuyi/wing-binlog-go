@@ -1,9 +1,10 @@
-// +build  linux,darwin,!windows
+// +build  linux,386 darwin,!windows
 
 package app
 
 import (
 	"library/path"
+	"library/file"
 	"os"
 	log "github.com/sirupsen/logrus"
 	"github.com/sevlyar/go-daemon"

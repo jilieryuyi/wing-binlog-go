@@ -14,7 +14,7 @@ import (
 type Session struct {
 	Address string
 	ID string
-	s *api.Session
+	handler *api.Session
 }
 
 // timeout 单位为秒
@@ -23,7 +23,7 @@ func (ses *Session) create() {
 		Behavior : api.SessionBehaviorDelete,
 		TTL: "86400s",
 	}
-	ID, _, err := ses.s.Create(se, nil)
+	ID, _, err := ses.handler.Create(se, nil)
 	if err != nil {
 		return
 	}
@@ -37,12 +37,12 @@ func (ses *Session) renew() (err error) {
 	if ses.ID == "" {
 		return ErrorSessionEmpty
 	}
-	_, _, err = ses.s.Renew(ses.ID, nil)
+	_, _, err = ses.handler.Renew(ses.ID, nil)
 	return err
 }
 
 func (ses *Session) delete() (err error) {
-	_, err = ses.s.Destroy(ses.ID, nil)
+	_, err = ses.handler.Destroy(ses.ID, nil)
 	return err
 }
 
