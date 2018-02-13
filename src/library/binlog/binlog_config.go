@@ -8,8 +8,11 @@ import (
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/hashicorp/consul/api"
 	"library/app"
+	"errors"
 )
-
+var (
+	sessionEmpty = errors.New("session empty")
+)
 type AppConfig struct {
 	// mysql service ip and port, like: "127.0.0.1:3306"
 	Addr     string `toml:"addr"`

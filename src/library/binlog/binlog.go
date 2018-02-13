@@ -170,7 +170,13 @@ func (h *Binlog) Start() {
 	}
 	go func() {
 		for {
-			if h.Lock() {
+			lock, err := h.Lock()
+			if err != nil {
+				log.Errorf("lock with error: %v", err)
+				time.Sleep(time.Second * 3)
+				continue
+			}
+			if lock {
 				//log.Debugf("lock success")
 				h.StartService()
 			} else {

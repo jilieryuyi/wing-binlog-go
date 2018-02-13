@@ -301,6 +301,8 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		if err != nil {
 			if err != io.EOF {
 				log.Warnf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
+			} else {
+				log.Debugf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
 			}
 			tcp.onClose(cnode)
 			conn.Close()
