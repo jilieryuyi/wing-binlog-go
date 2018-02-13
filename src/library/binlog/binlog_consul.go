@@ -37,7 +37,7 @@ func (h *Binlog) consulInit() {
 	h.Session = &Session {
 		Address : h.Address,
 		ID      : "",
-		s       : h.Client.Session(),
+		handler : h.Client.Session(),
 	}
 	h.Session.create()
 	h.Kv    = h.Client.KV()
