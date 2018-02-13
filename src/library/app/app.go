@@ -12,7 +12,6 @@ import (
 	mlog "library/log"
 	"time"
 	"runtime"
-	"github.com/sevlyar/go-daemon"
 	"github.com/BurntSushi/toml"
 	"context"
 	"os/signal"
@@ -20,8 +19,7 @@ import (
 	"strings"
 )
 var (
-	Pid = path.CurrentPath + "/wing-binlog-go.pid"
-	ctx *daemon.Context = nil
+	Pid        = path.CurrentPath + "/wing-binlog-go.pid"
 	DEBUG      = false
 	ConfigPath = path.CurrentPath + "/config"
 	CachePath  = path.CurrentPath + "/cache"
@@ -133,15 +131,6 @@ func configPathParse(configPath string) {
 	log.Debugf("load config form path: %s", ConfigPath)
 }
 
-func Release() {
-	// delete pid when exit
-	file.Delete(Pid)
-	if ctx != nil {
-		// release process context when exit
-		ctx.Release()
-	}
-}
-
 // show usage
 func Usage() {
 	fmt.Println("*********************************************************************")
@@ -156,34 +145,6 @@ func Usage() {
 	fmt.Println("wing-binlog-go -d|-daemon                        --run as daemon process")
 	fmt.Println("wing-binlog-go -config-path                      --set config path")
 	fmt.Println("*********************************************************************")
-}
-
-// run as daemon process
-func DaemonProcess(d bool) bool {
-	if d {
-		log.Debugf("run as daemon process")
-		params := []string{os.Args[0], "-daemon", "-config-path", ConfigPath}
-		//os.Args[0] + " -daemon -config-path " +  ConfigPath
-		log.Debugf("params: %v", params)
-		ctx = &daemon.Context{
-			PidFileName: Pid,
-			PidFilePerm: 0644,
-			LogFileName: LogPath + "/wing-binlog-go.log",
-			LogFilePerm: 0640,
-			WorkDir:     path.CurrentPath,
-			Umask:       027,
-			Args:        params,//[]string{params},
-		}
-		d, err := ctx.Reborn()
-		if err != nil {
-			log.Fatal("Unable to run: ", err)
-		}
-		if d != nil {
-			return true
-		}
-		return false
-	}
-	return false
 }
 
 // kill process by pid file
