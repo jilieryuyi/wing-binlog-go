@@ -203,6 +203,11 @@ func (h *Binlog) agentStart() {
 				break
 			}
 			serviceIp, port = h.GetLeader()
+			currentIp, currentPort := h.GetCurrent()
+			if currentIp == serviceIp && currentPort == port {
+				log.Debugf("can not start agent with current node %s:%d", currentIp, currentPort)
+				return
+			}
 			if serviceIp == "" || port == 0 {
 				log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
 				time.Sleep(time.Second * time.Duration(rand.Int31n(6)))
