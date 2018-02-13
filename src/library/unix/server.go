@@ -9,6 +9,7 @@ import (
 	"os"
 	"library/app"
 	"library/binlog"
+	"library/platform"
 )
 
 func NewUnixServer(ctx *app.Context, binlog *binlog.Binlog) *UnixServer {
@@ -85,18 +86,20 @@ func (server *UnixServer) Close() {
 
 func (server *UnixServer) Start() {
 	server.clear()
-	go func() {
-		log.Debug("unix service start")
-		listen, err := net.Listen("unix", server.addr)
-		if err != nil {
-			log.Panicf("unix service error：%+v", err)
-		}
-		for {
-			fd, err := listen.Accept()
+	if !platform.System(platform.IS_WINDOWS) {
+		go func() {
+			log.Debug("unix service start")
+			listen, err := net.Listen("unix", server.addr)
 			if err != nil {
 				log.Panicf("unix service error：%+v", err)
 			}
-			go server.onConnect(fd)
-		}
-	}()
+			for {
+				fd, err := listen.Accept()
+				if err != nil {
+					log.Panicf("unix service error：%+v", err)
+				}
+				go server.onConnect(fd)
+			}
+		}()
+	}
 }
