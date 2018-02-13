@@ -25,3 +25,4 @@
 /tests/*
 /dev/*
 /clients/web/*.log
+/bin/wing-binlog-log.exe
