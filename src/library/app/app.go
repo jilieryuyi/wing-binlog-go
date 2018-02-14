@@ -17,6 +17,7 @@ import (
 	"os/signal"
 	"syscall"
 	"strings"
+	wstring "library/string"
 )
 var (
 	Pid        = path.CurrentPath + "/wing-binlog-go.pid"
@@ -50,6 +51,9 @@ type Context struct {
 	// pid file path
 	PidFile string
 	CancelChan chan struct{}
+	ReloadChan chan string
+	ShowMembersChan chan struct{}
+	ShowMembersRes chan string
 }
 
 func Init(hasCmd bool, configPath string) {
@@ -147,6 +151,26 @@ func Usage() {
 	fmt.Println("*********************************************************************")
 }
 
+func GetKey(sessionFile string) string {
+	//sessionFile := app.CachePath + "/session"
+	log.Debugf("key file: %s", sessionFile)
+	if file.Exists(sessionFile) {
+		data := file.Read(sessionFile)
+		if data != "" {
+			return data
+		}
+	}
+	//write a new session
+	session := fmt.Sprintf("%d-%s", time.Now().Unix(), wstring.RandString(64))
+	dir := path.GetParent(sessionFile)
+	path.Mkdir(dir)
+	n := file.Write(sessionFile, session, false)
+	if n != len(session) {
+		return ""
+	}
+	return session
+}
+
 // kill process by pid file
 //func killPid() {
 //	dat, _ := ioutil.ReadFile(pid)
@@ -221,6 +245,9 @@ func GetAppConfig() (*Config, error) {
 func NewContext() *Context {
 	ctx := &Context{
 		CancelChan:make(chan struct{}),
+		ReloadChan:make(chan string, 100),
+		ShowMembersChan:make(chan struct{}, 100),
+		ShowMembersRes:make(chan string, 12),
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	go ctx.signalHandler()

@@ -38,6 +38,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		sendAllChan1:     make(chan map[string] interface{}, TCP_MAX_SEND_QUEUE),
 		sendAllChan2:     make(chan []byte, TCP_MAX_SEND_QUEUE),
 		status:           status,
+		token:            app.GetKey(app.CachePath + "/token"),
 	}
 
 	tcp.agentService()
@@ -345,6 +346,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 		//2字节 command
 		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
 		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
+		content := string(node.recvBuf[6 : clen + 4])
 		switch cmd {
 		case CMD_SET_PRO:
 			log.Info("tcp service, receive register group message")
@@ -352,7 +354,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 				return
 			}
 			//内容长度+4字节的前缀（存放内容长度的数值）
-			name := string(node.recvBuf[6 : clen + 4])
+			name := content//string(node.recvBuf[6 : clen + 4])
 			log.Debugf("add to group: %s", name)
 			tcp.lock.Lock()
 			group, found := tcp.groups[name]
@@ -378,6 +380,34 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			(*node.conn).SetReadDeadline(time.Time{})
 			tcp.Agents = append(tcp.Agents, node)
 			tcp.lock.Unlock()
+		case CMD_AUTH:
+			token :=content// string(node.recvBuf[6 : clen + 4])
+			if token == tcp.token {
+				log.Debug("auth ok: %s", token)
+				(*node.conn).SetReadDeadline(time.Time{})
+			} else {
+				(*node.conn).Write(pack(CMD_AUTH, "token error"))
+				(*node.conn).Close()
+				log.Warnf("auth error: %s", token)
+			}
+		case CMD_STOP:
+			log.Debug("get stop cmd, app will stop later")
+			tcp.ctx.CancelChan <- struct{}{}
+		case CMD_RELOAD:
+			content := string(node.recvBuf[6 : clen + 4])
+			log.Debugf("receive reload cmd：%s", string(content))
+			//server.binlog.Reload(string(content))
+			tcp.ctx.ReloadChan <- string(content)
+		case CMD_SHOW_MEMBERS:
+			tcp.ctx.ShowMembersChan <- struct{}{}
+			select {
+				case members, ok := <- tcp.ctx.ShowMembersRes:
+					if ok && members != "" {
+						(*node.conn).Write(pack(CMD_SHOW_MEMBERS, members))
+					}
+				case <-time.After(time.Second *3):
+					(*node.conn).Write([]byte("get members timeout"))
+			}
 		default:
 			node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 			//clear all data

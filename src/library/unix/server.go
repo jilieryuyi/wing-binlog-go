@@ -43,28 +43,9 @@ func (server *UnixServer) onConnect(c net.Conn) {
 			log.Debugf("receive reload cmd：%s", string(content))
 			server.binlog.Reload(string(content))
 		case CMD_SHOW_MEMBERS:
-			members := server.binlog.GetMembers()
-			currentIp, currentPort := server.binlog.GetCurrent()
-			if members != nil {
-				hostname, err := os.Hostname()
-				if err != nil {
-					hostname = ""
-				}
-				l := len(members)
-				res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, currentIp, currentPort)
-				res += fmt.Sprintf("cluster size: %d node(s)\r\n", l)
-				res += fmt.Sprintf("======+==========================================+==========+===============\r\n")
-				res += fmt.Sprintf("%-6s| %-40s | %-8s | %s\r\n", "index", "node", "role", "status")
-				res += fmt.Sprintf("------+------------------------------------------+----------+---------------\r\n")
-				for i, member := range members {
-					role := "follower"
-					if member.IsLeader {
-						role = "leader"
-					}
-					res += fmt.Sprintf("%-6d| %-40s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", member.Hostname, member.ServiceIp, member.Port), role, member.Status)
-				}
-				res += fmt.Sprintf("------+------------------------------------------+----------+---------------\r\n")
-				c.Write([]byte(res))
+			members := server.binlog.ShowMembers()
+			if members != "" {
+				c.Write([]byte(members))
 			} else {
 				c.Write([]byte("no members found"))
 			}

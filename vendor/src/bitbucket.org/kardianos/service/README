@@ -1,0 +1,8 @@
+Moving to https://github.com/kardianos/service
+The github repository uses a new API along with more features.
+If you are using the alpha config struct, you should consider moving.
+
+service will install / un-install, start / stop, and run a program as a service (daemon).
+Currently supports Windows XP+, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
+
+To start out follow "example/main.go".

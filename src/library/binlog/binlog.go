@@ -31,7 +31,40 @@ func NewBinlog(ctx *app.Context) *Binlog {
 	binlog.consulInit()
 	binlog.handlerInit()
 	binlog.lookService()
+	go binlog.reloadService()
+	go binlog.showMembersService()
 	return binlog
+}
+
+func (h *Binlog) showMembersService() {
+	for {
+		select {
+		case _, ok := <- h.ctx.ShowMembersChan:
+			if !ok {
+				return
+			}
+			if len(h.ctx.ShowMembersRes) < cap(h.ctx.ShowMembersRes) {
+				members := h.ShowMembers()
+				h.ctx.ShowMembersRes <- members
+			}
+		case <-h.ctx.Ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *Binlog) reloadService() {
+	for {
+		select {
+		case service, ok := <-h.ctx.ReloadChan:
+			if !ok {
+				return
+			}
+			h.Reload(service)
+			case <-h.ctx.Ctx.Done():
+				return
+		}
+	}
 }
 
 func (h *Binlog) Close() {

@@ -6,7 +6,7 @@ import (
 	"library/app"
 	"library/binlog"
 	"library/services"
-	"library/unix"
+	//"library/unix"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 )
@@ -41,14 +41,16 @@ func Cmd() bool {
 		fmt.Println(app.VERSION)
 		return true
 	}
+	control := services.NewControl()
+	defer control.Close()
 	// 停止服务
 	if *stop {
-		unix.Stop()
+		control.Stop()
 		return true
 	}
 	// 重新加载服务
 	if *serviceReload != "" {
-		unix.Reload(*serviceReload)
+		control.Reload(*serviceReload)
 		return true
 	}
 	// 帮助
@@ -57,7 +59,7 @@ func Cmd() bool {
 		return true
 	}
 	if *members {
-		unix.ShowMembers()
+		control.ShowMembers()
 		return true
 	}
 	return false
@@ -97,9 +99,9 @@ func main() {
 	blog.Start()
 
 	// unix socket use for cmd support
-	server := unix.NewUnixServer(appContext, blog)
-	server.Start()
-	defer server.Close()
+	//server := unix.NewUnixServer(appContext, blog)
+	//server.Start()
+	//defer server.Close()
 
 	// wait exit
 	select {

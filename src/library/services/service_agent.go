@@ -196,7 +196,7 @@ func (ag *Agent) onMessage(msg []byte) {
 		}
 		log.Debugf("%v", ag.buffer)
 		dataB := ag.buffer[6:4 + contentLen]
-		log.Debugf("clen=%d, cmd=%d, (%d)%+v\n", contentLen, cmd, len(dataB), dataB)
+		log.Debugf("clen=%d, cmd=%d, (%d)%+v", contentLen, cmd, len(dataB), dataB)
 
 		switch cmd {
 		case CMD_EVENT:
