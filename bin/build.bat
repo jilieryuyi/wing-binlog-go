@@ -38,9 +38,10 @@ del %root_path%\wing-binlog-go.exe
 
 if not exist %bin_path%\config (
 md %bin_path%\config
-)
-
 ::拷贝配置文件
 xcopy  %root_path%\src\config\*.* %root_path%\bin\config\ /s /e /y /q
+)
+
+
 echo build success
 echo %root_path%\bin\wing-binlog-go.exe
