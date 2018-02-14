@@ -31,6 +31,12 @@ const (
 	CMD_EVENT   = 6 // 事件
 	CMD_AGENT   = 7
 
+	CMD_STOP         = 8
+	CMD_RELOAD       = 9
+	CMD_JOINTO       = 10
+	CMD_SHOW_MEMBERS = 11
+	CMD_CLEAR        = 12
+
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024
@@ -136,6 +142,7 @@ type TcpService struct {
 	sendAllChan1     chan map[string] interface{}
 	sendAllChan2     chan []byte
 	status           int
+	token            string
 }
 
 type tcpGroupConfig struct { // group node in toml

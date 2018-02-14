@@ -10,6 +10,7 @@ import (
 	"net"
 	"math/rand"
 	"strings"
+	"library/app"
 )
 
 func (h *Binlog) consulInit() {
@@ -20,7 +21,7 @@ func (h *Binlog) consulInit() {
 	//consul config
 	h.Address     = consulConfig.Consul.Address
 	//h.isLock      = 0
-	h.sessionId   = GetSession()
+	h.sessionId   = app.GetKey(app.CachePath + "/session")//GetSession()
 	if consulConfig.Enable {
 		h.status ^= disableConsul
 		h.status |= enableConsul
@@ -151,6 +152,36 @@ func (h *Binlog) keepalive() {
 		h.Session.renew()
 		h.registerService()
 		time.Sleep(time.Second * keepaliveInterval)
+	}
+}
+
+func (h *Binlog) ShowMembers() string {
+	members := h.GetMembers()
+	currentIp, currentPort := h.GetCurrent()
+	if members != nil {
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = ""
+		}
+		l := len(members)
+		res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, currentIp, currentPort)
+		res += fmt.Sprintf("cluster size: %d node(s)\r\n", l)
+		res += fmt.Sprintf("======+=============================================+==========+===============\r\n")
+		res += fmt.Sprintf("%-6s| %-43s | %-8s | %s\r\n", "index", "node", "role", "status")
+		res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+		for i, member := range members {
+			role := "follower"
+			if member.IsLeader {
+				role = "leader"
+			}
+			res += fmt.Sprintf("%-6d| %-43s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", member.Hostname, member.ServiceIp, member.Port), role, member.Status)
+		}
+		res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+		//c.Write([]byte(res))
+		return res
+	} else {
+		return ""
+		//c.Write([]byte("no members found"))
 	}
 }
 
