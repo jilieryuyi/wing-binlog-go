@@ -61,7 +61,7 @@ func (con *control) ShowMembers() {
 	data := pack(CMD_SHOW_MEMBERS, "")
 	con.conn.Write(data)
 	var buf = make([]byte, 40960)
-	con.conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	con.conn.SetReadDeadline(time.Now().Add(time.Second*30))
 	con.conn.Read(buf)
 	fmt.Println(string(buf))
 }
