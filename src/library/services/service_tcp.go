@@ -405,7 +405,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 					if ok && members != "" {
 						(*node.conn).Write(pack(CMD_SHOW_MEMBERS, members))
 					}
-				case <-time.After(time.Second *3):
+				case <-time.After(time.Second * 30):
 					(*node.conn).Write([]byte("get members timeout"))
 			}
 		default:
