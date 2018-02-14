@@ -102,6 +102,11 @@ func (ag *Agent) Start(serviceIp string, port int) {
 	agentH := pack(CMD_AGENT, "")
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
+		select {
+		case <- ag.ctx.Ctx.Done():
+			return
+		default:
+		}
 		if ag.status & AgentStatusOffline > 0 {
 			log.Warnf("AgentStatusOffline return")
 			return
