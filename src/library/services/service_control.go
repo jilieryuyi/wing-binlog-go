@@ -21,7 +21,7 @@ func NewControl() *control {
 	con := &control{}
 	con.conn, err = net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Errorf("start control with error: %+v", err)
+		log.Panicf("start control with error: %+v", err)
 	}
 	con.auth()
 	return con
