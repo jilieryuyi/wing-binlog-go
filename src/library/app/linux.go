@@ -16,7 +16,6 @@ func DaemonProcess(d bool) bool {
 	if d {
 		log.Debugf("run as daemon process")
 		params := []string{os.Args[0], "-daemon", "-config-path", ConfigPath}
-		//os.Args[0] + " -daemon -config-path " +  ConfigPath
 		log.Debugf("params: %v", params)
 		ctx = &daemon.Context{
 			PidFileName: Pid,
@@ -25,7 +24,7 @@ func DaemonProcess(d bool) bool {
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,
-			Args:        params,//[]string{params},
+			Args:        params,
 		}
 		d, err := ctx.Reborn()
 		if err != nil {
@@ -39,6 +38,8 @@ func DaemonProcess(d bool) bool {
 	return false
 }
 
+// use for main func, defer app.Release
+// release ctx resource
 func Release() {
 	// delete pid when exit
 	file.Delete(Pid)

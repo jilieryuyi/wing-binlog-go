@@ -25,7 +25,6 @@ var (
 	ConfigPath = path.CurrentPath + "/config"
 	CachePath  = path.CurrentPath + "/cache"
 	LogPath    = path.CurrentPath + "/logs"
-	SockFile   = path.CurrentPath + "/wing-binlog-go.sock"
 )
 
 const (
@@ -39,7 +38,6 @@ type Config struct {
 	CachePath string   `toml:"cache_path"`
 	LogPath string     `toml:"log_path"`
 	PidFile string     `toml:"pid_file"`
-	SockFile string    `toml:"sock_file"`
 }
 
 // context
@@ -58,9 +56,8 @@ type Context struct {
 
 func Init(hasCmd bool, configPath string) {
 	configPathParse(configPath)
-	appConfig, _ := GetAppConfig()
+	appConfig, _ := getAppConfig()
 	Pid = appConfig.PidFile
-	SockFile = appConfig.SockFile
 	CachePath = appConfig.CachePath
 	LogPath   = appConfig.LogPath
 
@@ -124,13 +121,6 @@ func pathParse(dir string, defaultValue string) string {
 }
 
 func configPathParse(configPath string) {
-	//if configPath != "" && path.Exists(configPath) {
-	//	ConfigPath = configPath
-	//}
-	//ConfigPath = strings.Replace(ConfigPath, "\\", "/", -1)
-	//if ConfigPath[len(ConfigPath)-1:] == "/" {
-	//	ConfigPath = ConfigPath[:len(ConfigPath)-1]
-	//}
 	ConfigPath = pathParse(configPath, ConfigPath)
 	log.Debugf("load config form path: %s", ConfigPath)
 }
@@ -171,16 +161,7 @@ func GetKey(sessionFile string) string {
 	return session
 }
 
-// kill process by pid file
-//func killPid() {
-//	dat, _ := ioutil.ReadFile(pid)
-//	fmt.Print(string(dat))
-//	pid, _ := strconv.Atoi(string(dat))
-//	log.Debugf("try to kill process: %d", pid)
-//	//err := syscall.Kill(pid, syscall.SIGTERM)
-//	//log.Println(err)
-//}
-func GetAppConfig() (*Config, error) {
+func getAppConfig() (*Config, error) {
 	var appConfig Config
 	configFile := ConfigPath + "/wing-binlog-go.toml"
 	if !file.Exists(configFile) {
@@ -227,14 +208,6 @@ func GetAppConfig() (*Config, error) {
 	} else {
 		appConfig.PidFile = strings.Replace(appConfig.PidFile,"\\", "/", -1)
 		dir := path.GetParent(appConfig.PidFile)
-		path.Mkdir(dir)
-	}
-
-	if appConfig.SockFile == "" {
-		appConfig.SockFile = SockFile
-	} else {
-		appConfig.SockFile = strings.Replace(appConfig.SockFile,"\\", "/", -1)
-		dir := path.GetParent(appConfig.SockFile)
 		path.Mkdir(dir)
 	}
 

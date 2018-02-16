@@ -1,6 +1,8 @@
 package app
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	ErrorFileNotFound = errors.New("file does not exists")
