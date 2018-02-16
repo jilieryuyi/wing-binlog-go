@@ -6,7 +6,6 @@ import (
 	"library/app"
 	"library/binlog"
 	"library/services"
-	//"library/unix"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
 )
