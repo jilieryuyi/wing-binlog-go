@@ -6,15 +6,11 @@
  * Time: 07:51
  */
 
-const CMD_SET_PRO = 1;
-const CMD_AUTH    = 2;
-const CMD_OK      = 3;
-const CMD_ERROR   = 4;
-const CMD_TICK    = 5;
-const CMD_EVENT   = 6;
-
-const MODE_BROADCAST = 1; //广播
-const MODE_WEIGHT    = 2; //权重
+const CMD_SET_PRO = 0;
+const CMD_AUTH    = 1;
+const CMD_ERROR   = 2;
+const CMD_TICK    = 3;
+const CMD_EVENT   = 4;
 
 date_default_timezone_set('Asia/Shanghai');
 
@@ -156,10 +152,6 @@ function start_service()
                 case CMD_EVENT:
                     clog("每秒响应 ".$p." 次，".$count . "次收到事件：" . $content);
                     $count++;
-                    break;
-                case CMD_OK:
-                    //心跳包会回复这个消息
-                    clog("成功响应：" . $content);
                     break;
                 case CMD_SET_PRO:
                     //发送注册到分组，响应的cmd也会是注册到分组

@@ -23,20 +23,18 @@ var (
 )
 
 const (
-	CMD_SET_PRO = 1 // 注册客户端操作，加入到指定分组
-	CMD_AUTH    = 2 // 认证（暂未使用）
-	CMD_OK      = 3 // 正常响应
-	CMD_ERROR   = 4 // 错误响应
-	CMD_TICK    = 5 // 心跳包
-	CMD_EVENT   = 6 // 事件
-	CMD_AGENT   = 7
+	CMD_SET_PRO = iota // 注册客户端操作，加入到指定分组
+	CMD_AUTH           // 认证（暂未使用）
+	CMD_ERROR          // 错误响应
+	CMD_TICK           // 心跳包
+	CMD_EVENT          // 事件
+	CMD_AGENT
+	CMD_STOP
+	CMD_RELOAD
+	CMD_SHOW_MEMBERS
+)
 
-	CMD_STOP         = 8
-	CMD_RELOAD       = 9
-	CMD_JOINTO       = 10
-	CMD_SHOW_MEMBERS = 11
-	CMD_CLEAR        = 12
-
+const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024

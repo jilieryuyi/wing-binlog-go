@@ -11,13 +11,18 @@ import (
 )
 
 const (
+	CMD_SET_PRO = iota // 注册客户端操作，加入到指定分组
+	CMD_AUTH           // 认证（暂未使用）
+	CMD_ERROR          // 错误响应
+	CMD_TICK           // 心跳包
+	CMD_EVENT          // 事件
+	CMD_AGENT
+	CMD_STOP
+	CMD_RELOAD
+	CMD_SHOW_MEMBERS
+)
+const (
 	tcpDefaultReadBufferSize = 4096
- 	CMD_SET_PRO = 1
- 	CMD_AUTH    = 2
- 	CMD_OK      = 3
- 	CMD_ERROR   = 4
- 	CMD_TICK    = 5
- 	CMD_EVENT   = 6
 )
 
 type Client struct {
