@@ -51,14 +51,14 @@ then
 fi
 
 ##Web文件目录不存在即复制Web文件
-if [ ! -d "${bin_path}/web" ]
-then
-	mkdir ${root_path}/bin/web/
-fi
+#if [ ! -d "${bin_path}/web" ]
+#then
+#	mkdir ${root_path}/bin/web/
+#fi
 
 ##cp -rf ${root_path}/src/library ${root_path}/vendor/
 ##cp -rf ${vendor_path}/src/* ${vendor_path}
-cp -rf ${root_path}/web/* ${root_path}/bin/web/
+##cp -rf ${root_path}/web/* ${root_path}/bin/web/
 
 echo "build success"
 echo ${root_path}/bin/wing-binlog-go
