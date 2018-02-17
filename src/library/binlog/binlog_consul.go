@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strconv"
 	"net"
-	"math/rand"
 	"strings"
 	"library/app"
 )
@@ -68,6 +67,9 @@ func (h *Binlog) consulInit() {
 }
 
 func (h *Binlog) asyncWrite() {
+	if h.status & disableConsul > 0 {
+		return
+	}
 	h.wg.Add(1)
 	defer h.wg.Done()
 	for {
@@ -131,9 +133,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	//if isLeader == 0 {
-		//log.Debugf("register service: %+v", *service)
-	//}
+	log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -143,6 +143,7 @@ func (h *Binlog) registerService() {
 func (h *Binlog) GetCurrent() (string, int) {
 	return h.ServiceIp, h.ServicePort
 }
+
 // keepalive
 func (h *Binlog) keepalive() {
 	if h.status & disableConsul > 0 {
@@ -156,6 +157,9 @@ func (h *Binlog) keepalive() {
 }
 
 func (h *Binlog) ShowMembers() string {
+	if h.status & disableConsul > 0 {
+		return ""
+	}
 	members := h.GetMembers()
 	currentIp, currentPort := h.GetCurrent()
 	if members != nil {
@@ -234,7 +238,7 @@ func (h *Binlog) checkAlive() {
 		return
 	}
 	// 延迟执行
-	t := h.rand(30000, 60000)
+	t := srand(30000, 60000)
 	time.Sleep(time.Duration(t) * time.Millisecond)
 	for {
 		//获取所有的服务
@@ -282,39 +286,11 @@ func (h *Binlog) checkAlive() {
 		if leaderCount > 1 {
 			log.Warnf("%d leaders is running", leaderCount)
 			h.Delete(h.LockKey)
-			//for _, v := range members {
-			//	if v.IsLeader {
-			//		if !h.alive(v.ServiceIp, v.Port) {
-			//			log.Warnf("deregister %s", v.SessionId)
-			//			h.agent.ServiceDeregister(v.SessionId)
-			//		}
-			//	}
-			//}
 		}
-		n := h.rand(checkAliveInterval * 1000, checkAliveInterval * 3 * 1000)
-		//log.Debugf("sleep %vms", n)
+		n := srand(checkAliveInterval * 1000, checkAliveInterval * 3 * 1000)
 		time.Sleep(time.Millisecond * time.Duration(n))
 	}
 }
-func (h *Binlog) rand(min int, max int) int {
-	r1 := rand.NewSource(time.Now().UnixNano())
-	r2 := rand.New(r1)
-	n := r2.Intn(max)
-	if n < min {
-		n = h.rand(min, max)
-	}
-	return n
-}
-
-//func (h *Binlog) newleader() {
-//	n := h.rand(500, 3000)
-//	time.Sleep(time.Millisecond * time.Duration(n))
-//	h.Delete(h.LockKey)
-//	if h.Lock() {
-//		log.Debugf("current is the new leader")
-//		h.StartService()
-//	}
-//}
 
 func (h *Binlog) alive(ip string, port int) bool {
 	log.Debugf("ping %s:%d", ip, port)

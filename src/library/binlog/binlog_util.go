@@ -5,6 +5,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/file"
 	"library/app"
+	"math/rand"
+	"time"
 )
 
 // 封包
@@ -107,6 +109,16 @@ func GetMysqlConfig() (*AppConfig, error) {
 		return nil, app.ErrorFileParse
 	}
 	return &appConfig, nil
+}
+
+func srand(min int, max int) int {
+	r1 := rand.NewSource(time.Now().UnixNano())
+	r2 := rand.New(r1)
+	n := r2.Intn(max)
+	if n < min {
+		n = srand(min, max)
+	}
+	return n
 }
 
 
