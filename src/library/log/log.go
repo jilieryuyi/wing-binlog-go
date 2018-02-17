@@ -67,7 +67,6 @@ func (hook ContextHook) Levels() []log.Level {
 }
 
 func (hook ContextHook) getCallerInfo() (string, string, int) {
-	//fmt.Println("=========================getCallerInfo")
 	var (
 		shortPath string
 	 	funcName string
@@ -101,11 +100,6 @@ func (hook ContextHook) getCallerInfo() (string, string, int) {
 				break
 			}
 		}
-		//fmt.Println("==>", fullPath)
-		//fmt.Println("==>", shortPath)
-		//fmt.Println("==>", funcName)
-		//fmt.Println("==>", line)
-		//fmt.Println("")
 	}
 	return "", "", 0
 }
