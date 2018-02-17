@@ -10,20 +10,10 @@ import (
 	"sync"
 	"strings"
 	"runtime"
-	"path/filepath"
 )
 
 var logHandler = make(map[string] *os.File)
 var logLock = new(sync.Mutex)
-
-var workingDir = "/"
-
-func init() {
-	wd, err := os.Getwd()
-	if err == nil {
-		workingDir = filepath.ToSlash(wd) + "/"
-	}
-}
 
 func getHandler(logPath string, level log.Level) (*os.File, error) {
 	logLock.Lock()
@@ -49,19 +39,19 @@ func getHandler(logPath string, level log.Level) (*os.File, error) {
 			return nil, err
 		}
 	}
-	for _key, v := range logHandler{
-		if _key != key {
-			delete(logHandler, _key)
+	for k, v := range logHandler{
+		if k != key {
+			delete(logHandler, k)
 			v.Close()
 		}
 	}
 	return logHandler[key], nil
 }
 
-
 type ContextHook struct {
 	LogPath string
 }
+
 func (hook ContextHook) Levels() []log.Level {
 	return log.AllLevels
 }
@@ -88,8 +78,8 @@ func (hook ContextHook) getCallerInfo() (string, string, int) {
 			//}
 			shortPath = fullPath[lastS+1:]
 			funcName = runtime.FuncForPC(pc).Name()
-			if strings.HasPrefix(funcName, workingDir) {
-				funcName = funcName[len(workingDir):]
+			if strings.HasPrefix(funcName, path.WorkingDir) {
+				funcName = funcName[len(path.WorkingDir):]
 			}
 			index := strings.LastIndex(funcName, ".")
 			if index > 0 {

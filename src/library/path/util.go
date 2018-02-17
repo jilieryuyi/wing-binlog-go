@@ -34,6 +34,17 @@ func GetCurrentPath() string {
 
 // current path
 var CurrentPath = GetCurrentPath()
+var WorkingDir  = getWorkingPath()
+
+func getWorkingPath() string {
+	wd, err := os.Getwd()
+	if err == nil {
+		workingDir := filepath.ToSlash(wd) + "/"
+		return workingDir
+	}
+	return "/"
+}
+
 
 func Mkdir(dir string) bool {
 	if Exists(dir) {
