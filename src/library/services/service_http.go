@@ -338,6 +338,7 @@ func (client *HttpService) Reload() {
 func (client *HttpService) AgentStart(serviceIp string, port int) {
 
 }
+
 func (client *HttpService) AgentStop() {
 
 }

@@ -19,6 +19,7 @@ import (
 	"strings"
 	wstring "library/string"
 )
+
 var (
 	Pid        = path.CurrentPath + "/wing-binlog-go.pid"
 	DEBUG      = false
@@ -54,6 +55,15 @@ type Context struct {
 	ShowMembersRes chan string
 }
 
+// app init
+// config path parse
+// cache path parse
+// log path parse
+// get app config
+// check app is running, if pid file exists, app is running
+// write pid file
+// start pprof
+// set logger
 func Init(hasCmd bool, configPath string) {
 	configPathParse(configPath)
 	appConfig, _ := getAppConfig()
@@ -109,6 +119,7 @@ func Init(hasCmd bool, configPath string) {
 	log.Debugf("app config: %+v", *appConfig)
 }
 
+// file path parse
 func pathParse(dir string, defaultValue string) string {
 	if dir == "" || !path.Exists(dir) {
 		return defaultValue
@@ -120,6 +131,7 @@ func pathParse(dir string, defaultValue string) string {
 	return dir
 }
 
+// config path parse
 func configPathParse(configPath string) {
 	ConfigPath = pathParse(configPath, ConfigPath)
 	log.Debugf("load config form path: %s", ConfigPath)
@@ -141,6 +153,10 @@ func Usage() {
 	fmt.Println("*********************************************************************")
 }
 
+// get unique key, param if file path
+// if file does not exists, try to create it, and write a unique key
+// return the unique key
+// if exists, read file and return it
 func GetKey(sessionFile string) string {
 	//sessionFile := app.CachePath + "/session"
 	log.Debugf("key file: %s", sessionFile)
@@ -150,17 +166,18 @@ func GetKey(sessionFile string) string {
 			return data
 		}
 	}
-	//write a new session
-	session := fmt.Sprintf("%d-%s", time.Now().Unix(), wstring.RandString(64))
+	//write a new key
+	key := fmt.Sprintf("%d-%s", time.Now().Unix(), wstring.RandString(64))
 	dir := path.GetParent(sessionFile)
 	path.Mkdir(dir)
-	n := file.Write(sessionFile, session, false)
-	if n != len(session) {
+	n := file.Write(sessionFile, key, false)
+	if n != len(key) {
 		return ""
 	}
-	return session
+	return key
 }
 
+// get app config
 func getAppConfig() (*Config, error) {
 	var appConfig Config
 	configFile := ConfigPath + "/wing-binlog-go.toml"
@@ -227,6 +244,7 @@ func NewContext() *Context {
 	return ctx
 }
 
+// wait for control + c signal
 func (ctx *Context) signalHandler() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc,

@@ -104,6 +104,7 @@ const (
 	tcpNodeIsNotAgent
 	tcpNodeIsAgent
 )
+
 type tcpClientNode struct {
 	conn             *net.Conn   // 客户端连接进来的资源句柄
 	sendQueue        chan []byte // 发送channel

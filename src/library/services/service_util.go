@@ -62,21 +62,10 @@ func pack(cmd int, msg string) []byte {
 	return r
 }
 
-
-//func remove(buffer *[]byte, index int) {
-//	var i = 0
-//	var si = 0
-//	var blen = len(*buffer)
-//	if index > blen {
-//		index = blen
-//	}
-//	//数据移动，清除已读数据
-//	for i = 0; i < index; i++ {
-//		(*buffer)[i] = byte(0)
-//	}
-//	//if bufferLen > contentLen + 4 {
-//	for i = index; i < blen; i ++ {
-//		(*buffer)[si] = (*buffer)[i]
-//		si++
-//	}
-//}
+func unpack(data []byte) (int, string) {
+	clen := int(data[0]) | int(data[1]) << 8 |
+		int(data[2]) << 16 | int(data[3]) << 24
+	cmd  := int(data[4]) | int(data[5]) << 8
+	content := string(data[6 : clen + 4])
+	return cmd, content
+}

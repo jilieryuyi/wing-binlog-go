@@ -97,11 +97,6 @@ func main() {
 	blog.RegisterService("http", httpService)
 	blog.Start()
 
-	// unix socket use for cmd support
-	//server := unix.NewUnixServer(appContext, blog)
-	//server.Start()
-	//defer server.Close()
-
 	// wait exit
 	select {
 		case <- appContext.CancelChan:

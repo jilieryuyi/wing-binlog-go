@@ -54,7 +54,7 @@ func (ag *Agent) keepalive() {
 	data := pack(CMD_TICK, "agent keep alive")
 	for {
 		if ag.node == nil || ag.node.conn == nil ||
-			ag.status & (AgentStatusDisconnect) > 0 ||
+			ag.status & AgentStatusDisconnect > 0 ||
 			ag.status & AgentStatusOffline > 0 {
 			time.Sleep(3 * time.Second)
 			continue
@@ -229,19 +229,5 @@ func (ag *Agent) onMessage(msg []byte) {
 		//remove(&ag.buffer, contentLen + 4)
 		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
 		log.Debugf("%v", ag.buffer)
-
-		//var i = 0
-		//var si = 0
-		////数据移动，清除已读数据
-		//for i = 0; i < contentLen + 4; i++ {
-		//	ag.buffer[i] = byte(0)
-		//}
-		////if bufferLen > contentLen + 4 {
-		//	for i = contentLen + 4; i < bufferLen; i ++ {
-		//		ag.buffer[si] = ag.buffer[i]
-		//		si++
-		//	}
-		//}
-		//ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"io"
 )
 
-
 // check file is exists
 // if exists return true, else return false
 func Exists(filePath string) bool {
@@ -28,6 +27,9 @@ func Exists(filePath string) bool {
 	}
 }
 
+// read file
+// filePath like /tmp/test.log
+// return string
 func Read(filePath string) string {
 	if !Exists(filePath) {
 		return ""
@@ -40,6 +42,11 @@ func Read(filePath string) string {
 	return string(dat)
 }
 
+// read at
+// filepath like /tmp/test.log
+// offset > 0 read form start, < 0 read form end
+// length read data len
+// return string
 func ReadAt(filePath string, offset int64, length int64) string {
 	if !Exists(filePath) {
 		log.Warnf("file %s does not exists", filePath)
@@ -91,6 +98,11 @@ func ReadAt(filePath string, offset int64, length int64) string {
 	return string(buf)
 }
 
+// write file
+// filePath like /tmp/test.log
+// write with data
+// append is true will append data to file, false will override
+// return write data len
 func Write(filePath string, data string, append bool) int {
 	dir := path.GetParent(filePath)
 	path.Mkdir(dir)
@@ -143,17 +155,6 @@ func Length(filePath string) int64 {
 		return 0
 	}
 	defer handle.Close()
-	//你也可以 Seek 到一个文件中已知的位置并从这个位置开始进行读取。
-	//Seek 设置下一次 Read 或 Write 的偏移量为 offset，它的解释取决于
-	//whence：
-	// 0 表示相对于文件的起始处，
-	// 1 表示相对于当前的偏移
-	// 2 表示相对于其结尾处。
-	//const (
-	//    SEEK_SET int = 0 // seek relative to the origin of the file
-	//    SEEK_CUR int = 1 // seek relative to the current offset
-	//    SEEK_END int = 2 // seek relative to the end
-	//)
 	length, _ := handle.Seek(0, io.SeekEnd)
 	return length
 

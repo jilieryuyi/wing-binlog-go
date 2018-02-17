@@ -1,12 +1,7 @@
 package string
 
 import (
-	//"fmt"
-	//"reflect"
 	"strconv"
-	//"fmt"
-	_ "fmt"
-	_ "reflect"
 )
 
 type WString struct {

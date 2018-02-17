@@ -370,7 +370,6 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.lock.Unlock()
 		case CMD_TICK:
 			node.sendQueue <- pack(CMD_TICK, "ok")
-			//心跳包
 		case CMD_AGENT:
 			tcp.lock.Lock()
 			if node.status & tcpNodeIsNotAgent > 0 {
@@ -381,7 +380,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			tcp.Agents = append(tcp.Agents, node)
 			tcp.lock.Unlock()
 		case CMD_AUTH:
-			token :=content// string(node.recvBuf[6 : clen + 4])
+			token := content// string(node.recvBuf[6 : clen + 4])
 			if token == tcp.token {
 				log.Debug("auth ok: %s", token)
 				(*node.conn).SetReadDeadline(time.Time{})
