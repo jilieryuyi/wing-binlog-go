@@ -88,7 +88,7 @@ func (ag *Agent) nodeInit(ip string, port int) {
 
 func (ag *Agent) Start(serviceIp string, port int) {
 	if ag.status & AgentStatusConnect > 0 {
-		//log.Debugf("agent is still is running")
+		log.Debugf("agent is still is running")
 		return
 	}
 	if ag.status & AgentStatusOffline > 0 {
@@ -117,8 +117,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			time.Sleep(time.Second * 3)
 			continue
 		}
-
-		if ag.status & AgentStatusDisconnect >0 {
+		if ag.status & AgentStatusDisconnect > 0 {
 			ag.status ^= AgentStatusDisconnect
 			ag.status |= AgentStatusConnect
 		}
@@ -160,6 +159,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 
 func (ag *Agent) disconnect() {
 	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
+		log.Debugf("agent is in disconnect status")
 		return
 	}
 	log.Warnf("====================agent disconnect====================")
@@ -172,7 +172,7 @@ func (ag *Agent) disconnect() {
 
 func (ag *Agent) Close() {
 	if ag.status & AgentStatusOffline > 0 {
-		//log.Debugf("agent close was called, but not running")
+		log.Debugf("agent close was called, but not running")
 		return
 	}
 	log.Warnf("====================agent close====================")
