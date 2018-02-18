@@ -9,6 +9,7 @@ import (
 	//"github.com/kardianos/service"
 	//"fmt"
 	//"os"
+	//https://github.com/zuiwuchang/windows-go-daemon/blob/master/go-daemon/main.go
 )
 
 func DaemonProcess(d bool) bool {
