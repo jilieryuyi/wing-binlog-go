@@ -30,6 +30,7 @@ type Agent struct {
 	sendAllChan1 chan map[string] interface{}
 	sendAllChan2 chan []byte
 	status       int
+	last         int64
 }
 
 type agentNode struct {
@@ -87,18 +88,25 @@ func (ag *Agent) nodeInit(ip string, port int) {
 }
 
 func (ag *Agent) Start(serviceIp string, port int) {
-	if ag.status & AgentStatusConnect > 0 {
-		log.Debugf("agent is still is running")
-		return
-	}
-	if ag.status & AgentStatusOffline > 0 {
-		ag.status ^= AgentStatusOffline
-		ag.status |= AgentStatusOnline
-	}
 	if serviceIp == "" || port == 0 {
 		log.Warnf("ip or port empty %s:%d", serviceIp, port)
 		return
 	}
+	if ag.status & AgentStatusConnect > 0 {
+		if time.Now().Unix() - ag.last > 6 {
+			log.Warnf("agent is timeout")
+			ag.Close()
+		}
+		log.Debugf("agent is still is running")
+		return
+	}
+	ag.lock.Lock()
+	if ag.status & AgentStatusOffline > 0 {
+		ag.status ^= AgentStatusOffline
+		ag.status |= AgentStatusOnline
+	}
+	ag.lock.Unlock()
+
 	agentH := pack(CMD_AGENT, "")
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
@@ -117,10 +125,12 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			time.Sleep(time.Second * 3)
 			continue
 		}
+		ag.lock.Lock()
 		if ag.status & AgentStatusDisconnect > 0 {
 			ag.status ^= AgentStatusDisconnect
 			ag.status |= AgentStatusConnect
 		}
+		ag.lock.Unlock()
 		log.Debugf("====================agent start====================")
 		// 简单的握手
 		n, err := ag.node.conn.Write(agentH)
@@ -131,6 +141,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 		}
 		for {
 			log.Debugf("====agent is running====")
+			ag.last = time.Now().Unix()
 			if ag.status & AgentStatusOffline > 0 {
 				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
 				return
@@ -164,23 +175,33 @@ func (ag *Agent) disconnect() {
 	}
 	log.Warnf("====================agent disconnect====================")
 	ag.node.conn.Close()
+
+	ag.lock.Lock()
 	if ag.status & AgentStatusConnect > 0 {
 		ag.status ^= AgentStatusConnect
 		ag.status |= AgentStatusDisconnect
 	}
+	ag.lock.Unlock()
 }
 
 func (ag *Agent) Close() {
+	ag.lock.Lock()
 	if ag.status & AgentStatusOffline > 0 {
+		ag.lock.Unlock()
 		log.Debugf("agent close was called, but not running")
 		return
 	}
+	ag.lock.Unlock()
+
 	log.Warnf("====================agent close====================")
 	ag.disconnect()
+
+	ag.lock.Lock()
 	if ag.status & AgentStatusOnline > 0 {
 		ag.status ^= AgentStatusOnline
 		ag.status |= AgentStatusOffline
 	}
+	ag.lock.Unlock()
 }
 
 func (ag *Agent) onMessage(msg []byte) {
