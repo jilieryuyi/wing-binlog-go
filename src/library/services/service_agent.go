@@ -146,7 +146,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 				ag.disconnect()
 				break
 			}
-			log.Debugf("agent receive: %+v, %s", buf[:size], string(buf[:size]))
+			log.Debugf("agent receive %d bytes: %+v, %s", size, buf[:size], string(buf[:size]))
 			ag.onMessage(buf[:size])
 			select {
 				case <-ag.ctx.Ctx.Done():
@@ -227,7 +227,12 @@ func (ag *Agent) onMessage(msg []byte) {
 			}
 		}
 		//remove(&ag.buffer, contentLen + 4)
-		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen + 4:]...)
+		log.Debugf("%d, contentLen + 4=%d", len(ag.buffer), contentLen + 4)
+		if len(ag.buffer) >= contentLen + 4 {
+			ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen+4:]...)
+		} else {
+			log.Warnf("content len error")
+		}
 		log.Debugf("%v", ag.buffer)
 	}
 }
