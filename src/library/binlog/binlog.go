@@ -210,62 +210,35 @@ func (h *Binlog) Start() {
 				continue
 			}
 			if lock {
-				//log.Debugf("lock success")
 				h.StartService()
 			} else {
-				//log.Debugf("lock failure")
 				h.StopService(false)
 			}
 			time.Sleep(time.Second * 3)
 		}
 	}()
-	//go func() {
-	//	time.Sleep(time.Second * 1)
-	//	// check service ip is can connect
-	//	if !h.alive(h.ServiceIp, h.ServicePort) {
-	//		log.Warnf("can not connect to %s:%d", h.ServiceIp, h.ServicePort)
-	//	}
-	//}()
 }
 
 // start tcp service agent
 // service stop will start a tcp service agent
 func (h *Binlog) agentStart() {
-	var serviceIp = ""
-	var port= 0
-	//go func()
-	{
-		//st := time.Now().Unix()
-		// get leader service ip and port
-		// if empty, wait for init
-		// max wait time is 60 seconds
-		//for
-		{
-			//if (time.Now().Unix() - st) > 60 {
-			//	break
-			//}
-			serviceIp, port = h.GetLeader()
-			currentIp, currentPort := h.GetCurrent()
-			if currentIp == serviceIp && currentPort == port {
-				log.Debugf("can not start agent with current node %s:%d", currentIp, currentPort)
-				return
-			}
-			if serviceIp == "" || port == 0 {
-				log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
-				//time.Sleep(time.Second * time.Duration(rand.Int31n(6)))
-				//continue
-				return
-			}
-			//log.Debugf("leader ip and port: %s:%d", serviceIp, port)
-			//break
-		}
-		if serviceIp == "" || port == 0 {
-			return
-		}
-		for _, s := range h.services {
-			s.AgentStart(serviceIp, port)
-		}
-	}//()
+	serviceIp, port := h.GetLeader()
+	currentIp, currentPort := h.GetCurrent()
+	if currentIp == serviceIp && currentPort == port {
+		log.Debugf("can not start agent with current node %s:%d", currentIp, currentPort)
+		return
+	}
+	if serviceIp == "" || port == 0 {
+		log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
+		return
+	}
+	log.Debugf("leader ip and port: %s:%d", serviceIp, port)
+	if serviceIp == "" || port == 0 {
+		return
+	}
+	for _, s := range h.services {
+		s.AgentStart(serviceIp, port)
+	}
 }
 
 // service reload
