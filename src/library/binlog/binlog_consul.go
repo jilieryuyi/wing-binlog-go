@@ -294,12 +294,13 @@ func (h *Binlog) checkAlive() {
 
 func (h *Binlog) alive(ip string, port int) bool {
 	log.Debugf("ping %s:%d", ip, port)
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
-	if err != nil {
-		log.Debugf("is not alive")
-		return false
-	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	//tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
+	//if err != nil {
+	//	log.Debugf("is not alive")
+	//	return false
+	//}
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), time.Second * 3)
+	//conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil || conn == nil {
 		log.Debugf("is not alive")
 		return false

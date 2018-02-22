@@ -60,6 +60,7 @@ func (ag *Agent) keepalive() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
+		log.Debugf("agent keepalive")
 		n, err := ag.node.conn.Write(data)
 		if n <= 0 || err != nil {
 			log.Errorf("agent keepalive error: %d, %v", n, err)
@@ -93,10 +94,10 @@ func (ag *Agent) Start(serviceIp string, port int) {
 		return
 	}
 	if ag.status & AgentStatusConnect > 0 {
-		if time.Now().Unix() - ag.last > 6 {
-			log.Warnf("agent is timeout")
-			ag.Close()
-		}
+		//if time.Now().Unix() - ag.last > 60 {
+		//	log.Warnf("agent is timeout")
+		//	ag.Close()
+		//}
 		log.Debugf("agent is still is running")
 		return
 	}
@@ -131,7 +132,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			ag.status |= AgentStatusConnect
 		}
 		ag.lock.Unlock()
-		log.Debugf("====================agent start====================")
+		log.Debugf("====================agent start %s:%d====================", serviceIp, port)
 		// 简单的握手
 		n, err := ag.node.conn.Write(agentH)
 		if n <= 0 || err != nil {

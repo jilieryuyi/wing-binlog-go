@@ -5,6 +5,7 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
 	"library/app"
+	"library/ip"
 )
 
 // parse http config
@@ -29,14 +30,21 @@ func getHttpConfig() (*HttpConfig, error) {
 
 func GetTcpConfig() (*TcpConfig, error) {
 	configFile := app.ConfigPath + "/tcp.toml"
+	var err error
 	if !file.Exists(configFile) {
 		log.Warnf("config %s does not exists", configFile)
 		return nil, ErrorFileNotFound
 	}
 	var tcpConfig TcpConfig
-	if _, err := toml.DecodeFile(configFile, &tcpConfig); err != nil {
+	if _, err = toml.DecodeFile(configFile, &tcpConfig); err != nil {
 		log.Println(err)
 		return nil, ErrorFileParse
+	}
+	if 	tcpConfig.ServiceIp == "" {
+		tcpConfig.ServiceIp, err = ip.Local()
+		if err != nil {
+			log.Panicf("can not get local ip, please set service ip(service_ip) in file %s", configFile)
+		}
 	}
 	if tcpConfig.ServiceIp == "" {
 		log.Panicf("service ip can not be empty (config file: %s)", configFile)

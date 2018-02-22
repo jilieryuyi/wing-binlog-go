@@ -219,6 +219,13 @@ func (h *Binlog) Start() {
 			time.Sleep(time.Second * 3)
 		}
 	}()
+	go func() {
+		time.Sleep(time.Second * 1)
+		// check service ip is can connect
+		if !h.alive(h.ServiceIp, h.ServicePort) {
+			log.Warnf("can not connect to %s:%d", h.ServiceIp, h.ServicePort)
+		}
+	}()
 }
 
 // start tcp service agent
