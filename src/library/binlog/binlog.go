@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/app"
 	"time"
-	"math/rand"
+	//"math/rand"
 )
 
 func NewBinlog(ctx *app.Context) *Binlog {
@@ -219,13 +219,13 @@ func (h *Binlog) Start() {
 			time.Sleep(time.Second * 3)
 		}
 	}()
-	go func() {
-		time.Sleep(time.Second * 1)
-		// check service ip is can connect
-		if !h.alive(h.ServiceIp, h.ServicePort) {
-			log.Warnf("can not connect to %s:%d", h.ServiceIp, h.ServicePort)
-		}
-	}()
+	//go func() {
+	//	time.Sleep(time.Second * 1)
+	//	// check service ip is can connect
+	//	if !h.alive(h.ServiceIp, h.ServicePort) {
+	//		log.Warnf("can not connect to %s:%d", h.ServiceIp, h.ServicePort)
+	//	}
+	//}()
 }
 
 // start tcp service agent
@@ -233,15 +233,17 @@ func (h *Binlog) Start() {
 func (h *Binlog) agentStart() {
 	var serviceIp = ""
 	var port= 0
-	go func() {
-		st := time.Now().Unix()
+	//go func()
+	{
+		//st := time.Now().Unix()
 		// get leader service ip and port
 		// if empty, wait for init
 		// max wait time is 60 seconds
-		for {
-			if (time.Now().Unix() - st) > 60 {
-				break
-			}
+		//for
+		{
+			//if (time.Now().Unix() - st) > 60 {
+			//	break
+			//}
 			serviceIp, port = h.GetLeader()
 			currentIp, currentPort := h.GetCurrent()
 			if currentIp == serviceIp && currentPort == port {
@@ -250,11 +252,12 @@ func (h *Binlog) agentStart() {
 			}
 			if serviceIp == "" || port == 0 {
 				log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
-				time.Sleep(time.Second * time.Duration(rand.Int31n(6)))
-				continue
+				//time.Sleep(time.Second * time.Duration(rand.Int31n(6)))
+				//continue
+				return
 			}
 			//log.Debugf("leader ip and port: %s:%d", serviceIp, port)
-			break
+			//break
 		}
 		if serviceIp == "" || port == 0 {
 			return
@@ -262,7 +265,7 @@ func (h *Binlog) agentStart() {
 		for _, s := range h.services {
 			s.AgentStart(serviceIp, port)
 		}
-	}()
+	}//()
 }
 
 // service reload
