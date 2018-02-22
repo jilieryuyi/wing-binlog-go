@@ -284,7 +284,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
 		recvBuf:          make([]byte, tcpReceiveDefaultSize),
-		recvBytes:        0,
+		//recvBytes:        0,
 		group:            "",
 		status:           tcpNodeOnline|tcpNodeIsNotAgent,
 	}
@@ -293,12 +293,13 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
-		buf := readBuffer[:tcpDefaultReadBufferSize]
-		//清空旧数据 memset
-		for i := range buf {
-			buf[i] = byte(0)
-		}
-		size, err := conn.Read(buf)
+		//buf := readBuffer[:tcpDefaultReadBufferSize]
+		////清空旧数据 memset
+		//for i := range buf {
+		//	buf[i] = byte(0)
+		//}
+		size, err := conn.Read(readBuffer[0:])
+		log.Debugf("tcp read buffer len: %d, cap: %d", len(readBuffer), cap(readBuffer))
 		if err != nil {
 			if err != io.EOF {
 				log.Warnf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
@@ -309,10 +310,10 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			conn.Close()
 			return
 		}
-		log.Debugf("tcp service receive %d bytes: %+v, %s", size, buf[:size], string(buf))
+		log.Debugf("tcp service receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
 		atomic.AddInt64(&tcp.recvTimes, int64(1))
-		cnode.recvBytes += size
-		tcp.onMessage(cnode, buf, size)
+		//cnode.recvBytes += size
+		tcp.onMessage(cnode, readBuffer[:size])
 
 		select {
 		case <-tcp.ctx.Ctx.Done():
@@ -324,19 +325,21 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 }
 
 // receive a new message
-func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
-	node.recvBuf = append(node.recvBuf[:node.recvBytes-size], msg[0:size]...)
+func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
+	node.recvBuf = append(node.recvBuf, msg...)
+	log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
 	for {
 		size := len(node.recvBuf)
 		if size < 6 {
 			return
-		} else if size > tcpReceiveDefaultSize {
-			// 清除所有的读缓存，防止发送的脏数据不断的累计
-			node.recvBuf = make([]byte, tcpReceiveDefaultSize)
-			node.recvBytes = 0
-			log.Info("tcp服务-新建缓冲区")
-			return
 		}
+		//else if size > tcpReceiveDefaultSize {
+		//	// 清除所有的读缓存，防止发送的脏数据不断的累计
+		//	node.recvBuf = make([]byte, tcpReceiveDefaultSize)
+		//	node.recvBytes = 0
+		//	log.Info("tcp服务-新建缓冲区")
+		//	return
+		//}
 		//4字节长度
 		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
 			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
@@ -412,13 +415,15 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
 			//clear all data
 			node.recvBuf = make([]byte, tcpReceiveDefaultSize)
-			node.recvBytes = 0
+			//node.recvBytes = 0
 			return
 		}
 
 		//数据移动，清除已读数据
-		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:node.recvBytes]...)
-		node.recvBytes = node.recvBytes - clen - 4
+		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
+		log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
+
+		//node.recvBytes = node.recvBytes - clen - 4
 	}
 }
 

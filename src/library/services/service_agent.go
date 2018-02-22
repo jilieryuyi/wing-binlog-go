@@ -147,19 +147,20 @@ func (ag *Agent) Start(serviceIp string, port int) {
 				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
 				return
 			}
-			buf := readBuffer[0:]
+			//buf := &readBuffer[:tcpDefaultReadBufferSize]
 			//clear data
-			for i := range buf {
-				buf[i] = byte(0)
-			}
-			size, err := ag.node.conn.Read(buf[0:])
+			//for i := range readBuffer {
+			//	readBuffer[i] = byte(0)
+			//}
+			size, err := ag.node.conn.Read(readBuffer[0:])
+			log.Debugf("read buffer len: %d, cap:%d", len(readBuffer), cap(readBuffer))
 			if err != nil || size <= 0 {
 				log.Warnf("agent read with error: %+v", err)
 				ag.disconnect()
 				break
 			}
-			log.Debugf("agent receive %d bytes: %+v, %s", size, buf[:size], string(buf[:size]))
-			ag.onMessage(buf[:size])
+			log.Debugf("agent receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
+			ag.onMessage(readBuffer[:size])
 			select {
 				case <-ag.ctx.Ctx.Done():
 					return
@@ -167,42 +168,6 @@ func (ag *Agent) Start(serviceIp string, port int) {
 			}
 		}
 	}
-}
-
-func (ag *Agent) disconnect() {
-	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
-		log.Debugf("agent is in disconnect status")
-		return
-	}
-	log.Warnf("====================agent disconnect====================")
-	ag.node.conn.Close()
-
-	ag.lock.Lock()
-	if ag.status & AgentStatusConnect > 0 {
-		ag.status ^= AgentStatusConnect
-		ag.status |= AgentStatusDisconnect
-	}
-	ag.lock.Unlock()
-}
-
-func (ag *Agent) Close() {
-	ag.lock.Lock()
-	if ag.status & AgentStatusOffline > 0 {
-		ag.lock.Unlock()
-		log.Debugf("agent close was called, but not running")
-		return
-	}
-	ag.lock.Unlock()
-
-	log.Warnf("====================agent close====================")
-	ag.disconnect()
-
-	ag.lock.Lock()
-	if ag.status & AgentStatusOnline > 0 {
-		ag.status ^= AgentStatusOnline
-		ag.status |= AgentStatusOffline
-	}
-	ag.lock.Unlock()
 }
 
 func (ag *Agent) onMessage(msg []byte) {
@@ -216,7 +181,7 @@ func (ag *Agent) onMessage(msg []byte) {
 		contentLen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
 		//2字节 command
 		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
-		log.Debugf("bufferLen=%d, contentLen=%d, cmd=%d", bufferLen, contentLen, cmd)
+		log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
 		//数据未接收完整，等待下一次处理
 		if bufferLen < 4 + contentLen {
 			return
@@ -258,3 +223,40 @@ func (ag *Agent) onMessage(msg []byte) {
 		log.Debugf("%v", ag.buffer)
 	}
 }
+
+func (ag *Agent) disconnect() {
+	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
+		log.Debugf("agent is in disconnect status")
+		return
+	}
+	log.Warnf("====================agent disconnect====================")
+	ag.node.conn.Close()
+
+	ag.lock.Lock()
+	if ag.status & AgentStatusConnect > 0 {
+		ag.status ^= AgentStatusConnect
+		ag.status |= AgentStatusDisconnect
+	}
+	ag.lock.Unlock()
+}
+
+func (ag *Agent) Close() {
+	ag.lock.Lock()
+	if ag.status & AgentStatusOffline > 0 {
+		ag.lock.Unlock()
+		log.Debugf("agent close was called, but not running")
+		return
+	}
+	ag.lock.Unlock()
+
+	log.Warnf("====================agent close====================")
+	ag.disconnect()
+
+	ag.lock.Lock()
+	if ag.status & AgentStatusOnline > 0 {
+		ag.status ^= AgentStatusOnline
+		ag.status |= AgentStatusOffline
+	}
+	ag.lock.Unlock()
+}
+
