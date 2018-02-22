@@ -39,7 +39,6 @@ const (
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024
 	tcpReceiveDefaultSize         = 4096
-	httpCacheLen                  = 10000
 )
 
 const (
@@ -76,14 +75,14 @@ type HttpConfig struct {
 	Groups   map[string]httpNodeConfig
 }
 
-const (
-	online = 1 << iota
-	offline
-	cacheNotReady
-	cacheReady
-	cacheNotFull
-	cacheFull
-)
+//const (
+//	online = 1 << iota
+//	offline
+//	cacheNotReady
+//	cacheReady
+//	cacheNotFull
+//	cacheFull
+//)
 
 type httpNode struct {
 	url              string      // url

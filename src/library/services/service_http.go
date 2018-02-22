@@ -49,7 +49,6 @@ func NewHttpService(ctx *app.Context) *HttpService {
 				lock:             new(sync.Mutex),
 				failureTimesFlag: int32(0),
 				errorCheckTimes:  int64(0),
-				status:           online | cacheNotReady | cacheNotFull,
 			}
 		}
 		client.groups[cgroup.Name] = group
@@ -190,7 +189,6 @@ func (client *HttpService) Reload() {
 				lock:             new(sync.Mutex),
 				failureTimesFlag: int32(0),
 				errorCheckTimes:  int64(0),
-				status:           online | cacheNotReady | cacheNotFull,
 			}
 		}
 		client.groups[cgroup.Name] = group
