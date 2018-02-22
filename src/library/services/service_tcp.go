@@ -369,6 +369,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte, size int) {
 			group.nodes = append(group.nodes, node)
 			tcp.lock.Unlock()
 		case CMD_TICK:
+			log.Debugf("cmd tick")
 			node.sendQueue <- pack(CMD_TICK, "ok")
 		case CMD_AGENT:
 			tcp.lock.Lock()
