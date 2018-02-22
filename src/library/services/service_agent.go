@@ -147,7 +147,7 @@ func (ag *Agent) Start(serviceIp string, port int) {
 				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
 				return
 			}
-			buf := readBuffer[:tcpDefaultReadBufferSize]
+			buf := readBuffer[0:]
 			//clear data
 			for i := range buf {
 				buf[i] = byte(0)
