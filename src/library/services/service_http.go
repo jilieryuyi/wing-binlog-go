@@ -130,6 +130,8 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(jsonData))
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
 				log.Warnf("http send buffer full:%s, %s", cnode.url, string(jsonData))
+				log.Debugf("send sync %s", cnode.url)
+				client.syncSend(cnode, jsonData)
 				continue
 			}
 			cnode.sendQueue <- string(jsonData)
@@ -137,6 +139,14 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 	}
 
 	return true
+}
+
+func (client *HttpService) syncSend(node *httpNode, data []byte) {
+	data, err := http.Post(node.url, data)
+	if err != nil {
+		log.Warnf("http service node %s error: %v", node.url, err)
+	}
+	log.Debugf("http service post to %s return %s", node.url, string(data))
 }
 
 func (client *HttpService) Close() {
