@@ -81,12 +81,12 @@ func (client *HttpService) clientSendService(node *httpNode) {
 			}
 			data, err := http.Post(node.url, []byte(msg))
 			if err != nil {
-				log.Warnf("http service node %s error: %v", node.url, err)
+				log.Errorf("http service node %s error: %v", node.url, err)
 			}
-			log.Debugf("http service post to %s return %s", node.url, string(data))
+			log.Debugf("post %v to %s return %s", msg, node.url, string(data))
 		case <-client.ctx.Ctx.Done():
 			if len(node.sendQueue) <= 0 {
-				log.Debugf("http服务clientSendService退出：%s", node.url)
+				log.Debugf("%s clientSendService exit", node.url)
 				return
 			}
 		}

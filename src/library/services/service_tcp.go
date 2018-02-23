@@ -71,7 +71,7 @@ func (tcp *TcpService) agentService() {
 					tcp.SendAll(data)
 				case <-tcp.ctx.Ctx.Done():
 					if len(tcp.sendAllChan1) <= 0 {
-						log.Info("tcp.sendAllChan1 is empty, will exit")
+						log.Info("tcp agentService exit")
 						return
 					}
 				}
@@ -88,7 +88,7 @@ func (tcp *TcpService) agentService() {
 				tcp.sendAllB(data)
 			case <-tcp.ctx.Ctx.Done():
 				if len(tcp.sendAllChan2) <= 0 {
-					log.Info("tcp.sendAllChan2 is empty, will exit")
+					log.Info("tcp agentService exit")
 					return
 				}
 			}
