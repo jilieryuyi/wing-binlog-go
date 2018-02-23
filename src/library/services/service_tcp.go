@@ -283,8 +283,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
-		recvBuf:          make([]byte, tcpReceiveDefaultSize),
-		//recvBytes:        0,
+		recvBuf:          make([]byte, 0),
 		group:            "",
 		status:           tcpNodeOnline|tcpNodeIsNotAgent,
 	}
@@ -340,6 +339,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 		//	log.Info("tcp服务-新建缓冲区")
 		//	return
 		//}
+		log.Debugf("buffer: %v", node.recvBuf)
 		//4字节长度
 		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
 			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
