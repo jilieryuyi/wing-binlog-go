@@ -99,7 +99,6 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 	}
 	client.lock.Lock()
 	defer client.lock.Unlock()
-
 	for _, cgroup := range client.groups {
 		if len(cgroup.nodes) <= 0 {
 			continue
@@ -137,7 +136,6 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 			cnode.sendQueue <- string(jsonData)
 		}
 	}
-
 	return true
 }
 
