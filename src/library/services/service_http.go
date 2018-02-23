@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 )
 
-// 创建一个新的http服务
 func NewHttpService(ctx *app.Context) *HttpService {
 	config, _ := getHttpConfig()
 	log.Debugf("start http service with config: %+v", config)
@@ -44,11 +43,7 @@ func NewHttpService(ctx *app.Context) *HttpService {
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i],
 				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
-				sendTimes:        int64(0),
-				sendFailureTimes: int64(0),
 				lock:             new(sync.Mutex),
-				failureTimesFlag: int32(0),
-				errorCheckTimes:  int64(0),
 			}
 		}
 		client.groups[cgroup.Name] = group
@@ -86,7 +81,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 			}
 			data, err := http.Post(node.url, []byte(msg))
 			if err != nil {
-				log.Warnf("http service node %s failure times：%d", node.url, node.sendFailureTimes)
+				log.Warnf("http service node %s error: %v", node.url, err)
 			}
 			log.Debugf("http service post to %s return %s", node.url, string(data))
 		case <-client.ctx.Ctx.Done():
@@ -134,7 +129,7 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 		for _, cnode := range cgroup.nodes {
 			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(jsonData))
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Warnf("http send buffer full(weight):%s, %s", cnode.url, string(jsonData))
+				log.Warnf("http send buffer full:%s, %s", cnode.url, string(jsonData))
 				continue
 			}
 			cnode.sendQueue <- string(jsonData)
@@ -183,12 +178,8 @@ func (client *HttpService) Reload() {
 		for i := 0; i < nc; i++ {
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i],
-				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
-				sendTimes:        int64(0),
-				sendFailureTimes: int64(0),
+				sendQueue:        make(chan string, httpMaxSendQueue),
 				lock:             new(sync.Mutex),
-				failureTimesFlag: int32(0),
-				errorCheckTimes:  int64(0),
 			}
 		}
 		client.groups[cgroup.Name] = group

@@ -36,6 +36,7 @@ const (
 
 const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
+	httpMaxSendQueue              = 100000000
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024
 	tcpReceiveDefaultSize         = 4096
@@ -87,14 +88,14 @@ type HttpConfig struct {
 type httpNode struct {
 	url              string      // url
 	sendQueue        chan string // 发送channel
-	sendTimes        int64       // 发送次数
-	sendFailureTimes int64       // 发送失败次数
-	failureTimesFlag int32       // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
+	//sendTimes        int64       // 发送次数
+	//sendFailureTimes int64       // 发送失败次数
+	//failureTimesFlag int32       // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
 	lock             *sync.Mutex // 互斥锁，修改资源时锁定
-	cache            [][]byte
-	cacheIndex       int
-	errorCheckTimes  int64
-	status           int
+	//cache            [][]byte
+	//cacheIndex       int
+	//errorCheckTimes  int64
+	//status           int
 }
 
 const (

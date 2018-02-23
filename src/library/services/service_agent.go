@@ -54,6 +54,11 @@ func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendA
 func (ag *Agent) keepalive() {
 	data := pack(CMD_TICK, "agent keep alive")
 	for {
+		select {
+			case <-ag.ctx.Ctx.Done():
+				return
+			default:
+		}
 		if ag.node == nil || ag.node.conn == nil ||
 			ag.status & AgentStatusDisconnect > 0 ||
 			ag.status & AgentStatusOffline > 0 {
@@ -196,12 +201,13 @@ func (ag *Agent) onMessage(msg []byte) {
 			err := json.Unmarshal(dataB, &data)
 			if err == nil {
 				if len(ag.sendAllChan1) < cap(ag.sendAllChan1) {
+					log.Debugf("======>send data: %+v", data)
 					ag.sendAllChan1 <- data
 				} else {
 					log.Warnf("ag.sendAllChan1 was full")
 				}
 			} else {
-				log.Errorf("json Unmarshal error: %+v, %+v", dataB, err)
+				log.Errorf("json Unmarshal error: %+v, %s, %+v", dataB, string(dataB), err)
 			}
 			log.Debugf("%+v", data)
 		case CMD_TICK:
@@ -215,11 +221,12 @@ func (ag *Agent) onMessage(msg []byte) {
 		}
 		//remove(&ag.buffer, contentLen + 4)
 		log.Debugf("%d, contentLen + 4=%d", len(ag.buffer), contentLen + 4)
-		if len(ag.buffer) >= contentLen + 4 {
-			ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen+4:]...)
-		} else {
-			log.Warnf("content len error")
-		}
+		//if len(ag.buffer) >= contentLen + 4 {
+		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen+4:]...)
+		log.Debugf("=================>bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
+		//} else {
+		//	log.Warnf("content len error")
+		//}
 		log.Debugf("%v", ag.buffer)
 	}
 }
