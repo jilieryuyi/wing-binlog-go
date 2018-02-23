@@ -348,6 +348,11 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 		}
 		//2字节 command
 		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
+		if !hasCmd(cmd) {
+			log.Errorf("cmd %d does not exists, data: %v", cmd, node.recvBuf)
+			node.recvBuf = make([]byte, 0)
+			return
+		}
 		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		content := string(node.recvBuf[6 : clen + 4])
 		switch cmd {

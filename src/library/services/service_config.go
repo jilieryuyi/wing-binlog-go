@@ -34,6 +34,18 @@ const (
 	CMD_SHOW_MEMBERS
 )
 
+var cmds = []int{
+	CMD_SET_PRO,
+	CMD_AUTH ,
+	CMD_ERROR,
+	CMD_TICK ,
+	CMD_EVENT,
+	CMD_AGENT,
+	CMD_STOP,
+	CMD_RELOAD,
+	CMD_SHOW_MEMBERS,
+}
+
 const (
 	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
 	httpMaxSendQueue              = 100000000

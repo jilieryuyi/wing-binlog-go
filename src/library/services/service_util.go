@@ -77,3 +77,12 @@ func unpack(data []byte) (int, string) {
 	content := string(data[6 : clen + 4])
 	return cmd, content
 }
+
+func hasCmd(cmd int) bool {
+	for _, v := range cmds {
+		if cmd == v {
+			return true
+		}
+	}
+	return false
+}

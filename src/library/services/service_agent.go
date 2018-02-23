@@ -187,8 +187,17 @@ func (ag *Agent) onMessage(msg []byte) {
 		//2字节 command
 		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
 		log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
+		log.Debugf("%v, %v", ag.buffer, string(ag.buffer))
+
+		if !hasCmd(cmd) {
+			log.Errorf("cmd %d dos not exists", cmd)
+			ag.buffer = make([]byte, 0)
+			return
+		}
+
 		//数据未接收完整，等待下一次处理
 		if bufferLen < 4 + contentLen {
+			//log.Error("content len error")
 			return
 		}
 		log.Debugf("%v", ag.buffer)
