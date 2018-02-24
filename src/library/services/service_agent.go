@@ -230,13 +230,18 @@ func (ag *Agent) onMessage(msg []byte) {
 		}
 		//remove(&ag.buffer, contentLen + 4)
 		log.Debugf("%d, contentLen + 4=%d", len(ag.buffer), contentLen + 4)
+		log.Debugf("%v", ag.buffer)
 		//if len(ag.buffer) >= contentLen + 4 {
+		if len(ag.buffer) <= 0 {
+			log.Errorf("ag.buffer is empty")
+			return
+		}
 		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen+4:]...)
 		log.Debugf("=================>bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
 		//} else {
 		//	log.Warnf("content len error")
 		//}
-		log.Debugf("%v", ag.buffer)
+
 	}
 }
 
