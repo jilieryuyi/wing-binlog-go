@@ -47,7 +47,7 @@ var cmds = []int{
 }
 
 const (
-	tcpMaxSendQueue               = 100000000
+	tcpMaxSendQueue               = 10000000
 	httpMaxSendQueue              = 1000000
 	tcpDefaultReadBufferSize      = 1024
 	tcpReceiveDefaultSize         = 4096
