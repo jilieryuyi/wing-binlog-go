@@ -205,7 +205,6 @@ func (h *Binlog) Start() {
 		for {
 			lock, err := h.Lock()
 			if err != nil {
-				log.Errorf("lock with error: %v", err)
 				time.Sleep(time.Second * 3)
 				continue
 			}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"io"
 )
 
-// new tcp service, usr for handler.go RegisterService
 func NewTcpService(ctx *app.Context) *TcpService {
 	config, _ := GetTcpConfig()
 	status := serviceDisable
@@ -41,10 +39,10 @@ func NewTcpService(ctx *app.Context) *TcpService {
 	}
 	tcp.agentService()
 	tcp.Agent = newAgent(ctx, tcp.sendAllChan1, tcp.sendAllChan2)
-	for _, cgroup := range config.Groups{
-		tcp.groups[cgroup.Name] = &tcpGroup{
-			name: cgroup.Name,
-			filter: cgroup.Filter,
+	for _, group := range config.Groups{
+		tcp.groups[group.Name] = &tcpGroup{
+			name: group.Name,
+			filter: group.Filter,
 			nodes: nil,
 		}
 	}
@@ -97,55 +95,33 @@ func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
 	if tcp.status & serviceDisable > 0 {
 		return false
 	}
-	log.Debugf("tcp broadcast: %+v", data)
+	log.Debugf("tcp SendAll: %+v", data)
 	table := data["table"].(string)
-	tcp.lock.Lock()
-	defer tcp.lock.Unlock()
-
-	jsonData, _ := json.Marshal(data)
-	log.Debugf("datalen=%d", len(jsonData))
-	//send agent
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Errorf("json pack error[%v]: %v", err, data)
+		return false
+	}
+	packData := pack(CMD_EVENT, string(jsonData))
 	for _, agent := range tcp.Agents {
 		if agent.status & tcpNodeOnline > 0 {
-			agent.sendQueue <- pack(CMD_EVENT, string(jsonData))
+			agent.sendQueue <- packData
 		}
 	}
-	for _, cgroup := range tcp.groups {
-		if cgroup.nodes == nil {
+	for _, group := range tcp.groups {
+		if group.nodes == nil || len(group.nodes) <= 0 ||
+			!matchFilters(group.filter, table) {
 			continue
 		}
-		if len(cgroup.nodes) <= 0 {
-			// if node count == 0 in each group
-			// program will left the loop from here
-			// after len(svc.groups) loops
-			continue
-		}
-		// check if the table name matches the filter
-		if len(cgroup.filter) > 0 {
-			found := false
-			for _, f := range cgroup.filter {
-				match, err := regexp.MatchString(f, table)
-				if err != nil {
-					continue
-				}
-				if match {
-					found = true
-					break
-				}
-			}
-			if !found {
+		for _, node := range group.nodes {
+			if node.status & tcpNodeOffline > 0 {
 				continue
 			}
-		}
-		for _, cnode := range cgroup.nodes {
-			if cnode.status & tcpNodeOffline > 0 {
+			if len(node.sendQueue) >= cap(node.sendQueue) {
+				log.Errorf("tcp send channel full：%s", (*node.conn).RemoteAddr().String())
 				continue
 			}
-			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
-				continue
-			}
-			cnode.sendQueue <- pack(CMD_EVENT, string(jsonData))
+			node.sendQueue <- packData
 		}
 	}
 	return true
@@ -157,32 +133,23 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 	if tcp.status & serviceDisable > 0 {
 		return false
 	}
-	log.Debugf("tcp SendAll2 broadcast: %+v", msg)
-	tcp.lock.Lock()
-	defer tcp.lock.Unlock()
-	//send agent
+	log.Debugf("tcp sendRaw: %+v", msg)
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- msg//pack(cmd, string(msg))
+		agent.sendQueue <- msg
 	}
-	for _, cgroup := range tcp.groups {
-		if cgroup.nodes == nil {
+	for _, group := range tcp.groups {
+		if group.nodes == nil || len(group.nodes) <= 0 {
 			continue
 		}
-		if len(cgroup.nodes) <= 0 {
-			// if node count == 0 in each group
-			// program will left the loop from here
-			// after len(svc.groups) loops
-			continue
-		}
-		for _, cnode := range cgroup.nodes {
-			if cnode.status & tcpNodeOffline > 0  {
+		for _, node := range group.nodes {
+			if node.status & tcpNodeOffline > 0  {
 				continue
 			}
-			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Warnf("tcp send channel full：%s", (*cnode.conn).RemoteAddr().String())
+			if len(node.sendQueue) >= cap(node.sendQueue) {
+				log.Warnf("tcp send channel full：%s", (*node.conn).RemoteAddr().String())
 				continue
 			}
-			cnode.sendQueue <- msg//pack(cmd, string(msg))
+			node.sendQueue <- msg
 		}
 	}
 	return true
@@ -271,6 +238,9 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
+		if cnode.status & tcpNodeOffline > 0 {
+			return
+		}
 		size, err := conn.Read(readBuffer[0:])
 		log.Debugf("tcp read buffer len: %d, cap: %d", len(readBuffer), cap(readBuffer))
 		if err != nil {
@@ -287,10 +257,10 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 		atomic.AddInt64(&tcp.recvTimes, int64(1))
 		tcp.onMessage(cnode, readBuffer[:size])
 		select {
-		case <-tcp.ctx.Ctx.Done():
-			log.Debugf("tcp onConnect exit")
-			return
-		default:
+			case <-tcp.ctx.Ctx.Done():
+				log.Debugf("tcp onConnect exit")
+				return
+			default:
 		}
 	}
 }

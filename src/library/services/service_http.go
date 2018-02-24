@@ -3,7 +3,6 @@ package services
 import (
 	log "github.com/sirupsen/logrus"
 	"library/http"
-	"regexp"
 	"runtime"
 	"sync"
 	"library/app"
@@ -91,33 +90,18 @@ func (client *HttpService) SendAll(data map[string] interface{}) bool {
 	if client.status & serviceDisable > 0 {
 		return false
 	}
-	client.lock.Lock()
-	defer client.lock.Unlock()
+	table := data["table"].(string)//string(msg[2 : tableLen+2])
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Errorf("json pack error[%v]: %v", err, data)
+		return false
+	}
+	//client.lock.Lock()
+	//defer client.lock.Unlock()
 	for _, cgroup := range client.groups {
-		if len(cgroup.nodes) <= 0 {
+		if cgroup.nodes == nil || len(cgroup.nodes) <= 0 ||
+			!matchFilters(cgroup.filter, table) {
 			continue
-		}
-		// length, 2 bytes
-		//tableLen := int(msg[0]) + int(msg[1]<<8)
-		// content
-		table := data["table"].(string)//string(msg[2 : tableLen+2])
-		jsonData, _:= json.Marshal(data)
-		// check if the table name matches the filter
-		if len(cgroup.filter) > 0 {
-			found := false
-			for _, f := range cgroup.filter {
-				match, err := regexp.MatchString(f, table)
-				if err != nil {
-					continue
-				}
-				if match {
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
 		}
 		for _, cnode := range cgroup.nodes {
 			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(jsonData))

@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/app"
 	"library/ip"
+	"regexp"
 )
 
 // parse http config
@@ -81,6 +82,19 @@ func unpack(data []byte) (int, string) {
 func hasCmd(cmd int) bool {
 	for _, v := range cmds {
 		if cmd == v {
+			return true
+		}
+	}
+	return false
+}
+
+func matchFilters(filters []string, table string) bool {
+	if filters == nil || len(filters) <= 0 {
+		return true
+	}
+	for _, f := range filters {
+		match, err := regexp.MatchString(f, table)
+		if match && err == nil {
 			return true
 		}
 	}
