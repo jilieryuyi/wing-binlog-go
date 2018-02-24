@@ -190,7 +190,7 @@ func (ag *Agent) onMessage(msg []byte) {
 		log.Debugf("%v, %v", ag.buffer, string(ag.buffer))
 
 		if !hasCmd(cmd) {
-			log.Errorf("cmd %d dos not exists", cmd)
+			log.Errorf("cmd %d dos not exists: %v", cmd, ag.buffer)
 			ag.buffer = make([]byte, 0)
 			return
 		}
