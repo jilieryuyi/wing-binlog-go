@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"sync"
 	"library/app"
-	"encoding/json"
 )
 
 func NewHttpService(ctx *app.Context) *HttpService {
@@ -86,32 +85,24 @@ func (client *HttpService) clientSendService(node *httpNode) {
 	}
 }
 
-func (client *HttpService) SendAll(data map[string] interface{}) bool {
+func (client *HttpService) SendAll(table string, data []byte) bool {
 	if client.status & serviceDisable > 0 {
 		return false
 	}
-	table := data["table"].(string)//string(msg[2 : tableLen+2])
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Errorf("json pack error[%v]: %v", err, data)
-		return false
-	}
-	//client.lock.Lock()
-	//defer client.lock.Unlock()
 	for _, cgroup := range client.groups {
 		if cgroup.nodes == nil || len(cgroup.nodes) <= 0 ||
 			!matchFilters(cgroup.filter, table) {
 			continue
 		}
 		for _, cnode := range cgroup.nodes {
-			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(jsonData))
+			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(data))
 			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Debugf("http send buffer full:%s, %s", cnode.url, string(jsonData))
+				log.Debugf("http send buffer full:%s, %s", cnode.url, string(data))
 				log.Debugf("send sync %s", cnode.url)
-				client.syncSend(cnode, jsonData)
+				client.syncSend(cnode, data)
 				continue
 			}
-			cnode.sendQueue <- string(jsonData)
+			cnode.sendQueue <- string(data)
 		}
 	}
 	return true

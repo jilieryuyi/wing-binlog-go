@@ -27,7 +27,7 @@ type Agent struct {
 	lock         *sync.Mutex
 	buffer       []byte
 	ctx          *app.Context
-	sendAllChan1 chan map[string] interface{}
+	sendAllChan1 chan sendNode
 	sendAllChan2 chan []byte
 	status       int
 	last         int64
@@ -37,7 +37,7 @@ type agentNode struct {
 	conn *net.TCPConn
 }
 
-func newAgent(ctx *app.Context, sendAllChan1 chan map[string] interface{}, sendAllChan2 chan []byte) *Agent{
+func newAgent(ctx *app.Context, sendAllChan1 chan sendNode, sendAllChan2 chan []byte) *Agent{
 	agent := &Agent{
 		sendAllChan1 : sendAllChan1,
 		sendAllChan2 : sendAllChan2,
@@ -211,7 +211,10 @@ func (ag *Agent) onMessage(msg []byte) {
 			if err == nil {
 				if len(ag.sendAllChan1) < cap(ag.sendAllChan1) {
 					log.Debugf("======>send data: %+v", data)
-					ag.sendAllChan1 <- data
+					ag.sendAllChan1 <- sendNode{
+						table: data["table"].(string),
+						data: dataB,
+					}
 				} else {
 					log.Warnf("ag.sendAllChan1 was full")
 				}

@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 	"library/app"
-	"encoding/json"
 	"runtime"
 	"io"
 )
@@ -32,7 +31,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
 		Agents:           make([]*tcpClientNode, 0),
-		sendAllChan1:     make(chan map[string] interface{}, tcpMaxSendQueue),
+		sendAllChan1:     make(chan sendNode, tcpMaxSendQueue),
 		sendAllChan2:     make(chan []byte, tcpMaxSendQueue),
 		status:           status,
 		token:            app.GetKey(app.CachePath + "/token"),
@@ -62,7 +61,7 @@ func (tcp *TcpService) agentService() {
 						log.Warnf("tcp.sendAllChan1 was closed")
 						return
 					}
-					tcp.SendAll(data)
+					tcp.SendAll(data.table, data.data)
 				case <-tcp.ctx.Ctx.Done():
 					if len(tcp.sendAllChan1) <= 0 {
 						log.Info("tcp agentService exit")
@@ -91,18 +90,12 @@ func (tcp *TcpService) agentService() {
 }
 
 // send event data to all connects client
-func (tcp *TcpService) SendAll(data map[string] interface{}) bool {
+func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	if tcp.status & serviceDisable > 0 {
 		return false
 	}
 	log.Debugf("tcp SendAll: %+v", data)
-	table := data["table"].(string)
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		log.Errorf("json pack error[%v]: %v", err, data)
-		return false
-	}
-	packData := pack(CMD_EVENT, string(jsonData))
+	packData := pack(CMD_EVENT, string(data))
 	for _, agent := range tcp.Agents {
 		if agent.status & tcpNodeOnline > 0 {
 			agent.sendQueue <- packData

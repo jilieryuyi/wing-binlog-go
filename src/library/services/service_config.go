@@ -9,7 +9,7 @@ import (
 )
 
 type Service interface {
-	SendAll(data map[string] interface{}) bool
+	SendAll(table string, data []byte) bool
 	Start()
 	Close()
 	Reload()
@@ -148,10 +148,15 @@ type TcpService struct {
 	Agent            *Agent
 	ServiceIp        string
 	Agents           []*tcpClientNode
-	sendAllChan1     chan map[string] interface{}
+	sendAllChan1     chan sendNode//{}//map[string] interface{}
 	sendAllChan2     chan []byte
 	status           int
 	token            string
+}
+
+type sendNode struct {
+	table string
+	data []byte
 }
 
 type tcpGroupConfig struct { // group node in toml

@@ -442,7 +442,7 @@ func (h *Binlog) Lock() (bool, error) {
 		// try to create a new session
 		log.Errorf("lock error: %+v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "session") {
-			log.Debugf("try to create a new session")
+			log.Errorf("try to create a new session")
 			h.Session.create()
 		}
 		return false, err

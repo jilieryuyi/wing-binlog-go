@@ -15,6 +15,7 @@ import (
 	"github.com/siddontang/go-mysql/schema"
 	"reflect"
 	"bytes"
+	"encoding/json"
 )
 
 func (h *Binlog) handlerInit() {
@@ -100,10 +101,15 @@ func (h *Binlog) RegisterService(name string, s services.Service) {
 	h.services[name] = s
 }
 
-func (h *Binlog) notify(data map[string] interface{}) {
+func (h *Binlog) notify(table string, data map[string] interface{}) {
 	log.Debugf("binlog notify: %+v", data)
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Errorf("json pack data error[%v]: %v", err, data)
+		return
+	}
 	for _, service := range h.services {
-		service.SendAll(data)
+		service.SendAll(table, jsonData)
 	}
 }
 
@@ -244,7 +250,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			data["new_data"] = newData
 			ed["data"] = data
 			rowData["event"] = ed
-			h.notify(rowData)
+			h.notify(e.Table.Name, rowData)
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
@@ -261,7 +267,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			}
 			ed["data"] = data
 			rowData["event"] = ed
-			h.notify(rowData)
+			h.notify(e.Table.Name, rowData)
 		}
 	}
 	return nil
