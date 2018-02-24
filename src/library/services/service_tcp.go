@@ -202,7 +202,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 			if size <= 0 || err != nil {
 				atomic.AddInt64(&tcp.sendFailureTimes, int64(1))
 				atomic.AddInt64(&node.sendFailureTimes, int64(1))
-				log.Warnf("tcp service, %s failure times: %d", (*node.conn).RemoteAddr().String(), node.sendFailureTimes)
+				log.Errorf("tcp %s send error: %v", (*node.conn).RemoteAddr().String(), err)
 			}
 		case <-tcp.ctx.Ctx.Done():
 			if len(node.sendQueue) <= 0 {
