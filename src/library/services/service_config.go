@@ -47,9 +47,8 @@ var cmds = []int{
 }
 
 const (
-	tcpMaxSendQueue               = 100000000 //100万缓冲区
-	httpMaxSendQueue              = 100000000
-	TCP_DEFAULT_CLIENT_SIZE       = 64
+	tcpMaxSendQueue               = 100000000
+	httpMaxSendQueue              = 1000000
 	tcpDefaultReadBufferSize      = 1024
 	tcpReceiveDefaultSize         = 4096
 )
