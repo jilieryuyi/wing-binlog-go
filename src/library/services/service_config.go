@@ -47,7 +47,7 @@ var cmds = []int{
 }
 
 const (
-	TCP_MAX_SEND_QUEUE            = 1000000 //100万缓冲区
+	tcpMaxSendQueue               = 100000000 //100万缓冲区
 	httpMaxSendQueue              = 100000000
 	TCP_DEFAULT_CLIENT_SIZE       = 64
 	tcpDefaultReadBufferSize      = 1024
@@ -75,7 +75,6 @@ type HttpService struct {
 	Service                                //
 	groups           map[string]*httpGroup //
 	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
-	sendFailureTimes int64                 // 发送失败次数
 	timeTick         time.Duration         // 故障检测的时间间隔
 	ctx              *app.Context//*context.Context      //
 	wg               *sync.WaitGroup       //

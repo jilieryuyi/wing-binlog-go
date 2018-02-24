@@ -13,20 +13,16 @@ import (
 func NewHttpService(ctx *app.Context) *HttpService {
 	config, _ := getHttpConfig()
 	log.Debugf("start http service with config: %+v", config)
-	status := serviceDisable
 	if !config.Enable {
 		return &HttpService{
-			status: status,
+			status: serviceDisable,
 		}
 	}
-	status ^= serviceDisable
-	status |= serviceEnable
 	gc := len(config.Groups)
 	client := &HttpService{
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*httpGroup, gc),
-		sendFailureTimes: int64(0),
-		status:           status,
+		status:           serviceEnable,
 		timeTick:         config.TimeTick,
 		wg:               new(sync.WaitGroup),
 		ctx:              ctx,
@@ -34,21 +30,19 @@ func NewHttpService(ctx *app.Context) *HttpService {
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
+			filter: cgroup.Filter,
 		}
-		group.filter = make([]string, len(cgroup.Filter))
-		group.filter = append(group.filter[:0], cgroup.Filter...)
-		nc := len(cgroup.Nodes)
-		group.nodes = make([]*httpNode, nc)
-		for i := 0; i < nc; i++ {
+		gl := len(cgroup.Nodes)
+		group.nodes = make([]*httpNode, gl)
+		for i := 0; i < gl; i++ {
 			group.nodes[i] = &httpNode{
 				url:              cgroup.Nodes[i],
-				sendQueue:        make(chan string, TCP_MAX_SEND_QUEUE),
+				sendQueue:        make(chan string, httpMaxSendQueue),
 				lock:             new(sync.Mutex),
 			}
 		}
 		client.groups[cgroup.Name] = group
 	}
-
 	return client
 }
 
@@ -162,14 +156,11 @@ func (client *HttpService) Reload() {
 	config, _ := getHttpConfig()
 	log.Debug("http service reloading...")
 
-	status := serviceDisable
+	client.status = serviceDisable
 	if config.Enable {
-		status ^= serviceDisable
-		status |= serviceEnable
+		client.status = serviceEnable
 	}
 
-
-	client.status = status//config.Enable
 	for name := range client.groups {
 		delete(client.groups, name)
 	}
@@ -195,10 +186,6 @@ func (client *HttpService) Reload() {
 	log.Debug("http service reloaded.")
 }
 
-func (client *HttpService) AgentStart(serviceIp string, port int) {
+func (client *HttpService) AgentStart(serviceIp string, port int) {}
 
-}
-
-func (client *HttpService) AgentStop() {
-
-}
+func (client *HttpService) AgentStop() {}
