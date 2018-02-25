@@ -8,15 +8,13 @@ import (
 	"sync/atomic"
 	"time"
 	"library/app"
-	"runtime"
 	"io"
 )
 
 func NewTcpService(ctx *app.Context) *TcpService {
 	config, _ := GetTcpConfig()
-	status := serviceDisable
-	if config.Enable{
-		status = serviceEnable
+	if !config.Enable{
+		return &TcpService{status: serviceDisable}
 	}
 	tcp := &TcpService{
 		Ip:               config.Listen,
@@ -31,13 +29,11 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
 		Agents:           make([]*tcpClientNode, 0),
-		sendAllChan1:     make(chan sendNode, tcpMaxSendQueue),
-		sendAllChan2:     make(chan []byte, tcpMaxSendQueue),
-		status:           status,
+		//sendAllChan1:     make(chan sendNode, tcpMaxSendQueue),
+		//sendAllChan2:     make(chan []byte, tcpMaxSendQueue),
+		status:           serviceEnable | AgentStatusOffline | AgentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
-	tcp.agentService()
-	tcp.Agent = newAgent(ctx, tcp.sendAllChan1, tcp.sendAllChan2)
 	for _, group := range config.Groups{
 		tcp.groups[group.Name] = &tcpGroup{
 			name: group.Name,
@@ -45,48 +41,9 @@ func NewTcpService(ctx *app.Context) *TcpService {
 			nodes: nil,
 		}
 	}
+	go tcp.agentKeepalive()
+	log.Debugf("====>new tcp service<====")
 	return tcp
-}
-
-func (tcp *TcpService) agentService() {
-	n := runtime.NumCPU() + 2
-	tcp.wg.Add(2 * n)
-	for i := 0; i < n; i++ {
-		go func() {
-			defer tcp.wg.Done()
-			for {
-				select {
-				case data, ok := <-tcp.sendAllChan1:
-					if !ok {
-						log.Warnf("tcp.sendAllChan1 was closed")
-						return
-					}
-					tcp.SendAll(data.table, data.data)
-				case <-tcp.ctx.Ctx.Done():
-					if len(tcp.sendAllChan1) <= 0 {
-						log.Info("tcp agentService exit")
-						return
-					}
-				}
-			}
-		}()
-		go func() {
-			defer tcp.wg.Done()
-			select {
-			case data, ok:= <-tcp.sendAllChan2:
-				if !ok {
-					log.Warnf("tcp.sendAllChan2 was closed")
-					return
-				}
-				tcp.sendRaw(data)
-			case <-tcp.ctx.Ctx.Done():
-				if len(tcp.sendAllChan2) <= 0 {
-					log.Info("tcp agentService exit")
-					return
-				}
-			}
-		}()
-	}
 }
 
 // send event data to all connects client
@@ -215,7 +172,7 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 
 // 连接成功回调
 func (tcp *TcpService) onConnect(conn net.Conn) {
-	log.Debugf("tcp service, new connect: %s", conn.RemoteAddr().String())
+	//log.Debugf("tcp service, new connect: %s", conn.RemoteAddr().String())
 	cnode := &tcpClientNode{
 		conn:             &conn,
 		sendQueue:        make(chan []byte, tcpMaxSendQueue),
@@ -235,7 +192,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			return
 		}
 		size, err := conn.Read(readBuffer[0:])
-		log.Debugf("tcp read buffer len: %d, cap: %d", len(readBuffer), cap(readBuffer))
+		//log.Debugf("tcp read buffer len: %d, cap: %d", len(readBuffer), cap(readBuffer))
 		if err != nil {
 			if err != io.EOF {
 				log.Warnf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
@@ -246,7 +203,7 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 			conn.Close()
 			return
 		}
-		log.Debugf("tcp service receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
+		//log.Debugf("tcp service receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
 		atomic.AddInt64(&tcp.recvTimes, int64(1))
 		tcp.onMessage(cnode, readBuffer[:size])
 		select {
@@ -261,13 +218,13 @@ func (tcp *TcpService) onConnect(conn net.Conn) {
 // receive a new message
 func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 	node.recvBuf = append(node.recvBuf, msg...)
-	log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
+	//log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
 	for {
 		size := len(node.recvBuf)
 		if size < 6 {
 			return
 		}
-		log.Debugf("buffer: %v", node.recvBuf)
+		//log.Debugf("buffer: %v", node.recvBuf)
 		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
 			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
 		if len(node.recvBuf) < 	clen + 4 {
@@ -280,7 +237,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			node.recvBuf = make([]byte, 0)
 			return
 		}
-		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
+		//log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		content := string(node.recvBuf[6 : clen + 4])
 		switch cmd {
 		case CMD_SET_PRO:
@@ -304,7 +261,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			group.nodes = append(group.nodes, node)
 			tcp.lock.Unlock()
 		case CMD_TICK:
-			log.Debugf("cmd tick")
+			//log.Debugf("cmd tick")
 			node.sendQueue <- pack(CMD_TICK, "ok")
 		case CMD_AGENT:
 			tcp.lock.Lock()
@@ -316,14 +273,14 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			tcp.Agents = append(tcp.Agents, node)
 			tcp.lock.Unlock()
 		case CMD_AUTH:
-			token := content// string(node.recvBuf[6 : clen + 4])
-			if token == tcp.token {
-				log.Debug("auth ok: %s", token)
+			log.Debugf("tcp token=%s, token=%s", tcp.token, content)
+			if content == tcp.token {
+				log.Debug("auth ok: %s", content)
 				(*node.conn).SetReadDeadline(time.Time{})
 			} else {
 				(*node.conn).Write(pack(CMD_AUTH, "token error"))
 				(*node.conn).Close()
-				log.Warnf("auth error: %s", token)
+				log.Warnf("auth error: %s", content)
 			}
 		case CMD_STOP:
 			log.Debug("get stop cmd, app will stop later")
@@ -331,7 +288,6 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 		case CMD_RELOAD:
 			content := string(node.recvBuf[6 : clen + 4])
 			log.Debugf("receive reload cmd：%s", string(content))
-			//server.binlog.Reload(string(content))
 			tcp.ctx.ReloadChan <- string(content)
 		case CMD_SHOW_MEMBERS:
 			tcp.ctx.ShowMembersChan <- struct{}{}
@@ -345,15 +301,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			}
 		default:
 			node.sendQueue <- pack(CMD_ERROR, fmt.Sprintf("tcp service does not support cmd: %d", cmd))
-			//clear all data
-			node.recvBuf = make([]byte, tcpReceiveDefaultSize)
-			//node.recvBytes = 0
+			node.recvBuf = make([]byte, 0)
 			return
 		}
-
 		//数据移动，清除已读数据
 		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
-		log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
+		//log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
 	}
 }
 
@@ -537,12 +490,11 @@ func (tcp *TcpService) Reload() {
 	}
 }
 
-// agent will connect to serviceIp:port
-func (tcp *TcpService) AgentStart(serviceIp string, port int) {
-	log.Debugf("TcpService AgentStart")
-	go tcp.Agent.Start(serviceIp, port)
-}
-
-func (tcp *TcpService) AgentStop() {
-	tcp.Agent.Close()
+func (tcp *TcpService) SendPos(data []byte) {
+	packData := pack(CMD_POS, string(data))
+	for _, agent := range tcp.Agents {
+		if agent.status & tcpNodeOnline > 0 {
+			agent.sendQueue <- packData
+		}
+	}
 }

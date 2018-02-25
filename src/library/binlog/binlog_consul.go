@@ -62,34 +62,34 @@ func (h *Binlog) consulInit() {
 	go h.keepalive()
 	// 还需要一个检测pos变化回调，即如果不是leader，要及时更新来自leader的pos变化
 	// watch pos change, if change, try to write cache
-	go h.watch()
-	go h.asyncWrite()
+	//go h.watch()
+	//go h.asyncWrite()
 }
 
-func (h *Binlog) asyncWrite() {
-	if h.status & disableConsul > 0 {
-		return
-	}
-	h.wg.Add(1)
-	defer h.wg.Done()
-	for {
-		select {
-		case data, ok := <- h.kvChan:
-			if !ok {
-				return
-			}
-			log.Debugf("write consul pos kv: %s, %v", posKey + h.LockKey, data)
-			_, err := h.Kv.Put(&api.KVPair{Key: posKey + h.LockKey, Value: data}, nil)
-			if err != nil {
-				log.Errorf("write consul pos kv with error: %+v", err)
-			}
-			case <- h.ctx.Ctx.Done():
-				if len(h.kvChan) <= 0 {
-					return
-				}
-		}
-	}
-}
+//func (h *Binlog) asyncWrite() {
+//	if h.status & disableConsul > 0 {
+//		return
+//	}
+//	h.wg.Add(1)
+//	defer h.wg.Done()
+//	for {
+//		select {
+//		case data, ok := <- h.kvChan:
+//			if !ok {
+//				return
+//			}
+//			log.Debugf("write consul pos kv: %s, %v", posKey + h.LockKey, data)
+//			_, err := h.Kv.Put(&api.KVPair{Key: posKey + h.LockKey, Value: data}, nil)
+//			if err != nil {
+//				log.Errorf("write consul pos kv with error: %+v", err)
+//			}
+//			case <- h.ctx.Ctx.Done():
+//				if len(h.kvChan) <= 0 {
+//					return
+//				}
+//		}
+//	}
+//}
 
 func (h *Binlog) getService() *ClusterMember{
 	if h.status & disableConsul > 0 {
@@ -133,7 +133,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	log.Debugf("register service: %+v", *service)
+	//log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -259,14 +259,13 @@ func (h *Binlog) checkAlive() {
 			}
 			if v.Status == statusOffline {
 				log.Warnf("%s is timeout", v.SessionId)
-				//h.agent.ServiceDeregister(v.SessionId)
+				isAlive := h.alive(v.ServiceIp, v.Port)
+				if !isAlive {
+					h.agent.ServiceDeregister(v.SessionId)
+				}
 				// if is leader, try delete lock and reselect a new leader
 				// if is leader, ping, check leader is alive again
-				if v.IsLeader && !h.alive(v.ServiceIp, v.Port) {
-					//log.Warnf("will be deregister", v.SessionId)
-					//h.agent.ServiceDeregister(v.SessionId)
-					//h.newleader()
-					h.agent.ServiceDeregister(v.SessionId)
+				if v.IsLeader && !isAlive {
 					h.Delete(h.LockKey)
 				}
 			}
@@ -287,8 +286,7 @@ func (h *Binlog) checkAlive() {
 			log.Warnf("%d leaders is running", leaderCount)
 			h.Delete(h.LockKey)
 		}
-		n := srand(checkAliveInterval * 1000, checkAliveInterval * 3 * 1000)
-		time.Sleep(time.Millisecond * time.Duration(n))
+		time.Sleep(time.Second * checkAliveInterval)
 	}
 }
 
@@ -313,48 +311,48 @@ func (h *Binlog) alive(ip string, port int) bool {
 // watch pos change
 // if pos write by other node
 // all nodes will get change
-func (h *Binlog) watch() {
-	if h.status & disableConsul > 0 {
-		return
-	}
-	for {
-		h.lock.Lock()
-		if h.status & consulIsLeader > 0 {
-			h.lock.Unlock()
-			// leader does not need watch
-			time.Sleep(time.Second * 3)
-			continue
-		}
-		h.lock.Unlock()
-		_, meta, err := h.Kv.Get(posKey + h.LockKey, nil)
-		if err != nil {
-			log.Errorf("watch pos change with error：%#v", err)
-			time.Sleep(time.Second)
-			continue
-		}
-		if meta == nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		v, _, err := h.Kv.Get(posKey + h.LockKey, &api.QueryOptions{
-			WaitIndex : meta.LastIndex,
-			WaitTime : time.Second * 86400,
-		})
-		if err != nil {
-			log.Errorf("watch chang with error：%#v, %+v", err, v)
-			time.Sleep(time.Second)
-			continue
-		}
-		if v == nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		//h.onPosChange(v.Value)
-		//h.ctx.PosChangeList <- v.Value
-		h.onPosChange(v.Value)
-		time.Sleep(time.Millisecond * 10)
-	}
-}
+//func (h *Binlog) watch() {
+//	if h.status & disableConsul > 0 {
+//		return
+//	}
+//	for {
+//		h.lock.Lock()
+//		if h.status & consulIsLeader > 0 {
+//			h.lock.Unlock()
+//			// leader does not need watch
+//			time.Sleep(time.Second * 3)
+//			continue
+//		}
+//		h.lock.Unlock()
+//		_, meta, err := h.Kv.Get(posKey + h.LockKey, nil)
+//		if err != nil {
+//			log.Errorf("watch pos change with error：%#v", err)
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		if meta == nil {
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		v, _, err := h.Kv.Get(posKey + h.LockKey, &api.QueryOptions{
+//			WaitIndex : meta.LastIndex,
+//			WaitTime : time.Second * 86400,
+//		})
+//		if err != nil {
+//			log.Errorf("watch chang with error：%#v, %+v", err, v)
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		if v == nil {
+//			time.Sleep(time.Second)
+//			continue
+//		}
+//		//h.onPosChange(v.Value)
+//		//h.ctx.PosChangeList <- v.Value
+//		h.onPosChange(v.Value)
+//		time.Sleep(time.Millisecond * 10)
+//	}
+//}
 
 // get leader service ip and port
 // if not found or some error happened
@@ -411,17 +409,17 @@ func (h *Binlog) closeConsul() {
 
 // write pos kv to consul
 // use by src/library/binlog/handler.go SaveBinlogPostionCache
-func (h *Binlog) Write(data []byte) bool {
-	if h.status & disableConsul > 0 || len(data) <= 0 {
-		return true
-	}
-	if len(h.kvChan) < cap(h.kvChan) {
-		h.kvChan <- data
-		return true
-	}
-	log.Warnf("kvchan full")
-	return false
-}
+//func (h *Binlog) Write(data []byte) bool {
+//	if h.status & disableConsul > 0 || len(data) <= 0 {
+//		return true
+//	}
+//	if len(h.kvChan) < cap(h.kvChan) {
+//		h.kvChan <- data
+//		return true
+//	}
+//	log.Warnf("kvchan full")
+//	return false
+//}
 
 // lock if success, the current will be a leader
 func (h *Binlog) Lock() (bool, error) {

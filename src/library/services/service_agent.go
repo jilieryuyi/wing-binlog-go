@@ -4,10 +4,8 @@ import (
 	"net"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"sync"
 	"time"
 	"encoding/json"
-	"library/app"
 )
 
 //如果当前客户端为follower
@@ -22,265 +20,246 @@ const (
 	AgentStatusDisconnect
 )
 
-type Agent struct {
-	node         *agentNode
-	lock         *sync.Mutex
-	buffer       []byte
-	ctx          *app.Context
-	sendAllChan1 chan sendNode
-	sendAllChan2 chan []byte
-	status       int
-	last         int64
-}
+//type Agent struct {
+//	node         *agentNode
+//	lock         *sync.Mutex
+//	buffer       []byte
+//	ctx          *app.Context
+//	sendAllChan1 chan sendNode
+//	sendAllChan2 chan []byte
+//	status       int
+//	last         int64
+//}
 
-type agentNode struct {
-	conn *net.TCPConn
-}
+//type agentNode struct {
+//	conn *net.TCPConn
+//}
 
-func newAgent(ctx *app.Context, sendAllChan1 chan sendNode, sendAllChan2 chan []byte) *Agent{
-	agent := &Agent{
-		sendAllChan1 : sendAllChan1,
-		sendAllChan2 : sendAllChan2,
-		node    : nil,
-		lock    : new(sync.Mutex),
-		buffer  : make([]byte, 0),
-		ctx     : ctx,
-		status  : AgentStatusOffline | AgentStatusDisconnect,
-	}
-	go agent.keepalive()
-	return agent
-}
+//func newAgent(ctx *app.Context, sendAllChan1 chan sendNode, sendAllChan2 chan []byte) *Agent{
+//	agent := &Agent{
+//		sendAllChan1 : sendAllChan1,
+//		sendAllChan2 : sendAllChan2,
+//		node    : nil,
+//		lock    : new(sync.Mutex),
+//		buffer  : make([]byte, 0),
+//		ctx     : ctx,
+//		status  : AgentStatusOffline | AgentStatusDisconnect,
+//	}
+//	go agent.keepalive()
+//	return agent
+//}
 
-func (ag *Agent) keepalive() {
+func (tcp *TcpService) agentKeepalive() {
 	data := pack(CMD_TICK, "agent keep alive")
 	for {
 		select {
-			case <-ag.ctx.Ctx.Done():
+			case <-tcp.ctx.Ctx.Done():
 				return
 			default:
 		}
-		if ag.node == nil || ag.node.conn == nil ||
-			ag.status & AgentStatusDisconnect > 0 ||
-			ag.status & AgentStatusOffline > 0 {
+		if tcp.node == nil || tcp.node.conn == nil ||
+			tcp.status & AgentStatusDisconnect > 0 ||
+			tcp.status & AgentStatusOffline > 0 {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		log.Debugf("agent keepalive")
-		n, err := ag.node.conn.Write(data)
+		//log.Debugf("agent keepalive")
+		n, err := tcp.node.conn.Write(data)
 		if n <= 0 || err != nil {
 			log.Errorf("agent keepalive error: %d, %v", n, err)
-			ag.disconnect()
+			tcp.disconnect()
 		}
 		time.Sleep(3 * time.Second)
 	}
 }
 
-func (ag *Agent) nodeInit(ip string, port int) {
-	if ag.node != nil && ag.node.conn != nil {
-		ag.disconnect()
+func (tcp *TcpService) nodeInit(ip string, port int) {
+	if tcp.node != nil && tcp.node.conn != nil {
+		tcp.disconnect()
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
 		log.Panicf("start agent with error: %+v", err)
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	ag.node = &agentNode{
+	tcp.node = &agentNode{
 		conn:conn,
 	}
 	if err != nil {
 		log.Errorf("start agent with error: %+v", err)
-		ag.node.conn = nil
+		tcp.node.conn = nil
 	}
 }
 
-func (ag *Agent) Start(serviceIp string, port int) {
-	if serviceIp == "" || port == 0 {
-		log.Warnf("ip or port empty %s:%d", serviceIp, port)
-		return
-	}
-	if ag.status & AgentStatusConnect > 0 {
-		//if time.Now().Unix() - ag.last > 60 {
-		//	log.Warnf("agent is timeout")
-		//	ag.Close()
-		//}
-		log.Debugf("agent is still is running")
-		return
-	}
-	ag.lock.Lock()
-	if ag.status & AgentStatusOffline > 0 {
-		ag.status ^= AgentStatusOffline
-		ag.status |= AgentStatusOnline
-	}
-	ag.lock.Unlock()
-
-	agentH := pack(CMD_AGENT, "")
-	var readBuffer [tcpDefaultReadBufferSize]byte
-	for {
-		select {
-		case <- ag.ctx.Ctx.Done():
-			return
-		default:
-		}
-		if ag.status & AgentStatusOffline > 0 {
-			log.Warnf("AgentStatusOffline return")
+func (tcp *TcpService) AgentStart(serviceIp string, port int) {
+	go func() {
+		if serviceIp == "" || port == 0 {
+			log.Warnf("ip or port empty %s:%d", serviceIp, port)
 			return
 		}
-		ag.nodeInit(serviceIp, port)
-		if ag.node == nil || ag.node.conn == nil {
-			log.Warnf("node | conn is nil")
-			time.Sleep(time.Second * 3)
-			continue
+		if tcp.status&AgentStatusConnect > 0 {
+			//if time.Now().Unix() - tcp.last > 60 {
+			//	log.Warnf("agent is timeout")
+			//	tcp.Close()
+			//}
+			//log.Debugf("agent is still is running")
+			return
 		}
-		ag.lock.Lock()
-		if ag.status & AgentStatusDisconnect > 0 {
-			ag.status ^= AgentStatusDisconnect
-			ag.status |= AgentStatusConnect
+		tcp.lock.Lock()
+		if tcp.status&AgentStatusOffline > 0 {
+			tcp.status ^= AgentStatusOffline
+			tcp.status |= AgentStatusOnline
 		}
-		ag.lock.Unlock()
-		log.Debugf("====================agent start %s:%d====================", serviceIp, port)
-		// 简单的握手
-		n, err := ag.node.conn.Write(agentH)
-		if n <= 0 || err != nil {
-			log.Warnf("write agent header data with error: %d, err", n, err)
-			ag.disconnect()
-			continue
-		}
+		tcp.lock.Unlock()
+		agentH := pack(CMD_AGENT, "")
+		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
-			log.Debugf("====agent is running====")
-			ag.last = time.Now().Unix()
-			if ag.status & AgentStatusOffline > 0 {
-				log.Warnf("AgentStatusOffline return - 2===%d:%d", ag.status, ag.status & AgentStatusOffline)
+			select {
+			case <-tcp.ctx.Ctx.Done():
+				return
+			default:
+			}
+			if tcp.status&AgentStatusOffline > 0 {
+				log.Warnf("AgentStatusOffline return")
 				return
 			}
-			//buf := &readBuffer[:tcpDefaultReadBufferSize]
-			//clear data
-			//for i := range readBuffer {
-			//	readBuffer[i] = byte(0)
-			//}
-			size, err := ag.node.conn.Read(readBuffer[0:])
-			log.Debugf("read buffer len: %d, cap:%d", len(readBuffer), cap(readBuffer))
-			if err != nil || size <= 0 {
-				log.Warnf("agent read with error: %+v", err)
-				ag.disconnect()
-				break
+			tcp.nodeInit(serviceIp, port)
+			if tcp.node == nil || tcp.node.conn == nil {
+				log.Warnf("node | conn is nil")
+				time.Sleep(time.Second * 3)
+				continue
 			}
-			log.Debugf("agent receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
-			ag.onMessage(readBuffer[:size])
-			select {
-				case <-ag.ctx.Ctx.Done():
+			tcp.lock.Lock()
+			if tcp.status&AgentStatusDisconnect > 0 {
+				tcp.status ^= AgentStatusDisconnect
+				tcp.status |= AgentStatusConnect
+			}
+			tcp.lock.Unlock()
+			log.Debugf("====================agent start %s:%d====================", serviceIp, port)
+			// 简单的握手
+			n, err := tcp.node.conn.Write(agentH)
+			if n <= 0 || err != nil {
+				log.Warnf("write agent header data with error: %d, err", n, err)
+				tcp.disconnect()
+				continue
+			}
+			for {
+				//log.Debugf("====agent is running====")
+				if tcp.status&AgentStatusOffline > 0 {
+					log.Warnf("AgentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&AgentStatusOffline)
+					return
+				}
+				size, err := tcp.node.conn.Read(readBuffer[0:])
+				//log.Debugf("read buffer len: %d, cap:%d", len(readBuffer), cap(readBuffer))
+				if err != nil || size <= 0 {
+					log.Warnf("agent read with error: %+v", err)
+					tcp.disconnect()
+					break
+				}
+				//log.Debugf("agent receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
+				tcp.onAgentMessage(readBuffer[:size])
+				select {
+				case <-tcp.ctx.Ctx.Done():
 					return
 				default:
+				}
 			}
 		}
-	}
+	}()
 }
 
-func (ag *Agent) onMessage(msg []byte) {
-	ag.buffer = append(ag.buffer, msg...)
+func (tcp *TcpService) onAgentMessage(msg []byte) {
+	tcp.buffer = append(tcp.buffer, msg...)
 	for {
-		bufferLen := len(ag.buffer)
+		bufferLen := len(tcp.buffer)
 		if bufferLen < 6 {
 			return
 		}
 		//4字节长度，包含2自己的cmd
-		contentLen := int(ag.buffer[0]) | int(ag.buffer[1]) << 8 | int(ag.buffer[2]) << 16 | int(ag.buffer[3]) << 24
+		contentLen := int(tcp.buffer[0]) | int(tcp.buffer[1]) << 8 | int(tcp.buffer[2]) << 16 | int(tcp.buffer[3]) << 24
 		//2字节 command
-		cmd := int(ag.buffer[4]) | int(ag.buffer[5]) << 8
-		log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
-		log.Debugf("%v, %v", ag.buffer, string(ag.buffer))
+		cmd := int(tcp.buffer[4]) | int(tcp.buffer[5]) << 8
+		//log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
+		//log.Debugf("%v, %v", tcp.buffer, string(tcp.buffer))
 
 		if !hasCmd(cmd) {
-			log.Errorf("cmd %d dos not exists: %v", cmd, ag.buffer)
-			ag.buffer = make([]byte, 0)
+			log.Errorf("cmd %d dos not exists: %v", cmd, tcp.buffer)
+			tcp.buffer = make([]byte, 0)
 			return
 		}
-
 		//数据未接收完整，等待下一次处理
 		if bufferLen < 4 + contentLen {
 			//log.Error("content len error")
 			return
 		}
-		log.Debugf("%v", ag.buffer)
-		dataB := ag.buffer[6:4 + contentLen]
-		log.Debugf("clen=%d, cmd=%d, (%d)%+v", contentLen, cmd, len(dataB), dataB)
-
+		//log.Debugf("%v", tcp.buffer)
+		dataB := tcp.buffer[6:4 + contentLen]
+		//log.Debugf("clen=%d, cmd=%d, (%d)%+v", contentLen, cmd, len(dataB), dataB)
 		switch cmd {
 		case CMD_EVENT:
 			var data map[string] interface{}
 			err := json.Unmarshal(dataB, &data)
 			if err == nil {
-				if len(ag.sendAllChan1) < cap(ag.sendAllChan1) {
-					log.Debugf("======>send data: %+v", data)
-					ag.sendAllChan1 <- sendNode{
-						table: data["table"].(string),
-						data: dataB,
-					}
-				} else {
-					log.Warnf("ag.sendAllChan1 was full")
-				}
+				log.Debugf("agent receive event: %+v", data)
+				tcp.SendAll(data["table"].(string), dataB)
 			} else {
 				log.Errorf("json Unmarshal error: %+v, %s, %+v", dataB, string(dataB), err)
 			}
-			log.Debugf("%+v", data)
 		case CMD_TICK:
-			log.Debugf("keepalive: %s", string(dataB))
-		default:
-			if len(ag.sendAllChan2) < cap(ag.sendAllChan2) {
-				ag.sendAllChan2 <- pack(cmd, string(msg))
+			//log.Debugf("keepalive: %s", string(dataB))
+		case CMD_POS:
+			log.Debugf("receive pos")
+			//todo write pos
+			if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
+				tcp.ctx.PosChan <- dataB
 			} else {
-				log.Warnf("ag.sendAllChan2 was full")
+				log.Errorf("tcp.ctx.PosChan full")
 			}
+		default:
+			tcp.sendRaw(pack(cmd, string(msg)))
 		}
-		//remove(&ag.buffer, contentLen + 4)
-		log.Debugf("%d, contentLen + 4=%d", len(ag.buffer), contentLen + 4)
-		log.Debugf("%v", ag.buffer)
-		//if len(ag.buffer) >= contentLen + 4 {
-		if len(ag.buffer) <= 0 {
-			log.Errorf("ag.buffer is empty")
+		//remove(&tcp.buffer, contentLen + 4)
+		//log.Debugf("%d, contentLen + 4=%d", len(tcp.buffer), contentLen + 4)
+		//log.Debugf("%v", tcp.buffer)
+		//if len(tcp.buffer) >= contentLen + 4 {
+		if len(tcp.buffer) <= 0 {
+			log.Errorf("tcp.buffer is empty")
 			return
 		}
-		ag.buffer = append(ag.buffer[:0], ag.buffer[contentLen+4:]...)
-		log.Debugf("=================>bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(ag.buffer), contentLen, cmd)
-		//} else {
-		//	log.Warnf("content len error")
-		//}
-
+		tcp.buffer = append(tcp.buffer[:0], tcp.buffer[contentLen+4:]...)
+		//log.Debugf("=================>bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
 	}
 }
 
-func (ag *Agent) disconnect() {
-	if ag.node == nil || ag.status & AgentStatusDisconnect > 0 {
+func (tcp *TcpService) disconnect() {
+	if tcp.node == nil || tcp.status & AgentStatusDisconnect > 0 {
 		log.Debugf("agent is in disconnect status")
 		return
 	}
 	log.Warnf("====================agent disconnect====================")
-	ag.node.conn.Close()
+	tcp.node.conn.Close()
 
-	ag.lock.Lock()
-	if ag.status & AgentStatusConnect > 0 {
-		ag.status ^= AgentStatusConnect
-		ag.status |= AgentStatusDisconnect
+	tcp.lock.Lock()
+	if tcp.status & AgentStatusConnect > 0 {
+		tcp.status ^= AgentStatusConnect
+		tcp.status |= AgentStatusDisconnect
 	}
-	ag.lock.Unlock()
+	tcp.lock.Unlock()
 }
 
-func (ag *Agent) Close() {
-	ag.lock.Lock()
-	if ag.status & AgentStatusOffline > 0 {
-		ag.lock.Unlock()
-		log.Debugf("agent close was called, but not running")
+func (tcp *TcpService) AgentStop() {
+	if tcp.status & AgentStatusOffline > 0 {
+		//log.Debugf("agent close was called, but not running")
 		return
 	}
-	ag.lock.Unlock()
-
 	log.Warnf("====================agent close====================")
-	ag.disconnect()
+	tcp.disconnect()
 
-	ag.lock.Lock()
-	if ag.status & AgentStatusOnline > 0 {
-		ag.status ^= AgentStatusOnline
-		ag.status |= AgentStatusOffline
+	tcp.lock.Lock()
+	if tcp.status & AgentStatusOnline > 0 {
+		tcp.status ^= AgentStatusOnline
+		tcp.status |= AgentStatusOffline
 	}
-	ag.lock.Unlock()
+	tcp.lock.Unlock()
 }
 

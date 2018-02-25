@@ -242,7 +242,7 @@ func main() {
 	ser1 := &service{
 		groupName : "group1",
 		ip : "127.0.0.1",
-		port :9998,
+		port :9999,
 	}
 	//ser2 := &service{
 	//	groupName : "group1",

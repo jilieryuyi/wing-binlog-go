@@ -12,7 +12,7 @@ import (
 )
 
 func NewBinlog(ctx *app.Context) *Binlog {
-	config, _ := GetMysqlConfig()
+	config, _ := getMysqlConfig()
 	tcpConfig, _:= services.GetTcpConfig()
 	binlog := &Binlog{
 		Config   : config,
@@ -20,14 +20,12 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
 		services : make(map[string]services.Service),
-		//tcp service ip and port
 		ServiceIp   : tcpConfig.ServiceIp,
 		ServicePort : tcpConfig.Port,
-		startServiceChan:make(chan struct{}, 100),
-		stopServiceChan:make(chan bool, 100),
-		status : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,
+		startServiceChan : make(chan struct{}, 100),
+		stopServiceChan  : make(chan bool, 100),
+		status           : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,
 	}
-	//init consul
 	binlog.consulInit()
 	binlog.handlerInit()
 	binlog.lookService()

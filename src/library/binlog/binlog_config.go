@@ -114,7 +114,7 @@ const (
 )
 const (
 	serviceKeepaliveTimeout  = 36 // timeout, unit is second
-	checkAliveInterval       = 6  // interval for checkalive
+	checkAliveInterval       = 1  // interval for checkalive
 	keepaliveInterval        = 1  // interval for keepalive
 
 	posKey          = "wing/binlog/pos/"

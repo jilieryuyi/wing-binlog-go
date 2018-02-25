@@ -7,38 +7,9 @@ import (
 	"library/app"
 	"math/rand"
 	"time"
+	"github.com/siddontang/go-mysql/schema"
+	"reflect"
 )
-
-// 封包
-//func pack(cmd int, client_id string, msgs []string) []byte {
-//	client_id_len := len(client_id)
-//	// 获取实际包长度
-//	l := 0
-//	for _, msg := range msgs {
-//		l += len([]byte(msg)) + 4
-//	}
-//	// cl为实际的包内容长度，2字节cmd
-//	cl := l + 2 + client_id_len
-//	r := make([]byte, cl)
-//	r[0] = byte(cmd)
-//	r[1] = byte(cmd >> 8)
-//	copy(r[2:], []byte(client_id))
-//	base_start := 2 + client_id_len
-//	for _, msg := range msgs {
-//		m := []byte(msg)
-//		ml := len(m)
-//		// 前4字节存放长度
-//		r[base_start+0] = byte(ml)
-//		r[base_start+1] = byte(ml >> 8)
-//		r[base_start+2] = byte(ml >> 16)
-//		r[base_start+3] = byte(ml >> 24)
-//		base_start += 4
-//		// 实际的内容
-//		copy(r[base_start:], m)
-//		base_start += ml
-//	}
-//	return r
-//}
 
 func packPos(binFile string, pos int64, eventIndex int64) []byte {
 	res := []byte(binFile)
@@ -97,7 +68,7 @@ func getConfig() (*Config, error) {
 }
 
 // 获取mysql配置
-func GetMysqlConfig() (*AppConfig, error) {
+func getMysqlConfig() (*AppConfig, error) {
 	var appConfig AppConfig
 	configFile := app.ConfigPath + "/canal.toml"
 	if !file.Exists(configFile) {
@@ -119,6 +90,95 @@ func srand(min int, max int) int {
 		n = srand(min, max)
 	}
 	return n
+}
+
+func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
+	switch edata.(type) {
+	case string:
+		return edata
+	case []uint8:
+		return edata
+	case int:
+		return edata
+	case int8:
+		var r int64 = 0
+		r = int64(edata.(int8))
+		if column.IsUnsigned && r < 0 {
+			r = int64(int64(256) + int64(edata.(int8)))
+		}
+		return r
+	case int16:
+		var r int64 = 0
+		r = int64(edata.(int16))
+		if column.IsUnsigned && r < 0 {
+			r = int64(int64(65536) + int64(edata.(int16)))
+		}
+		return r
+	case int32:
+		var r int64 = 0
+		r = int64(edata.(int32))
+		if column.IsUnsigned && r < 0 {
+			t := string([]byte(column.RawType)[0:3])
+			if t != "int" {
+				r = int64(int64(1 << 24) + int64(edata.(int32)))
+			} else {
+				r = int64(int64(4294967296) + int64(edata.(int32)))
+			}
+		}
+		return r
+	case int64:
+		// 枚举类型支持
+		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
+			i   := int(edata.(int64))-1
+			str := column.EnumValues[i]
+			return str
+		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
+			v   := uint(edata.(int64))
+			l   := uint(len(column.SetValues))
+			res := ""
+			for i := uint(0); i < l; i++  {
+				if (v & (1 << i)) > 0 {
+					if res != "" {
+						res += ","
+					}
+					res += column.SetValues[i]
+				}
+			}
+			return res
+		} else {
+			if column.IsUnsigned {
+				var ur uint64 = 0
+				ur = uint64(edata.(int64))
+				if ur < 0 {
+					ur = 1 << 63 + (1 << 63 + ur)
+				}
+				return ur
+			} else {
+				return edata
+			}
+		}
+	case uint:
+		return edata
+	case uint8:
+		return edata
+	case uint16:
+		return edata
+	case uint32:
+		return edata
+	case uint64:
+		return edata
+	case float64:
+		return edata
+	case float32:
+		return edata
+	default:
+		if edata != nil {
+			log.Warnf("binlog does not support type：%s %+v", column.Name, reflect.TypeOf(edata))
+			return edata
+		} else {
+			return "null"
+		}
+	}
 }
 
 

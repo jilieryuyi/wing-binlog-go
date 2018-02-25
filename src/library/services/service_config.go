@@ -10,6 +10,7 @@ import (
 
 type Service interface {
 	SendAll(table string, data []byte) bool
+	SendPos(data []byte)
 	Start()
 	Close()
 	Reload()
@@ -32,6 +33,7 @@ const (
 	CMD_STOP
 	CMD_RELOAD
 	CMD_SHOW_MEMBERS
+	CMD_POS
 )
 
 var cmds = []int{
@@ -44,6 +46,7 @@ var cmds = []int{
 	CMD_STOP,
 	CMD_RELOAD,
 	CMD_SHOW_MEMBERS,
+	CMD_POS,
 }
 
 const (
@@ -133,6 +136,11 @@ type tcpGroup struct {
 	nodes  []*tcpClientNode
 }
 
+
+type agentNode struct {
+	conn *net.TCPConn
+}
+
 type TcpService struct {
 	Service
 	Ip               string               // 监听ip
@@ -145,13 +153,22 @@ type TcpService struct {
 	ctx              *app.Context//*context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
-	Agent            *Agent
+	//Agent            *Agent
 	ServiceIp        string
 	Agents           []*tcpClientNode
-	sendAllChan1     chan sendNode//{}//map[string] interface{}
-	sendAllChan2     chan []byte
+	//sendAllChan1     chan sendNode//{}//map[string] interface{}
+	//sendAllChan2     chan []byte
 	status           int
 	token            string
+
+	node         *agentNode
+	//lock         *sync.Mutex
+	buffer       []byte
+	//ctx          *app.Context
+	//sendAllChan1 chan sendNode
+	//sendAllChan2 chan []byte
+	//status       int
+	//last         int64
 }
 
 type sendNode struct {

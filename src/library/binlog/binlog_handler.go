@@ -12,8 +12,6 @@ import (
 	"library/path"
 	"io"
 	"library/app"
-	"github.com/siddontang/go-mysql/schema"
-	"reflect"
 	"bytes"
 	"encoding/json"
 )
@@ -53,10 +51,11 @@ func (h *Binlog) handlerInit() {
 	h.lastPos     = uint32(h.Config.BinPos)
 	h.posChan     = make(chan []byte, posChanLen)
 	log.Debugf("==================>  last pos: (%+v, %+v)<==================", h.lastBinFile, h.lastPos)
-	go h.syncSavePosition()
+	go h.asyncSavePosition()
+	go h.lookPosChange()
 }
 
-func (h *Binlog) syncSavePosition() {
+func (h *Binlog) asyncSavePosition() {
 	h.wg.Add(1)
 	defer h.wg.Done()
 	for {
@@ -102,7 +101,7 @@ func (h *Binlog) RegisterService(name string, s services.Service) {
 }
 
 func (h *Binlog) notify(table string, data map[string] interface{}) {
-	log.Debugf("binlog notify: %+v", data)
+	log.Debugf("==>binlog notify: %+v", data)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Errorf("json pack data error[%v]: %v", err, data)
@@ -110,95 +109,6 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 	}
 	for _, service := range h.services {
 		service.SendAll(table, jsonData)
-	}
-}
-
-func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
-	switch edata.(type) {
-	case string:
-		return edata
-	case []uint8:
-		return edata
-	case int:
-		return edata
-	case int8:
-		var r int64 = 0
-		r = int64(edata.(int8))
-		if column.IsUnsigned && r < 0 {
-			r = int64(int64(256) + int64(edata.(int8)))
-		}
-		return r
-	case int16:
-		var r int64 = 0
-		r = int64(edata.(int16))
-		if column.IsUnsigned && r < 0 {
-			r = int64(int64(65536) + int64(edata.(int16)))
-		}
-		return r
-	case int32:
-		var r int64 = 0
-		r = int64(edata.(int32))
-		if column.IsUnsigned && r < 0 {
-			t := string([]byte(column.RawType)[0:3])
-			if t != "int" {
-				r = int64(int64(1 << 24) + int64(edata.(int32)))
-			} else {
-				r = int64(int64(4294967296) + int64(edata.(int32)))
-			}
-		}
-		return r
-	case int64:
-		// 枚举类型支持
-		if len(column.RawType) > 4 && column.RawType[0:4] == "enum" {
-			i   := int(edata.(int64))-1
-			str := column.EnumValues[i]
-			return str
-		} else if len(column.RawType) > 3 && column.RawType[0:3] == "set" {
-			v   := uint(edata.(int64))
-			l   := uint(len(column.SetValues))
-			res := ""
-			for i := uint(0); i < l; i++  {
-				if (v & (1 << i)) > 0 {
-					if res != "" {
-						res += ","
-					}
-					res += column.SetValues[i]
-				}
-			}
-			return res
-		} else {
-			if column.IsUnsigned {
-				var ur uint64 = 0
-				ur = uint64(edata.(int64))
-				if ur < 0 {
-					ur = 1 << 63 + (1 << 63 + ur)
-				}
-				return ur
-			} else {
-				return edata
-			}
-		}
-	case uint:
-		return edata
-	case uint8:
-		return edata
-	case uint16:
-		return edata
-	case uint32:
-		return edata
-	case uint64:
-		return edata
-	case float64:
-		return edata
-	case float32:
-		return edata
-	default:
-		if edata != nil {
-			log.Warnf("binlog不支持的类型：%s %+v", column.Name, reflect.TypeOf(edata))
-			return edata
-		} else {
-			return "null"
-		}
 	}
 }
 
@@ -297,21 +207,37 @@ func (h *Binlog) OnGTID(g mysql.GTIDSet) error {
 	return nil
 }
 
-func (h *Binlog) onPosChange(data []byte) {
-	if data == nil || len(data) < 19 {
-		return
+func (h *Binlog) lookPosChange() {
+	for {
+		select {
+		case data, ok := <- h.ctx.PosChan:
+			if !ok {
+				return
+			}
+			for {
+				if data == nil || len(data) < 19 {
+					log.Errorf("pos data error: %v", data)
+					break
+				}
+				log.Debugf("onPosChange")
+				file, pos, index := unpackPos(data)
+				if file == "" || pos <= 0 {
+					log.Errorf("error with: %s, %d", file, pos)
+					break
+				}
+				h.lastBinFile = file
+				h.lastPos = uint32(pos)
+				h.EventIndex = index
+				r := packPos(file, pos, index)
+				h.SaveBinlogPositionCache(r)
+				break
+			}
+		case <- h.ctx.Ctx.Done():
+			if len(h.ctx.PosChan) <= 0 {
+				return
+			}
+		}
 	}
-	log.Debugf("onPosChange")
-	file, pos, index := unpackPos(data)
-	if file == "" || pos <= 0 {
-		log.Warnf("error with: %s, %d", file, pos)
-		return
-	}
-	h.lastBinFile = file
-	h.lastPos     = uint32(pos)
-	h.EventIndex  = index
-	r := packPos(file, pos, index)
-	h.SaveBinlogPositionCache(r)
 }
 
 func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
@@ -321,7 +247,11 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	data       := packPos(p.Name, pos, eventIndex)
 
 	h.SaveBinlogPositionCache(data)
-	h.Write(data)
+	//h.Write(data)
+	//todo write pos to agent
+	for _, service := range h.services {
+		service.SendPos(data)
+	}
 
 	h.lastBinFile = p.Name
 	h.lastPos     = p.Pos

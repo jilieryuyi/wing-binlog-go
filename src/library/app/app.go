@@ -53,6 +53,7 @@ type Context struct {
 	ReloadChan chan string
 	ShowMembersChan chan struct{}
 	ShowMembersRes chan string
+	PosChan chan []byte
 }
 
 // app init
@@ -238,6 +239,7 @@ func NewContext() *Context {
 		ReloadChan:make(chan string, 100),
 		ShowMembersChan:make(chan struct{}, 100),
 		ShowMembersRes:make(chan string, 12),
+		PosChan:make(chan []byte, 1000000),
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	go ctx.signalHandler()
