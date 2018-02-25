@@ -379,7 +379,7 @@ func (h *Binlog) Unlock() (bool, error) {
 	if err != nil {
 		log.Errorf("unlock error: %+v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "session") {
-			log.Debugf("try to create a new session")
+			log.Errorf("try to create a new session")
 			h.Session.create()
 		}
 		return false, err
