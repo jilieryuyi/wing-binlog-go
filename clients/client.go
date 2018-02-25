@@ -8,6 +8,8 @@ import (
 	"time"
 	"sync/atomic"
 	"encoding/json"
+	"os"
+	"strconv"
 )
 
 const (
@@ -203,12 +205,12 @@ func (client *Client) onMessage(msg []byte) {
 		}
 		dataB := client.buffer[6:4 + contentLen]
 		atomic.AddInt64(&client.total, 1)
-		total := atomic.LoadInt64(&client.total)
-		p := int64(0)
-		sp := time.Now().Unix() - client.starttime
-		if sp > 0 {
-			p = int64(total/sp)
-		}
+		//total := atomic.LoadInt64(&client.total)
+		//p := int64(0)
+		//sp := time.Now().Unix() - client.starttime
+		//if sp > 0 {
+		//	p = int64(total/sp)
+		//}
 		switch(cmd) {
 		case CMD_EVENT:
 			log.Debugf("收到数据库事件")
@@ -216,9 +218,9 @@ func (client *Client) onMessage(msg []byte) {
 			json.Unmarshal(dataB, &data)
 			log.Debugf("%+v", data)
 		default:
-			log.Debugf("收到其他消息")
+			//log.Debugf("收到其他消息")
 		}
-		log.Debugf("每秒接收数据 %d 条， clen=%d, cmd=%d, %+v", p, contentLen, cmd, string(dataB))
+		//log.Debugf("每秒接收数据 %d 条， clen=%d, cmd=%d, %+v", p, contentLen, cmd, string(dataB))
 		//数据移动，清除已读数据
 		client.buffer = append(client.buffer[:0], client.buffer[contentLen + 4:]...)
 	}
@@ -239,10 +241,12 @@ func main() {
 		FullTimestamp:    true,
 	})
 	log.SetLevel(log.Level(5))
+
+	port, _:= strconv.Atoi(os.Args[2])//strconv.ParseInt(os.Args[1], 10, 64)
 	ser1 := &service{
 		groupName : "group1",
-		ip : "127.0.0.1",
-		port :9998,
+		ip : os.Args[1],
+		port :port,
 	}
 	//ser2 := &service{
 	//	groupName : "group1",

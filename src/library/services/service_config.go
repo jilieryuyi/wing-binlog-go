@@ -59,6 +59,10 @@ const (
 const (
 	serviceEnable = 1 << iota
 	serviceDisable
+	agentStatusOffline
+	agentStatusOnline
+	agentStatusConnect
+	agentStatusDisconnect
 )
 
 type httpNodeConfig struct {

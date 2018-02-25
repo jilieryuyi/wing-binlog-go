@@ -31,7 +31,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Agents:           make([]*tcpClientNode, 0),
 		//sendAllChan1:     make(chan sendNode, tcpMaxSendQueue),
 		//sendAllChan2:     make(chan []byte, tcpMaxSendQueue),
-		status:           serviceEnable | AgentStatusOffline | AgentStatusDisconnect,
+		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
 	for _, group := range config.Groups{
@@ -49,6 +49,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 // send event data to all connects client
 func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	if tcp.status & serviceDisable > 0 {
+		log.Debugf("tcp is disabled")
 		return false
 	}
 	log.Debugf("tcp SendAll: %+v", data)

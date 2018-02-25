@@ -13,13 +13,6 @@ import (
 //leader发生事件的时候通过agent转发到连接follower的tcp客户端
 //实现数据代理
 
-const (
-	AgentStatusOffline = 1 << iota
-	AgentStatusOnline
-	AgentStatusConnect
-	AgentStatusDisconnect
-)
-
 //type Agent struct {
 //	node         *agentNode
 //	lock         *sync.Mutex
@@ -43,7 +36,7 @@ const (
 //		lock    : new(sync.Mutex),
 //		buffer  : make([]byte, 0),
 //		ctx     : ctx,
-//		status  : AgentStatusOffline | AgentStatusDisconnect,
+//		status  : agentStatusOffline | agentStatusDisconnect,
 //	}
 //	go agent.keepalive()
 //	return agent
@@ -58,8 +51,8 @@ func (tcp *TcpService) agentKeepalive() {
 			default:
 		}
 		if tcp.node == nil || tcp.node.conn == nil ||
-			tcp.status & AgentStatusDisconnect > 0 ||
-			tcp.status & AgentStatusOffline > 0 {
+			tcp.status & agentStatusDisconnect > 0 ||
+			tcp.status & agentStatusOffline > 0 {
 			time.Sleep(3 * time.Second)
 			continue
 		}
@@ -97,7 +90,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			log.Warnf("ip or port empty %s:%d", serviceIp, port)
 			return
 		}
-		if tcp.status&AgentStatusConnect > 0 {
+		if tcp.status&agentStatusConnect > 0 {
 			//if time.Now().Unix() - tcp.last > 60 {
 			//	log.Warnf("agent is timeout")
 			//	tcp.Close()
@@ -106,9 +99,9 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			return
 		}
 		tcp.lock.Lock()
-		if tcp.status&AgentStatusOffline > 0 {
-			tcp.status ^= AgentStatusOffline
-			tcp.status |= AgentStatusOnline
+		if tcp.status&agentStatusOffline > 0 {
+			tcp.status ^= agentStatusOffline
+			tcp.status |= agentStatusOnline
 		}
 		tcp.lock.Unlock()
 		agentH := pack(CMD_AGENT, "")
@@ -119,8 +112,8 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				return
 			default:
 			}
-			if tcp.status&AgentStatusOffline > 0 {
-				log.Warnf("AgentStatusOffline return")
+			if tcp.status&agentStatusOffline > 0 {
+				log.Warnf("agentStatusOffline return")
 				return
 			}
 			tcp.nodeInit(serviceIp, port)
@@ -130,9 +123,9 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				continue
 			}
 			tcp.lock.Lock()
-			if tcp.status&AgentStatusDisconnect > 0 {
-				tcp.status ^= AgentStatusDisconnect
-				tcp.status |= AgentStatusConnect
+			if tcp.status&agentStatusDisconnect > 0 {
+				tcp.status ^= agentStatusDisconnect
+				tcp.status |= agentStatusConnect
 			}
 			tcp.lock.Unlock()
 			log.Debugf("====================agent start %s:%d====================", serviceIp, port)
@@ -145,8 +138,8 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			}
 			for {
 				//log.Debugf("====agent is running====")
-				if tcp.status&AgentStatusOffline > 0 {
-					log.Warnf("AgentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&AgentStatusOffline)
+				if tcp.status&agentStatusOffline > 0 {
+					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&agentStatusOffline)
 					return
 				}
 				size, err := tcp.node.conn.Read(readBuffer[0:])
@@ -232,7 +225,7 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 }
 
 func (tcp *TcpService) disconnect() {
-	if tcp.node == nil || tcp.status & AgentStatusDisconnect > 0 {
+	if tcp.node == nil || tcp.status & agentStatusDisconnect > 0 {
 		log.Debugf("agent is in disconnect status")
 		return
 	}
@@ -240,15 +233,15 @@ func (tcp *TcpService) disconnect() {
 	tcp.node.conn.Close()
 
 	tcp.lock.Lock()
-	if tcp.status & AgentStatusConnect > 0 {
-		tcp.status ^= AgentStatusConnect
-		tcp.status |= AgentStatusDisconnect
+	if tcp.status & agentStatusConnect > 0 {
+		tcp.status ^= agentStatusConnect
+		tcp.status |= agentStatusDisconnect
 	}
 	tcp.lock.Unlock()
 }
 
 func (tcp *TcpService) AgentStop() {
-	if tcp.status & AgentStatusOffline > 0 {
+	if tcp.status & agentStatusOffline > 0 {
 		//log.Debugf("agent close was called, but not running")
 		return
 	}
@@ -256,9 +249,9 @@ func (tcp *TcpService) AgentStop() {
 	tcp.disconnect()
 
 	tcp.lock.Lock()
-	if tcp.status & AgentStatusOnline > 0 {
-		tcp.status ^= AgentStatusOnline
-		tcp.status |= AgentStatusOffline
+	if tcp.status & agentStatusOnline > 0 {
+		tcp.status ^= agentStatusOnline
+		tcp.status |= agentStatusOffline
 	}
 	tcp.lock.Unlock()
 }

@@ -229,7 +229,7 @@ func (h *Binlog) agentStart() {
 		log.Warnf("leader ip and port is empty, wait for init, %s:%d", serviceIp, port)
 		return
 	}
-	log.Debugf("leader ip and port: %s:%d", serviceIp, port)
+	//log.Debugf("leader ip and port: %s:%d", serviceIp, port)
 	if serviceIp == "" || port == 0 {
 		return
 	}
