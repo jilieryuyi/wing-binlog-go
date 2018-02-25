@@ -6,7 +6,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"time"
-	"sync/atomic"
 	"encoding/json"
 	"os"
 	"strconv"
@@ -32,9 +31,9 @@ type Client struct {
 	isClose bool
 	lock *sync.Mutex
 	buffer []byte
-	total int64
 	starttime int64
 	Services []*service
+	times int64
 }
 
 type Node struct {
@@ -48,9 +47,9 @@ func NewClient(s []*service) *Client{
 		node      : nil,
 		lock      : new(sync.Mutex),
 		buffer    : make([]byte, 0),
-		total     : 0,
 		starttime : time.Now().Unix(),
 		Services  : s,
+		times     : 0,
 	}
 	return agent
 }
@@ -204,23 +203,22 @@ func (client *Client) onMessage(msg []byte) {
 			return
 		}
 		dataB := client.buffer[6:4 + contentLen]
-		atomic.AddInt64(&client.total, 1)
-		//total := atomic.LoadInt64(&client.total)
-		//p := int64(0)
-		//sp := time.Now().Unix() - client.starttime
-		//if sp > 0 {
-		//	p = int64(total/sp)
-		//}
 		switch(cmd) {
 		case CMD_EVENT:
-			log.Debugf("收到数据库事件")
+			client.times++
+			log.Debugf("收到%d次数据库事件", client.times)
+			p := int64(0)
+			sp := time.Now().Unix() - client.starttime
+			if sp > 0 {
+				p = int64(client.times/sp)
+			}
+			log.Debugf("每秒接收数据 %d 条", p)
 			var data interface{}
 			json.Unmarshal(dataB, &data)
 			log.Debugf("%+v", data)
 		default:
 			//log.Debugf("收到其他消息")
 		}
-		//log.Debugf("每秒接收数据 %d 条， clen=%d, cmd=%d, %+v", p, contentLen, cmd, string(dataB))
 		//数据移动，清除已读数据
 		client.buffer = append(client.buffer[:0], client.buffer[contentLen + 4:]...)
 	}

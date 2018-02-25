@@ -29,8 +29,6 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
 		Agents:           make([]*tcpClientNode, 0),
-		//sendAllChan1:     make(chan sendNode, tcpMaxSendQueue),
-		//sendAllChan2:     make(chan []byte, tcpMaxSendQueue),
 		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
@@ -52,7 +50,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 		log.Debugf("tcp is disabled")
 		return false
 	}
-	log.Debugf("tcp SendAll: %+v", data)
+	log.Debugf("tcp SendAll: %+v", string(data))
 	packData := pack(CMD_EVENT, string(data))
 	for _, agent := range tcp.Agents {
 		if agent.status & tcpNodeOnline > 0 {

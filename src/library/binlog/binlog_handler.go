@@ -215,12 +215,12 @@ func (h *Binlog) lookPosChange() {
 				return
 			}
 			for {
-				if data == nil || len(data) < 19 {
+				if data == "" || len(data) < 19 {
 					log.Errorf("pos data error: %v", data)
 					break
 				}
 				log.Debugf("onPosChange")
-				file, pos, index := unpackPos(data)
+				file, pos, index := unpackPos([]byte(data))
 				if file == "" || pos <= 0 {
 					log.Errorf("error with: %s, %d", file, pos)
 					break

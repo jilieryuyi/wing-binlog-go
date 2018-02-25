@@ -85,7 +85,6 @@ func (req *Http) Put(data []byte) ([]byte, error) {
 }
 
 func (req *Http) Post(data []byte) ([]byte, error) {
-	log.Debugf("post: %s", string(data))
 	return request("POST", req.url, data)
 }
 
