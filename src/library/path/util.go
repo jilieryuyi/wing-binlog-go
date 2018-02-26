@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	log "github.com/sirupsen/logrus"
-
-	"fmt"
 )
 
 // check dir is exists
