@@ -2,13 +2,6 @@ package binlog
 
 import (
 	"github.com/hashicorp/consul/api"
-	"library/path"
-	"library/file"
-	"fmt"
-	"time"
-	log "github.com/sirupsen/logrus"
-	wstring "library/string"
-	"library/app"
 )
 
 type Session struct {
@@ -35,7 +28,7 @@ func (ses *Session) renew() (err error) {
 		ses.create()
 	}
 	if ses.ID == "" {
-		return ErrorSessionEmpty
+		return sessionEmpty
 	}
 	_, _, err = ses.handler.Renew(ses.ID, nil)
 	return err
@@ -44,24 +37,4 @@ func (ses *Session) renew() (err error) {
 func (ses *Session) delete() (err error) {
 	_, err = ses.handler.Destroy(ses.ID, nil)
 	return err
-}
-
-func GetSession() string {
-	sessionFile := app.CachePath + "/session"
-	log.Debugf("session file: %s", sessionFile)
-	if file.Exists(sessionFile) {
-		data := file.Read(sessionFile)
-		if data != "" {
-			return data
-		}
-	}
-	//write a new session
-	session := fmt.Sprintf("%d-%s", time.Now().Unix(), wstring.RandString(64))
-	dir := path.GetParent(sessionFile)
-	path.Mkdir(dir)
-	n := file.Write(sessionFile, session, false)
-	if n != len(session) {
-		return ""
-	}
-	return session
 }

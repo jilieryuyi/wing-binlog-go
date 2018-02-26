@@ -34,7 +34,7 @@ func (h *Binlog) handlerInit() {
 	if err != nil {
 		log.Panicf("get master pos with error：%+v", err)
 	}
-	log.Debugf("==================>master pos: %+v<==================", currentPos)
+	log.Debugf("master pos: %+v", currentPos)
 	if f != "" && p > 0 {
 		h.Config.BinFile = f
 		h.Config.BinPos  = uint32(p)
@@ -50,7 +50,7 @@ func (h *Binlog) handlerInit() {
 	h.lastBinFile = h.Config.BinFile
 	h.lastPos     = uint32(h.Config.BinPos)
 	h.posChan     = make(chan []byte, posChanLen)
-	log.Debugf("==================>  last pos: (%+v, %+v)<==================", h.lastBinFile, h.lastPos)
+	log.Debugf("current pos: (%+v, %+v)", h.lastBinFile, h.lastPos)
 	go h.asyncSavePosition()
 	go h.lookPosChange()
 }
@@ -101,7 +101,7 @@ func (h *Binlog) RegisterService(name string, s services.Service) {
 }
 
 func (h *Binlog) notify(table string, data map[string] interface{}) {
-	log.Debugf("==>binlog notify: %+v", data)
+	log.Debugf("binlog notify: %+v", data)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Errorf("json pack data error[%v]: %v", err, data)
@@ -245,14 +245,10 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
 	pos        := int64(p.Pos)
 	data       := packPos(p.Name, pos, eventIndex)
-
 	h.SaveBinlogPositionCache(data)
-	//h.Write(data)
-	//todo write pos to agent
 	for _, service := range h.services {
 		service.SendPos(data)
 	}
-
 	h.lastBinFile = p.Name
 	h.lastPos     = p.Pos
 	return nil

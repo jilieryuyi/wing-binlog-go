@@ -10,6 +10,7 @@ import (
 	"library/app"
 	"errors"
 )
+
 var (
 	sessionEmpty = errors.New("session empty")
 )
@@ -81,7 +82,6 @@ type Binlog struct {
 	agent *api.Agent
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
-	kvChan chan []byte
 	posChan chan []byte
 	// binlog status
 	status int
@@ -113,18 +113,16 @@ const (
 	disableConsul
 )
 const (
-	serviceKeepaliveTimeout  = 36 // timeout, unit is second
+	serviceKeepaliveTimeout  = 6  // timeout, unit is second
 	checkAliveInterval       = 1  // interval for checkalive
 	keepaliveInterval        = 1  // interval for keepalive
 
-	posKey          = "wing/binlog/pos/"
 	prefixKeepalive = "wing/binlog/keepalive/"
 	statusOnline    = "online"
 	statusOffline   = "offline"
 	serviceNameTcp  = "tcp"
 	serviceNameHttp = "http"
 	serviceNameAll  = "all"
-	kvChanLen       = 10000000
 	posChanLen      = 10000000
 )
 

@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"library/app"
 	"time"
-	//"math/rand"
 )
 
 func NewBinlog(ctx *app.Context) *Binlog {
@@ -20,8 +19,8 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
 		services : make(map[string]services.Service),
-		ServiceIp   : tcpConfig.ServiceIp,
-		ServicePort : tcpConfig.Port,
+		ServiceIp        : tcpConfig.ServiceIp,
+		ServicePort      : tcpConfig.Port,
 		startServiceChan : make(chan struct{}, 100),
 		stopServiceChan  : make(chan bool, 100),
 		status           : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,
@@ -69,7 +68,7 @@ func (h *Binlog) Close() {
 	if h.status & binlogStatusIsExit > 0 {
 		return
 	}
-	if h.status & binlogStatusIsNormal >0 {
+	if h.status & binlogStatusIsNormal > 0 {
 		h.status ^= binlogStatusIsNormal
 		h.status |= binlogStatusIsExit
 	}
@@ -96,7 +95,6 @@ func (h *Binlog) lookService() {
 				}
 				for {
 					if h.status & binlogStatusIsRunning > 0 {
-						//log.Debug("binlog service is still running")
 						break
 					}
 					log.Debug("binlog service start")

@@ -15,24 +15,21 @@ import (
 func (h *Binlog) consulInit() {
 	var err error
 	consulConfig, err := getConfig()
-
 	h.LockKey     = consulConfig.Lock
 	//consul config
 	h.Address     = consulConfig.Consul.Address
 	//h.isLock      = 0
-	h.sessionId   = app.GetKey(app.CachePath + "/session")//GetSession()
+	h.sessionId   = app.GetKey(app.CachePath + "/session")
 	if consulConfig.Enable {
 		h.status ^= disableConsul
 		h.status |= enableConsul
 	}
-	h.kvChan      = make(chan []byte, kvChanLen)
 	ConsulConfig := api.DefaultConfig()
 	ConsulConfig.Address = h.Address
 	h.Client, err = api.NewClient(ConsulConfig)
 	if err != nil {
 		log.Panicf("create consul session with error: %+v", err)
 	}
-
 	h.Session = &Session {
 		Address : h.Address,
 		ID      : "",
@@ -51,13 +48,7 @@ func (h *Binlog) consulInit() {
 			h.Delete(h.LockKey)
 		}
 	}
-	// 超时检测，即检测leader是否挂了，如果挂了，要重新选一个leader
-	// 如果当前不是leader，重新选leader。leader不需要check
-	// 如果被选为leader，则还需要执行一个onLeader回调
-	// check other is alive, if not, try to select a new leader
 	go h.checkAlive()
-	// 还需要一个keepalive
-	// keepalive
 	go h.keepalive()
 }
 
@@ -103,7 +94,6 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	//log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)
@@ -151,11 +141,9 @@ func (h *Binlog) ShowMembers() string {
 			res += fmt.Sprintf("%-6d| %-43s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", member.Hostname, member.ServiceIp, member.Port), role, member.Status)
 		}
 		res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
-		//c.Write([]byte(res))
 		return res
 	} else {
 		return ""
-		//c.Write([]byte("no members found"))
 	}
 }
 
@@ -173,7 +161,6 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		return nil
 	}
 	data := make([]*ClusterMember, 0)
-	//fmt.Println("")
 	for _, v := range members {
 		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
 		if len(v.Tags) < 5 {
@@ -191,13 +178,11 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		}
 		m.IsLeader  = v.Tags[0] == "1"
 		m.Hostname  = v.Tags[3]
-		m.SessionId   = v.Tags[1]
+		m.SessionId = v.Tags[1]
 		m.ServiceIp = v.Address
 		m.Port      = v.Port
 		data = append(data, m)
-		//log.Debugf("member: %+v, %+v", *v, *m)
 	}
-
 	return data
 }
 
@@ -207,13 +192,8 @@ func (h *Binlog) checkAlive() {
 	if h.status & disableConsul > 0 {
 		return
 	}
-	// 延迟执行
-	//t := srand(30000, 60000)
 	time.Sleep(6)
 	for {
-		//获取所有的服务
-		//判断服务的心跳时间是否超时
-		//如果超时，更新状态为
 		members := h.GetMembers()
 		if members == nil {
 			time.Sleep(time.Second * checkAliveInterval)
@@ -245,7 +225,6 @@ func (h *Binlog) checkAlive() {
 			for _, v := range members {
 				log.Debugf("member: %+v", *v)
 			}
-			//h.newleader()
 			// current not leader
 			if h.status & consulIsFollower > 0 {
 				log.Warnf("current is not leader, will unlock")
@@ -261,20 +240,11 @@ func (h *Binlog) checkAlive() {
 }
 
 func (h *Binlog) alive(ip string, port int) bool {
-	log.Debugf("ping %s:%d", ip, port)
-	//tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
-	//if err != nil {
-	//	log.Debugf("is not alive")
-	//	return false
-	//}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), time.Second * 3)
-	//conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil || conn == nil {
-		log.Debugf("is not alive")
 		return false
 	}
 	conn.Close()
-	log.Debugf("is alive")
 	return true
 }
 
@@ -290,11 +260,9 @@ func (h *Binlog) GetLeader() (string, int) {
 	if members == nil || len(members) == 0 {
 		return "", 0
 	}
-
-	ip := ""
+	ip   := ""
 	port := 0
 	for _, v := range members {
-		//log.Debugf("GetLeader--%+v", v)
 		if v.IsLeader && v.Status == statusOnline {
 			ip, port = v.ServiceIp, v.Port
 			break
@@ -319,10 +287,6 @@ func (h *Binlog) closeConsul() {
 		return
 	}
 	h.Delete(prefixKeepalive + h.sessionId)
-	//log.Debugf("current is leader", h.isLock)
-	//h.lock.Lock()
-	//l := h.isLock
-	//h.lock.Unlock()
 	if h.status & consulIsLeader > 0 {
 		log.Debugf("delete lock %s", h.LockKey)
 		h.Unlock()
@@ -340,7 +304,6 @@ func (h *Binlog) Lock() (bool, error) {
 		h.Session.create()
 	}
 	if h.Session.ID == "" {
-		log.Errorf("error: %v", ErrorSessionEmpty)
 		return false, sessionEmpty
 	}
 	//key string, value []byte, sessionID string
@@ -371,7 +334,6 @@ func (h *Binlog) Unlock() (bool, error) {
 		h.Session.create()
 	}
 	if h.Session.ID == "" {
-		log.Errorf("error: %v", ErrorSessionEmpty)
 		return false, sessionEmpty
 	}
 	p := &api.KVPair{Key: h.LockKey, Value: nil, Session: h.Session.ID}
@@ -385,9 +347,6 @@ func (h *Binlog) Unlock() (bool, error) {
 		return false, err
 	}
 	if success && h.status & consulIsLeader > 0 {
-		//h.lock.Lock()
-		//h.isLock = 0
-		//h.lock.Unlock()
 		h.status ^= consulIsLeader
 		h.status |= consulIsFollower
 	}

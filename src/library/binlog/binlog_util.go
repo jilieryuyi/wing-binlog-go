@@ -55,7 +55,6 @@ func unpackPos(data []byte) (string, int64, int64) {
 		log.Errorf("unpack pos error: %v", data)
 		return "", 0, 0
 	}
-	log.Debugf("dl=%d, pos=%d, eventIndex=%d, file=%s", dl, pos, eventIndex, string(data[18:dl+2]))
 	return string(data[18:dl+2]), pos, eventIndex
 }
 
@@ -88,12 +87,12 @@ func getMysqlConfig() (*AppConfig, error) {
 	return &appConfig, nil
 }
 
-func srand(min int, max int) int {
+func sRand(min int, max int) int {
 	r1 := rand.NewSource(time.Now().UnixNano())
 	r2 := rand.New(r1)
 	n := r2.Intn(max)
 	if n < min {
-		n = srand(min, max)
+		n = sRand(min, max)
 	}
 	return n
 }
