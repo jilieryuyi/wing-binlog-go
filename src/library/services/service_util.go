@@ -90,12 +90,6 @@ func hasCmd(cmd int) bool {
 		cmd == CMD_RELOAD||
 		cmd == CMD_SHOW_MEMBERS||
 		cmd == CMD_POS
-	//for _, v := range cmds {
-	//	if cmd == v {
-	//		return true
-	//	}
-	//}
-	//return false
 }
 
 func matchFilters(filters []string, table string) bool {

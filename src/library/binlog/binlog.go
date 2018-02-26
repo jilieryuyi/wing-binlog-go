@@ -83,8 +83,8 @@ func (h *Binlog) Close() {
 	h.closeConsul()
 	h.agent.ServiceDeregister(h.sessionId)
 	h.wg.Wait()
-	close(h.stopServiceChan)
-	close(h.startServiceChan)
+	//close(h.stopServiceChan)
+	//close(h.startServiceChan)
 }
 
 func (h *Binlog) lookService() {

@@ -50,12 +50,12 @@ func unpackPos(data []byte) (string, int64, int64) {
 		int64(data[12]) << 16 | int64(data[13]) << 24 |
 		int64(data[14]) << 32 | int64(data[15]) << 40 |
 		int64(data[16]) << 48 | int64(data[17]) << 56
-	//log.Debugf("%v", data)
-	log.Debugf("dl=%d, pos=%d, eventIndex=%d", dl, pos, eventIndex)
 	if dl+2 < 18 || dl > int64(len(data) - 2) {
+		log.Debugf("dl=%d, pos=%d, eventIndex=%d", dl, pos, eventIndex)
 		log.Errorf("unpack pos error: %v", data)
 		return "", 0, 0
 	}
+	log.Debugf("dl=%d, pos=%d, eventIndex=%d, file=%s", dl, pos, eventIndex, string(data[18:dl+2]))
 	return string(data[18:dl+2]), pos, eventIndex
 }
 
