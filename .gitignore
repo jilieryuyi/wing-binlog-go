@@ -5,6 +5,7 @@
 /*.log
 /*/*.log
 /*/*/*.log
+/*/*/*/*.log
 /bin/cache
 /bin/config
 /bin/data
@@ -27,3 +28,4 @@
 /clients/web/*.log
 /bin/wing-binlog-go.exe
 /vendor/bin/*
+/vendor/pkg/*
