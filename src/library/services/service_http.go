@@ -75,9 +75,11 @@ func (client *HttpService) clientSendService(node *httpNode) {
 			if err != nil {
 				log.Errorf("http service node %s error: %v", node.url, err)
 			}
-			log.Debugf("post %v to %s return %s", msg, node.url, string(data))
+			log.Debugf("post to %s: %v return %s", msg, node.url, string(data))
 		case <-client.ctx.Ctx.Done():
-			if len(node.sendQueue) <= 0 {
+			l := len(node.sendQueue)
+			log.Debugf("===>wait cache data post: %s left data len %d (if left data is 0, will exit) ", node.url, l)
+			if l <= 0 {
 				log.Debugf("%s clientSendService exit", node.url)
 				return
 			}

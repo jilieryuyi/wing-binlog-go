@@ -80,12 +80,16 @@ func unpack(data []byte) (int, string) {
 }
 
 func hasCmd(cmd int) bool {
-	for _, v := range cmds {
-		if cmd == v {
-			return true
-		}
-	}
-	return false
+	return cmd == CMD_SET_PRO ||
+		cmd == CMD_AUTH ||
+		cmd == CMD_ERROR||
+		cmd == CMD_TICK ||
+		cmd == CMD_EVENT||
+		cmd == CMD_AGENT||
+		cmd == CMD_STOP||
+		cmd == CMD_RELOAD||
+		cmd == CMD_SHOW_MEMBERS||
+		cmd == CMD_POS
 }
 
 func matchFilters(filters []string, table string) bool {

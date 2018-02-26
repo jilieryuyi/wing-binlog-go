@@ -36,24 +36,10 @@ const (
 	CMD_POS
 )
 
-var cmds = []int{
-	CMD_SET_PRO,
-	CMD_AUTH ,
-	CMD_ERROR,
-	CMD_TICK ,
-	CMD_EVENT,
-	CMD_AGENT,
-	CMD_STOP,
-	CMD_RELOAD,
-	CMD_SHOW_MEMBERS,
-	CMD_POS,
-}
-
 const (
-	tcpMaxSendQueue               = 10000000
+	tcpMaxSendQueue               = 1000000
 	httpMaxSendQueue              = 1000000
 	tcpDefaultReadBufferSize      = 1024
-	tcpReceiveDefaultSize         = 4096
 )
 
 const (
@@ -93,26 +79,10 @@ type HttpConfig struct {
 	Groups   map[string]httpNodeConfig
 }
 
-//const (
-//	online = 1 << iota
-//	offline
-//	cacheNotReady
-//	cacheReady
-//	cacheNotFull
-//	cacheFull
-//)
-
 type httpNode struct {
 	url              string      // url
 	sendQueue        chan string // 发送channel
-	//sendTimes        int64       // 发送次数
-	//sendFailureTimes int64       // 发送失败次数
-	//failureTimesFlag int32       // 发送失败次数，用于配合last_error_time检测故障，故障定义为：连续三次发生错误和返回错误
 	lock             *sync.Mutex // 互斥锁，修改资源时锁定
-	//cache            [][]byte
-	//cacheIndex       int
-	//errorCheckTimes  int64
-	//status           int
 }
 
 const (
@@ -128,7 +98,6 @@ type tcpClientNode struct {
 	sendFailureTimes int64       // 发送失败次数
 	group            string      // 所属分组
 	recvBuf          []byte      // 读缓冲区
-	//recvBytes        int         // 收到的待处理字节数量
 	connectTime      int64       // 连接成功的时间戳
 	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
 	status           int
@@ -139,7 +108,6 @@ type tcpGroup struct {
 	filter []string
 	nodes  []*tcpClientNode
 }
-
 
 type agentNode struct {
 	conn *net.TCPConn
@@ -157,32 +125,17 @@ type TcpService struct {
 	ctx              *app.Context//*context.Context     //
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
-	//Agent            *Agent
 	ServiceIp        string
 	Agents           []*tcpClientNode
-	//sendAllChan1     chan sendNode//{}//map[string] interface{}
-	//sendAllChan2     chan []byte
 	status           int
 	token            string
-
 	node         *agentNode
-	//lock         *sync.Mutex
 	buffer       []byte
-	//ctx          *app.Context
-	//sendAllChan1 chan sendNode
-	//sendAllChan2 chan []byte
-	//status       int
-	//last         int64
 }
 
-type sendNode struct {
-	table string
-	data []byte
-}
-
-type tcpGroupConfig struct { // group node in toml
-	Name   string   // = "group1"
-	Filter []string //
+type tcpGroupConfig struct {
+	Name   string
+	Filter []string
 }
 
 type TcpConfig struct {

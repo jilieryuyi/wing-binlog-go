@@ -8,40 +8,6 @@ import (
 	"encoding/json"
 )
 
-//如果当前客户端为follower
-//agent会使用客户端连接到leader
-//leader发生事件的时候通过agent转发到连接follower的tcp客户端
-//实现数据代理
-
-//type Agent struct {
-//	node         *agentNode
-//	lock         *sync.Mutex
-//	buffer       []byte
-//	ctx          *app.Context
-//	sendAllChan1 chan sendNode
-//	sendAllChan2 chan []byte
-//	status       int
-//	last         int64
-//}
-
-//type agentNode struct {
-//	conn *net.TCPConn
-//}
-
-//func newAgent(ctx *app.Context, sendAllChan1 chan sendNode, sendAllChan2 chan []byte) *Agent{
-//	agent := &Agent{
-//		sendAllChan1 : sendAllChan1,
-//		sendAllChan2 : sendAllChan2,
-//		node    : nil,
-//		lock    : new(sync.Mutex),
-//		buffer  : make([]byte, 0),
-//		ctx     : ctx,
-//		status  : agentStatusOffline | agentStatusDisconnect,
-//	}
-//	go agent.keepalive()
-//	return agent
-//}
-
 func (tcp *TcpService) agentKeepalive() {
 	data := pack(CMD_TICK, "agent keep alive")
 	for {
@@ -56,7 +22,6 @@ func (tcp *TcpService) agentKeepalive() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		//log.Debugf("agent keepalive")
 		n, err := tcp.node.conn.Write(data)
 		if n <= 0 || err != nil {
 			log.Errorf("agent keepalive error: %d, %v", n, err)
@@ -91,11 +56,6 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			return
 		}
 		if tcp.status&agentStatusConnect > 0 {
-			//if time.Now().Unix() - tcp.last > 60 {
-			//	log.Warnf("agent is timeout")
-			//	tcp.Close()
-			//}
-			//log.Debugf("agent is still is running")
 			return
 		}
 		tcp.lock.Lock()
@@ -201,10 +161,10 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 		case CMD_TICK:
 			//log.Debugf("keepalive: %s", string(dataB))
 		case CMD_POS:
-			log.Debugf("receive pos")
+			log.Debugf("receive pos: %v", dataB)
 			//todo write pos
 			if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
-				tcp.ctx.PosChan <- dataB
+				tcp.ctx.PosChan <- string(dataB)
 			} else {
 				log.Errorf("tcp.ctx.PosChan full")
 			}
