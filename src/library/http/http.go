@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	httpDefaultTimeout = 30   //30秒超时
+	httpDefaultTimeout = 6   //6秒超时
 )
 
 type Http struct {
