@@ -55,11 +55,11 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			log.Warnf("ip or port empty %s:%d", serviceIp, port)
 			return
 		}
-		if tcp.status&agentStatusConnect > 0 {
+		if tcp.status & agentStatusConnect > 0 {
 			return
 		}
 		tcp.lock.Lock()
-		if tcp.status&agentStatusOffline > 0 {
+		if tcp.status & agentStatusOffline > 0 {
 			tcp.status ^= agentStatusOffline
 			tcp.status |= agentStatusOnline
 		}
@@ -72,7 +72,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				return
 			default:
 			}
-			if tcp.status&agentStatusOffline > 0 {
+			if tcp.status & agentStatusOffline > 0 {
 				log.Warnf("agentStatusOffline return")
 				return
 			}
@@ -83,7 +83,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				continue
 			}
 			tcp.lock.Lock()
-			if tcp.status&agentStatusDisconnect > 0 {
+			if tcp.status & agentStatusDisconnect > 0 {
 				tcp.status ^= agentStatusDisconnect
 				tcp.status |= agentStatusConnect
 			}
@@ -98,7 +98,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			}
 			for {
 				//log.Debugf("====agent is running====")
-				if tcp.status&agentStatusOffline > 0 {
+				if tcp.status & agentStatusOffline > 0 {
 					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&agentStatusOffline)
 					return
 				}
@@ -134,18 +134,14 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 		cmd := int(tcp.buffer[4]) | int(tcp.buffer[5]) << 8
 		//log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
 		//log.Debugf("%v, %v", tcp.buffer, string(tcp.buffer))
-
 		if !hasCmd(cmd) {
 			log.Errorf("cmd %d dos not exists: %v", cmd, tcp.buffer)
 			tcp.buffer = make([]byte, 0)
 			return
 		}
-		//数据未接收完整，等待下一次处理
 		if bufferLen < 4 + contentLen {
-			//log.Error("content len error")
 			return
 		}
-		//log.Debugf("%v", tcp.buffer)
 		dataB := tcp.buffer[6:4 + contentLen]
 		//log.Debugf("clen=%d, cmd=%d, (%d)%+v", contentLen, cmd, len(dataB), dataB)
 		switch cmd {
@@ -172,10 +168,6 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 		default:
 			tcp.sendRaw(pack(cmd, msg))
 		}
-		//remove(&tcp.buffer, contentLen + 4)
-		//log.Debugf("%d, contentLen + 4=%d", len(tcp.buffer), contentLen + 4)
-		//log.Debugf("%v", tcp.buffer)
-		//if len(tcp.buffer) >= contentLen + 4 {
 		if len(tcp.buffer) <= 0 {
 			log.Errorf("tcp.buffer is empty")
 			return
@@ -192,7 +184,6 @@ func (tcp *TcpService) disconnect() {
 	}
 	log.Warnf("====================agent disconnect====================")
 	tcp.node.conn.Close()
-
 	tcp.lock.Lock()
 	if tcp.status & agentStatusConnect > 0 {
 		tcp.status ^= agentStatusConnect
@@ -208,7 +199,6 @@ func (tcp *TcpService) AgentStop() {
 	}
 	log.Warnf("====================agent close====================")
 	tcp.disconnect()
-
 	tcp.lock.Lock()
 	if tcp.status & agentStatusOnline > 0 {
 		tcp.status ^= agentStatusOnline

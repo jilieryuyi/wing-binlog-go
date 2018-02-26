@@ -27,11 +27,11 @@ func NewHttp(url string) *Http {
 
 var defaultHttpClient = http.Client{
 	Transport: &http.Transport{
-		MaxIdleConnsPerHost: 16,
+		MaxIdleConnsPerHost: 32,
 		Dial: func(netw, addr string) (net.Conn, error) {
 			dial := net.Dialer{
 				Timeout: httpDefaultTimeout * time.Second,
-				KeepAlive: 60 * time.Second,
+				KeepAlive: 3600 * time.Second,
 			}
 			conn, err := dial.Dial(netw, addr)
 			if err != nil {
