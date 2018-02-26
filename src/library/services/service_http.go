@@ -3,7 +3,7 @@ package services
 import (
 	log "github.com/sirupsen/logrus"
 	"library/http"
-	"runtime"
+	//"runtime"
 	"sync"
 	"library/app"
 )
@@ -49,14 +49,14 @@ func (client *HttpService) Start() {
 	if client.status & serviceDisable > 0 {
 		return
 	}
-	cpu := runtime.NumCPU()
+	//cpu := 1//runtime.NumCPU()
 	for _, cgroup := range client.groups {
 		for _, cnode := range cgroup.nodes {
 			// 启用cpu数量的服务协程
-			for i := 0; i < cpu; i++ {
+			//for i := 0; i < cpu; i++ {
 				client.wg.Add(1)
 				go client.clientSendService(cnode)
-			}
+			//}
 		}
 	}
 }
@@ -98,11 +98,18 @@ func (client *HttpService) SendAll(table string, data []byte) bool {
 		}
 		for _, cnode := range cgroup.nodes {
 			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(data))
-			if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-				log.Debugf("http send buffer full:%s, %s", cnode.url, string(data))
-				log.Debugf("send sync %s", cnode.url)
-				client.syncSend(cnode, data)
-				continue
+			//if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
+			//	log.Debugf("http send buffer full:%s, %s", cnode.url, string(data))
+			//	log.Debugf("send sync %s", cnode.url)
+			//	client.syncSend(cnode, data)
+			//	continue
+			//}
+			for {
+				// if cache is full, try to wait it
+				if len(cnode.sendQueue) < cap(cnode.sendQueue) {
+					break
+				}
+				//log.Warnf("cache full, try wait")
 			}
 			cnode.sendQueue <- string(data)
 		}

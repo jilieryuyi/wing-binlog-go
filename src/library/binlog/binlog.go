@@ -196,6 +196,9 @@ func (h *Binlog) Start() {
 	}
 	go func() {
 		for {
+			if h.status & binlogStatusIsExit > 0 {
+				return
+			}
 			lock, err := h.Lock()
 			if err != nil {
 				time.Sleep(time.Second * 3)

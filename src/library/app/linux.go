@@ -7,6 +7,8 @@ import (
 	"library/file"
 	log "github.com/sirupsen/logrus"
 	"github.com/sevlyar/go-daemon"
+	"os"
+	"strings"
 )
 
 var ctx *daemon.Context = nil
@@ -14,7 +16,13 @@ var ctx *daemon.Context = nil
 func DaemonProcess(d bool) bool {
 	if d {
 		log.Debugf("run as daemon process")
-		params := []string{path.CurrentPath + "/wing-binlog-go", "-daemon", "-config-path", ConfigPath}
+		exeFile := strings.Replace(os.Args[0], "\\", "/", -1)
+		fileName := exeFile
+		lastIndex := strings.LastIndex(exeFile, "/")
+		if lastIndex > -1 {
+			fileName = exeFile[lastIndex + 1:]
+		}
+		params := []string{path.CurrentPath + "/" + fileName, "-daemon", "-config-path=" + ConfigPath}
 		log.Debugf("params: %v", params)
 		ctx = &daemon.Context{
 			PidFileName: Pid,

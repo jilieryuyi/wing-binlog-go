@@ -123,7 +123,7 @@ const (
 	serviceNameTcp  = "tcp"
 	serviceNameHttp = "http"
 	serviceNameAll  = "all"
-	posChanLen      = 10000000
+	posChanLen      = 10000
 )
 
 type ConsulConfig struct{

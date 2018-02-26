@@ -37,8 +37,8 @@ const (
 )
 
 const (
-	tcpMaxSendQueue               = 1000000
-	httpMaxSendQueue              = 1000000
+	tcpMaxSendQueue               = 10000
+	httpMaxSendQueue              = 10000
 	tcpDefaultReadBufferSize      = 1024
 )
 

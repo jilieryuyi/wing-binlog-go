@@ -113,6 +113,9 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 }
 
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
+	if h.status & binlogStatusIsExit > 0 {
+		return nil
+	}
 	// 发生变化的数据表e.Table，如xsl.x_reports
 	// 发生的操作类型e.Action，如update、insert、delete
 	// 如update的数据，update的数据以双数出现前面为更新前的数据，后面的为更新后的数据
@@ -255,11 +258,20 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 }
 
 func (h *Binlog) SaveBinlogPositionCache(r []byte) {
-	if len(h.posChan) < cap(h.posChan) {
-		h.posChan <- r
-	} else {
-		log.Warnf("posChan full")
+	if h.status & binlogStatusIsExit > 0 {
+		return
 	}
+	for {
+		if len(h.posChan) < cap(h.posChan) {
+			break
+		}
+		//log.Warnf("cache full, try wait")
+	}
+	//if len(h.posChan) < cap(h.posChan) {
+	h.posChan <- r
+	//} else {
+	//	log.Warnf("posChan full")
+	//}
 }
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {

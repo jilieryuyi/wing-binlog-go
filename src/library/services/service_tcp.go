@@ -40,7 +40,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		}
 	}
 	go tcp.agentKeepalive()
-	log.Debugf("====>new tcp service<====")
+	//log.Debugf("====>new tcp service<====")
 	return tcp
 }
 
@@ -66,9 +66,16 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 			if node.status & tcpNodeOffline > 0 {
 				continue
 			}
-			if len(node.sendQueue) >= cap(node.sendQueue) {
-				log.Errorf("tcp send channel full：%s", (*node.conn).RemoteAddr().String())
-				continue
+			//if len(node.sendQueue) >= cap(node.sendQueue) {
+			//	log.Errorf("tcp send channel full：%s", (*node.conn).RemoteAddr().String())
+			//	continue
+			//}
+			for {
+				// if cache is full, try to wait it
+				if len(node.sendQueue) < cap(node.sendQueue) {
+					break
+				}
+				//log.Warnf("cache full, try wait")
 			}
 			node.sendQueue <- packData
 		}
@@ -94,9 +101,11 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 			if node.status & tcpNodeOffline > 0  {
 				continue
 			}
-			if len(node.sendQueue) >= cap(node.sendQueue) {
-				log.Warnf("tcp send channel full：%s", (*node.conn).RemoteAddr().String())
-				continue
+			for {
+				if len(node.sendQueue) < cap(node.sendQueue) {
+					break
+				}
+				//log.Warnf("cache full, try wait")
 			}
 			node.sendQueue <- msg
 		}

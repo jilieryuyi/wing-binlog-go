@@ -162,12 +162,17 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 			//log.Debugf("keepalive: %s", string(dataB))
 		case CMD_POS:
 			log.Debugf("receive pos: %v", dataB)
-			//todo write pos
-			if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
-				tcp.ctx.PosChan <- string(dataB)
-			} else {
-				log.Errorf("tcp.ctx.PosChan full")
+			for {
+				if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
+					break
+				}
+				//log.Warnf("cache full, try wait")
 			}
+			//if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
+			tcp.ctx.PosChan <- string(dataB)
+			//} else {
+			//	log.Errorf("tcp.ctx.PosChan full")
+			//}
 		default:
 			tcp.sendRaw(pack(cmd, string(msg)))
 		}

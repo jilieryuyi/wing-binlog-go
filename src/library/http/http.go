@@ -30,8 +30,8 @@ var defaultHttpClient = http.Client{
 		MaxIdleConnsPerHost: 16,
 		Dial: func(netw, addr string) (net.Conn, error) {
 			dial := net.Dialer{
-				Timeout:   httpDefaultTimeout * time.Second,
-				KeepAlive: 86400 * time.Second,
+				Timeout: httpDefaultTimeout * time.Second,
+				KeepAlive: 60 * time.Second,
 			}
 			conn, err := dial.Dial(netw, addr)
 			if err != nil {
