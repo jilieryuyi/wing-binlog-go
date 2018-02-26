@@ -67,7 +67,6 @@ func (h *Binlog) reloadService() {
 
 func (h *Binlog) Close() {
 	if h.status & binlogStatusIsExit > 0 {
-		//log.Debugf("binlog service is not running")
 		return
 	}
 	if h.status & binlogStatusIsNormal >0 {
@@ -83,8 +82,6 @@ func (h *Binlog) Close() {
 	h.closeConsul()
 	h.agent.ServiceDeregister(h.sessionId)
 	h.wg.Wait()
-	//close(h.stopServiceChan)
-	//close(h.startServiceChan)
 }
 
 func (h *Binlog) lookService() {
