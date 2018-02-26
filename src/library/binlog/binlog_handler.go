@@ -265,13 +265,9 @@ func (h *Binlog) SaveBinlogPositionCache(r []byte) {
 		if len(h.posChan) < cap(h.posChan) {
 			break
 		}
-		//log.Warnf("cache full, try wait")
+		log.Warnf("cache full, try wait")
 	}
-	//if len(h.posChan) < cap(h.posChan) {
 	h.posChan <- r
-	//} else {
-	//	log.Warnf("posChan full")
-	//}
 }
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {

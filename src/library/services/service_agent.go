@@ -9,7 +9,7 @@ import (
 )
 
 func (tcp *TcpService) agentKeepalive() {
-	data := pack(CMD_TICK, "agent keep alive")
+	data := pack(CMD_TICK, []byte("agent keep alive"))
 	for {
 		select {
 			case <-tcp.ctx.Ctx.Done():
@@ -64,7 +64,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			tcp.status |= agentStatusOnline
 		}
 		tcp.lock.Unlock()
-		agentH := pack(CMD_AGENT, "")
+		agentH := pack(CMD_AGENT, []byte(""))
 		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
 			select {
@@ -166,15 +166,11 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 				if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
 					break
 				}
-				//log.Warnf("cache full, try wait")
+				log.Warnf("cache full, try wait")
 			}
-			//if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
 			tcp.ctx.PosChan <- string(dataB)
-			//} else {
-			//	log.Errorf("tcp.ctx.PosChan full")
-			//}
 		default:
-			tcp.sendRaw(pack(cmd, string(msg)))
+			tcp.sendRaw(pack(cmd, msg))
 		}
 		//remove(&tcp.buffer, contentLen + 4)
 		//log.Debugf("%d, contentLen + 4=%d", len(tcp.buffer), contentLen + 4)

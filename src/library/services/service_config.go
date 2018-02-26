@@ -149,6 +149,10 @@ type TcpConfig struct {
 var (
 	_ Service = &TcpService{}
 	_ Service = &HttpService{}
+
+	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
+	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
+	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
 )
 
 

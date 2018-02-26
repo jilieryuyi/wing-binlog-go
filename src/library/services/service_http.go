@@ -98,18 +98,12 @@ func (client *HttpService) SendAll(table string, data []byte) bool {
 		}
 		for _, cnode := range cgroup.nodes {
 			log.Debugf("http send broadcast: %s=>%s", cnode.url, string(data))
-			//if len(cnode.sendQueue) >= cap(cnode.sendQueue) {
-			//	log.Debugf("http send buffer full:%s, %s", cnode.url, string(data))
-			//	log.Debugf("send sync %s", cnode.url)
-			//	client.syncSend(cnode, data)
-			//	continue
-			//}
 			for {
 				// if cache is full, try to wait it
 				if len(cnode.sendQueue) < cap(cnode.sendQueue) {
 					break
 				}
-				//log.Warnf("cache full, try wait")
+				log.Warnf("cache full, try wait")
 			}
 			cnode.sendQueue <- string(data)
 		}

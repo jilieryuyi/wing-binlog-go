@@ -29,7 +29,7 @@ func NewControl() *control {
 
 func (con *control) auth() {
 	token := app.GetKey(app.CachePath + "/token")
-	data := pack(CMD_AUTH, token)
+	data := pack(CMD_AUTH, []byte(token))
 	con.conn.Write(data)
 }
 
@@ -39,7 +39,7 @@ func (con *control) Close() {
 
 // -stop
 func (con *control) Stop() {
-	data := pack(CMD_STOP, "")
+	data := pack(CMD_STOP, []byte(""))
 	con.conn.Write(data)
 }
 
@@ -48,7 +48,7 @@ func (con *control) Stop() {
 //-service-reload all ##重新加载全部服务
 //cmd: http、tcp、all
 func (con *control) Reload(cmd string) {
-	data := pack(CMD_RELOAD, cmd)
+	data := pack(CMD_RELOAD, []byte(cmd))
 	con.conn.Write(data)
 }
 
@@ -58,7 +58,7 @@ func (con *control) Restart() {
 
 // -members
 func (con *control) ShowMembers() {
-	data := pack(CMD_SHOW_MEMBERS, "")
+	data := pack(CMD_SHOW_MEMBERS, []byte(""))
 	con.conn.Write(data)
 	var buf = make([]byte, 40960)
 	con.conn.SetReadDeadline(time.Now().Add(time.Second*30))
