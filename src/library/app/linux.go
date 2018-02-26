@@ -5,7 +5,6 @@ package app
 import (
 	"library/path"
 	"library/file"
-	"os"
 	log "github.com/sirupsen/logrus"
 	"github.com/sevlyar/go-daemon"
 )
@@ -15,7 +14,7 @@ var ctx *daemon.Context = nil
 func DaemonProcess(d bool) bool {
 	if d {
 		log.Debugf("run as daemon process")
-		params := []string{os.Args[0], "-daemon", "-config-path", ConfigPath}
+		params := []string{path.CurrentPath + "/wing-binlog-go", "-daemon", "-config-path", ConfigPath}
 		log.Debugf("params: %v", params)
 		ctx = &daemon.Context{
 			PidFileName: Pid,

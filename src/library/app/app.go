@@ -66,8 +66,26 @@ type Context struct {
 // start pprof
 // set logger
 func Init(hasCmd bool, configPath string) {
+
+	log.SetFormatter(&log.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		ForceColors:      true,
+		QuoteEmptyFields: true,
+		FullTimestamp:    true,
+	})
+	// set log context hook
+	log.AddHook(mlog.ContextHook{LogPath:LogPath})
+	log.SetLevel(log.DebugLevel) //log.DebugLevel)
+
 	configPathParse(configPath)
 	appConfig, _ := getAppConfig()
+	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
+
+	log.Debugf("current path: %s", path.CurrentPath)
+	log.Debugf("default cache path: %s", CachePath)
+	log.Debugf("default pid file: %s", Pid)
+	log.Debugf("default log path: %s", LogPath)
+
 	Pid = appConfig.PidFile
 	CachePath = appConfig.CachePath
 	LogPath   = appConfig.LogPath
@@ -102,21 +120,14 @@ func Init(hasCmd bool, configPath string) {
 	// set timezone
 	time.LoadLocation(appConfig.TimeZone)
 	// set log format
-	log.SetFormatter(&log.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:      true,
-		QuoteEmptyFields: true,
-		FullTimestamp:    true,
-	})
-	// set log context hook
-	log.AddHook(mlog.ContextHook{LogPath:LogPath})
-	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
+
 	// set cpu num
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
 
 	log.Debugf("cache path: %s", CachePath)
 	log.Debugf("log path: %s", LogPath)
+	log.Debugf("pid file: %s", Pid)
 	log.Debugf("app config: %+v", *appConfig)
 }
 
