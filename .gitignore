@@ -26,3 +26,4 @@
 /dev/*
 /clients/web/*.log
 /bin/wing-binlog-go.exe
+/vendor/bin/*
