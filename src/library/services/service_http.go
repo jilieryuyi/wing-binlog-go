@@ -3,7 +3,7 @@ package services
 import (
 	log "github.com/sirupsen/logrus"
 	"library/http"
-	//"runtime"
+	"runtime"
 	"sync"
 	"library/app"
 )
@@ -49,14 +49,14 @@ func (client *HttpService) Start() {
 	if client.status & serviceDisable > 0 {
 		return
 	}
-	//cpu := 1//runtime.NumCPU()
+	cpu := runtime.NumCPU()
 	for _, cgroup := range client.groups {
 		for _, cnode := range cgroup.nodes {
 			// 启用cpu数量的服务协程
-			//for i := 0; i < cpu; i++ {
+			for i := 0; i < cpu; i++ {
 				client.wg.Add(1)
 				go client.clientSendService(cnode)
-			//}
+			}
 		}
 	}
 }
