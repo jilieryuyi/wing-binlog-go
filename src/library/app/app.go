@@ -73,8 +73,7 @@ func Init(hasCmd bool, configPath string) {
 		QuoteEmptyFields: true,
 		FullTimestamp:    true,
 	})
-	// set log context hook
-	log.AddHook(mlog.ContextHook{LogPath:LogPath})
+
 	log.SetLevel(log.DebugLevel) //log.DebugLevel)
 
 	configPathParse(configPath)
@@ -89,7 +88,8 @@ func Init(hasCmd bool, configPath string) {
 	Pid = appConfig.PidFile
 	CachePath = appConfig.CachePath
 	LogPath   = appConfig.LogPath
-
+	// set log context hook
+	log.AddHook(mlog.ContextHook{LogPath:LogPath})
 	if file.Exists(Pid) && !hasCmd {
 		fmt.Println("other process still running")
 		os.Exit(1)
