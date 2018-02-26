@@ -19,7 +19,7 @@ func DaemonProcess(d bool) bool {
 		ctx = &daemon.Context{
 			PidFileName: Pid,
 			PidFilePerm: 0644,
-			LogFileName: LogPath + "/wing-binlog-go.log",
+			LogFileName: "",//LogPath + "/wing-binlog-go.log",
 			LogFilePerm: 0640,
 			WorkDir:     path.CurrentPath,
 			Umask:       027,

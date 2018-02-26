@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-	log "github.com/sirupsen/logrus"
 	"errors"
 	"fmt"
 )
@@ -57,24 +56,20 @@ func request(method string, url string, data []byte)  ([]byte, error) {
 	reader := bytes.NewReader(data)
 	req, err := http.NewRequest(method, url, reader)
 	if err != nil {
-		log.Errorf("syshttp request error-1:%+v", err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "keep-alive")
 	resp, err := defaultHttpClient.Do(req)
 	if err != nil {
-		log.Errorf("http request error-3:%+v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		log.Errorf("http request error错误的状态码:%+v", resp.StatusCode)
-		return nil, errors.New(fmt.Sprintf("错误的状态码：%d", resp.StatusCode))
+		return nil, errors.New(fmt.Sprintf("error http status：%d", resp.StatusCode))
 	}
 	res, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Errorf("http request error-4:%+v", err)
 		return nil, err
 	}
 	return res, nil
