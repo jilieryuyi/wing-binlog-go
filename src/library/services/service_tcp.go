@@ -21,7 +21,6 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Port:             config.Port,
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*tcpGroup),
-		//recvTimes:        0,
 		sendTimes:        0,
 		sendFailureTimes: 0,
 		wg:               new(sync.WaitGroup),
@@ -177,70 +176,58 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 	//客户端角色分为三种，一种是普通的客户端，一种是用来控制进程的客户端，还有另外一种就是agent代理客户端
 	flag    := data[0]
 	content := string(data[1:])
-	log.Debugf("content(%d): %v", len(content), content)
-	log.Debugf("flag=%d", flag)
+	//log.Debugf("content(%d): %v", len(content), content)
+	//log.Debugf("flag=%d", flag)
 	switch flag {
 	//set pro add to group
 	case FlagSetPro:
 		//内容长度+4字节的前缀（存放内容长度的数值）
 		log.Debugf("add to group: %s", content)
 		group, found := tcp.groups[content]
-		if !found {
+		if !found || content == "" {
 			(*node.conn).Write(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
-			(*node.conn).Close()
+			node.close()
 			return
 		}
 		(*node.conn).SetReadDeadline(time.Time{})
-		(*node.conn).Write(packDataSetPro)
-		node.group  = content
+		node.send(packDataSetPro)
+		node.setGroup(content)
 		group.nodes = append(group.nodes, node)
 		go tcp.clientSendService(node)
 	case FlagControl:
 		if tcp.token != content {
 			(*node.conn).Write(packDataTokenError)
-			(*node.conn).Close()
+			node.close()
 			log.Warnf("token error")
 			return
 		}
 		(*node.conn).SetReadDeadline(time.Time{})
-		(*node.conn).Write(packDataSetPro)
-		if node.status & tcpNodeIsNormal > 0 {
-			node.status ^= tcpNodeIsNormal
-			node.status |= tcpNodeIsControl
-		}
+		node.send(packDataSetPro)
+		node.changNodeType(tcpNodeIsControl)
 		go tcp.clientSendService(node)
 	case FlagAgent:
 		(*node.conn).SetReadDeadline(time.Time{})
-		(*node.conn).Write(packDataSetPro)
-		if node.status & tcpNodeIsNormal > 0 {
-			node.status ^= tcpNodeIsNormal
-			node.status |= tcpNodeIsAgent
-		}
+		node.send(packDataSetPro)
+		node.changNodeType(tcpNodeIsAgent)
 		tcp.Agents = append(tcp.Agents, node)
 		go tcp.clientSendService(node)
 	case FlagPing:
-		(*node.conn).Write(packDataSetPro)
-		(*node.conn).Close()
+		node.send(packDataSetPro)
+		node.close()
 	default:
-		(*node.conn).Close()
+		node.close()
 	}
 }
 
 func (tcp *TcpService) onConnect(conn *net.Conn) {
 	(*conn).SetReadDeadline(time.Now().Add(time.Second * 3))
-	node := &tcpClientNode{
-		conn:             conn,
-		sendQueue:        make(chan []byte, tcpMaxSendQueue),
-		sendFailureTimes: 0,
-		connectTime:      time.Now().Unix(),
-		sendTimes:        int64(0),
-		recvBuf:          make([]byte, 0),
-		status:           tcpNodeOnline | tcpNodeIsNormal,
-		group:            "",
-	}
+	node := newNode(conn)
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	for {
+		if node.status & tcpNodeOffline > 0 {
+			return
+		}
 		size, err := (*conn).Read(readBuffer[0:])
 		if err != nil {
 			if err != io.EOF {
@@ -252,7 +239,7 @@ func (tcp *TcpService) onConnect(conn *net.Conn) {
 			(*conn).Close()
 			return
 		}
-		log.Debugf("tcp receive: %v", readBuffer[:size])
+		//log.Debugf("tcp receive: %v", readBuffer[:size])
 		//atomic.AddInt64(&tcp.recvTimes, int64(1))
 		tcp.onMessage(node, readBuffer[:size])
 		select {
@@ -285,7 +272,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			node.recvBuf = make([]byte, 0)
 			return
 		}
-		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
+		//log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		content := node.recvBuf[6 : clen + 4]
 		switch cmd {
 		case CMD_SET_PRO:

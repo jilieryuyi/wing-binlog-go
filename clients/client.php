@@ -37,7 +37,7 @@ function pack_cmd($cmd, $content = "")
 	$r .= chr($l);
 	$r .= chr($l >> 8);
     $r .= chr($l >> 16);
-    $r .= chr($l >> 32);
+    $r .= chr($l >> 24);
 
     // 2字节cmd
 	$r .= chr($cmd);
@@ -49,14 +49,14 @@ function pack_cmd($cmd, $content = "")
 
 function pack_pro($content)
 {
-	$l = strlen($content) + 2;
+	$l = strlen($content) + 3;
 	$r = "";
 
 	// 4字节数据包长度
 	$r .= chr($l);
 	$r .= chr($l >> 8);
     $r .= chr($l >> 16);
-    $r .= chr($l >> 32);
+    $r .= chr($l >> 24);
 
     // 2字节cmd
 	$r .= chr(CMD_SET_PRO);
@@ -81,7 +81,7 @@ function fork_child($socket)
     while(1) {
         pcntl_signal_dispatch();
         try {
-            clog("发送心跳包");
+            //clog("发送心跳包");
             socket_write($socket, $tick);
             // 3秒发送一次
             sleep(3);
@@ -110,6 +110,7 @@ function start_service()
     //注册到分组
     //3秒之内不发送加入到分组将被强制断开
     $pack = pack_pro("group1");
+    clog("发送注册分组");
     socket_write($socket, $pack);
 
     //测试
@@ -140,7 +141,7 @@ function start_service()
 
             // 包长度4字节
             $len = (ord($recv_buf[0])) + (ord($recv_buf[1]) << 8) +
-                (ord($recv_buf[2]) << 16) + (ord($recv_buf[3]) << 32);
+                (ord($recv_buf[2]) << 16) + (ord($recv_buf[3]) << 24);
 
             // 接收到的包还不完整，继续等待
             if (strlen($recv_buf) < $len + 4) {
@@ -161,7 +162,7 @@ function start_service()
             }
             switch ($cmd) {
                 case CMD_TICK:
-                    clog("心跳包返回值：" . $content);
+                   // clog("心跳包返回值：" . $content);
                     break;
                 case CMD_ERROR:
                     clog("错误：" . $content);
