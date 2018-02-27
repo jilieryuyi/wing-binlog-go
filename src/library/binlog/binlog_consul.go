@@ -177,7 +177,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m := &ClusterMember{}
 		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
 		m.Status = statusOnline
-		if time.Now().Unix() - t > serviceKeepaliveTimeout {
+		if time.Now().Unix() - t > serviceKeepaliveTimeout && !h.alive(m.ServiceIp, m.Port) {
 			m.Status = statusOffline
 			log.Debugf("now: %d, t:%d, diff: %d", time.Now().Unix(), t, time.Now().Unix() - t)
 		}
@@ -211,7 +211,7 @@ func (h *Binlog) checkAlive() {
 		}
 		leaderCount := 0
 		for _, v := range members {
-			if v.IsLeader && (v.Status != statusOffline || h.alive(v.ServiceIp, v.Port)) {
+			if v.IsLeader && v.Status != statusOffline {
 				leaderCount++
 			}
 			if v.SessionId == h.sessionId {
@@ -219,13 +219,10 @@ func (h *Binlog) checkAlive() {
 			}
 			if v.Status == statusOffline {
 				log.Warnf("%s is timeout", v.SessionId)
-				isAlive := h.alive(v.ServiceIp, v.Port)
-				if !isAlive {
-					h.agent.ServiceDeregister(v.SessionId)
-				}
+				h.agent.ServiceDeregister(v.SessionId)
 				// if is leader, try delete lock and reselect a new leader
 				// if is leader, ping, check leader is alive again
-				if v.IsLeader && !isAlive {
+				if v.IsLeader {
 					h.Delete(h.LockKey)
 				}
 			}
@@ -278,18 +275,8 @@ func (h *Binlog) GetLeader() (string, int) {
 	port := 0
 	for _, v := range members {
 		if v.IsLeader && v.Status == statusOnline {
-			ip, port = v.ServiceIp, v.Port
+			return v.ServiceIp, v.Port
 			break
-		}
-	}
-	// reselect again
-	if ip == "" || port == 0 {
-		for _, v := range members {
-			// check alive
-			if v.IsLeader && h.alive(v.ServiceIp, v.Port) {
-				ip, port = v.ServiceIp, v.Port
-				break
-			}
 		}
 	}
 	return ip, port
