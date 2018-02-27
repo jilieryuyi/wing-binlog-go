@@ -197,7 +197,7 @@ func (h *Binlog) checkAlive() {
 	if h.status & disableConsul > 0 {
 		return
 	}
-	time.Sleep(6)
+	time.Sleep(30)
 	for {
 		select {
 		case <- h.ctx.Ctx.Done():
