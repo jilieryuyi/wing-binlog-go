@@ -42,10 +42,27 @@ function pack_cmd($cmd, $content = "")
     // 2字节cmd
 	$r .= chr($cmd);
 	$r .= chr($cmd >> 8);
-
-	// 实际美容
 	$r .= $content;
 
+	return $r;
+}
+
+function pack_pro($content)
+{
+	$l = strlen($content) + 2;
+	$r = "";
+
+	// 4字节数据包长度
+	$r .= chr($l);
+	$r .= chr($l >> 8);
+    $r .= chr($l >> 16);
+    $r .= chr($l >> 32);
+
+    // 2字节cmd
+	$r .= chr(CMD_SET_PRO);
+	$r .= chr(CMD_SET_PRO >> 8);
+    $r .= chr(0);
+	$r .= $content;
 	return $r;
 }
 
@@ -92,7 +109,7 @@ function start_service()
 
     //注册到分组
     //3秒之内不发送加入到分组将被强制断开
-    $pack = pack_cmd(CMD_SET_PRO, "group1");
+    $pack = pack_pro("group1");
     socket_write($socket, $pack);
 
     //测试

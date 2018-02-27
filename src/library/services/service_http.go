@@ -133,31 +133,26 @@ func (client *HttpService) Close() {
 func (client *HttpService) Reload() {
 	config, _ := getHttpConfig()
 	log.Debug("http service reloading...")
-
 	client.status = serviceDisable
 	if config.Enable {
 		client.status = serviceEnable
 	}
-
 	for name := range client.groups {
 		delete(client.groups, name)
 	}
-
 	for _, cgroup := range config.Groups {
 		group := &httpGroup{
 			name: cgroup.Name,
+			filter: cgroup.Filter,
+			nodes: make([]*httpNode, 0),
 		}
-		group.filter = make([]string, len(cgroup.Filter))
-		group.filter = append(group.filter[:0], cgroup.Filter...)
-
-		nc := len(cgroup.Nodes)
-		group.nodes = make([]*httpNode, nc)
-		for i := 0; i < nc; i++ {
-			group.nodes[i] = &httpNode{
+		for i := range cgroup.Nodes {
+			node := &httpNode{
 				url:              cgroup.Nodes[i],
 				sendQueue:        make(chan string, httpMaxSendQueue),
 				lock:             new(sync.Mutex),
 			}
+			group.nodes = append(group.nodes, node)
 		}
 		client.groups[cgroup.Name] = group
 	}
@@ -165,9 +160,5 @@ func (client *HttpService) Reload() {
 }
 
 func (client *HttpService) AgentStart(serviceIp string, port int) {}
-
 func (client *HttpService) AgentStop() {}
-
-func (client *HttpService) SendPos(data []byte) {
-
-}
+func (client *HttpService) SendPos(data []byte) {}

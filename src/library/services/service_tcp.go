@@ -21,7 +21,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Port:             config.Port,
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*tcpGroup),
-		recvTimes:        0,
+		//recvTimes:        0,
 		sendTimes:        0,
 		sendFailureTimes: 0,
 		wg:               new(sync.WaitGroup),
@@ -126,13 +126,15 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 		}
 		return
 	}
-	if node.group != "" {
-		// remove node if exists
-		if group, found := tcp.groups[node.group]; found {
-			for index, cnode := range group.nodes {
-				if cnode.conn == node.conn {
-					group.nodes = append(group.nodes[:index], group.nodes[index + 1:]...)
-					break
+	if node.status & tcpNodeIsNormal > 0 {
+		if node.group != "" {
+			// remove node if exists
+			if group, found := tcp.groups[node.group]; found {
+				for index, cnode := range group.nodes {
+					if cnode.conn == node.conn {
+						group.nodes = append(group.nodes[:index], group.nodes[index+1:]...)
+						break
+					}
 				}
 			}
 		}
@@ -171,41 +173,90 @@ func (tcp *TcpService) clientSendService(node *tcpClientNode) {
 	}
 }
 
-func (tcp *TcpService) onConnect(conn net.Conn) {
-	cnode := &tcpClientNode{
-		conn:             &conn,
+func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
+	//客户端角色分为三种，一种是普通的客户端，一种是用来控制进程的客户端，还有另外一种就是agent代理客户端
+	flag    := data[0]
+	content := string(data[1:])
+	log.Debugf("content(%d): %v", len(content), content)
+	log.Debugf("flag=%d", flag)
+	switch flag {
+	//set pro add to group
+	case FlagSetPro:
+		//内容长度+4字节的前缀（存放内容长度的数值）
+		log.Debugf("add to group: %s", content)
+		group, found := tcp.groups[content]
+		if !found {
+			(*node.conn).Write(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
+			(*node.conn).Close()
+			return
+		}
+		(*node.conn).SetReadDeadline(time.Time{})
+		(*node.conn).Write(packDataSetPro)
+		node.group  = content
+		group.nodes = append(group.nodes, node)
+		go tcp.clientSendService(node)
+	case FlagControl:
+		if tcp.token != content {
+			(*node.conn).Write(packDataTokenError)
+			(*node.conn).Close()
+			log.Warnf("token error")
+			return
+		}
+		(*node.conn).SetReadDeadline(time.Time{})
+		(*node.conn).Write(packDataSetPro)
+		if node.status & tcpNodeIsNormal > 0 {
+			node.status ^= tcpNodeIsNormal
+			node.status |= tcpNodeIsControl
+		}
+		go tcp.clientSendService(node)
+	case FlagAgent:
+		(*node.conn).SetReadDeadline(time.Time{})
+		(*node.conn).Write(packDataSetPro)
+		if node.status & tcpNodeIsNormal > 0 {
+			node.status ^= tcpNodeIsNormal
+			node.status |= tcpNodeIsAgent
+		}
+		tcp.Agents = append(tcp.Agents, node)
+		go tcp.clientSendService(node)
+	case FlagPing:
+		(*node.conn).Write(packDataSetPro)
+		(*node.conn).Close()
+	default:
+		(*node.conn).Close()
+	}
+}
+
+func (tcp *TcpService) onConnect(conn *net.Conn) {
+	(*conn).SetReadDeadline(time.Now().Add(time.Second * 3))
+	node := &tcpClientNode{
+		conn:             conn,
 		sendQueue:        make(chan []byte, tcpMaxSendQueue),
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		sendTimes:        int64(0),
 		recvBuf:          make([]byte, 0),
+		status:           tcpNodeOnline | tcpNodeIsNormal,
 		group:            "",
-		status:           tcpNodeOnline|tcpNodeIsNotAgent,
 	}
-	go tcp.clientSendService(cnode)
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 	for {
-		if cnode.status & tcpNodeOffline > 0 {
-			return
-		}
-		size, err := conn.Read(readBuffer[0:])
+		size, err := (*conn).Read(readBuffer[0:])
 		if err != nil {
 			if err != io.EOF {
-				log.Warnf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
+				log.Warnf("tcp node %s disconnect with error: %v", (*conn).RemoteAddr().String(), err)
 			} else {
-				log.Debugf("tcp node %s disconnect with error: %v", conn.RemoteAddr().String(), err)
+				log.Debugf("tcp node %s disconnect with error: %v", (*conn).RemoteAddr().String(), err)
 			}
-			tcp.onClose(cnode)
-			conn.Close()
+			tcp.onClose(node)
+			(*conn).Close()
 			return
 		}
-		atomic.AddInt64(&tcp.recvTimes, int64(1))
-		tcp.onMessage(cnode, readBuffer[:size])
+		log.Debugf("tcp receive: %v", readBuffer[:size])
+		//atomic.AddInt64(&tcp.recvTimes, int64(1))
+		tcp.onMessage(node, readBuffer[:size])
 		select {
 			case <-tcp.ctx.Ctx.Done():
-				log.Debugf("tcp onConnect exit")
 				return
 			default:
 		}
@@ -234,54 +285,17 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			node.recvBuf = make([]byte, 0)
 			return
 		}
-		//log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
-		content := string(node.recvBuf[6 : clen + 4])
+		log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
+		content := node.recvBuf[6 : clen + 4]
 		switch cmd {
 		case CMD_SET_PRO:
-			log.Info("tcp service, receive register group message")
-			if len(node.recvBuf) < 7 {
-				return
-			}
-			//内容长度+4字节的前缀（存放内容长度的数值）
-			name := content//string(node.recvBuf[6 : clen + 4])
-			log.Debugf("add to group: %s", name)
-			tcp.lock.Lock()
-			group, found := tcp.groups[name]
-			if !found {
-				node.sendQueue <- pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", group)))
-				tcp.lock.Unlock()
-				return
-			}
-			(*node.conn).SetReadDeadline(time.Time{})
-			node.sendQueue <- packDataSetPro
-			node.group = group.name
-			group.nodes = append(group.nodes, node)
-			tcp.lock.Unlock()
+			tcp.onSetPro(node, content)
 		case CMD_TICK:
-			//log.Debugf("cmd tick")
 			node.sendQueue <- packDataTickOk
-		case CMD_AGENT:
-			tcp.lock.Lock()
-			if node.status & tcpNodeIsNotAgent > 0 {
-				node.status ^= tcpNodeIsNotAgent
-				node.status |= tcpNodeIsAgent
-			}
-			(*node.conn).SetReadDeadline(time.Time{})
-			tcp.Agents = append(tcp.Agents, node)
-			tcp.lock.Unlock()
-		case CMD_AUTH:
-			if content == tcp.token {
-				(*node.conn).SetReadDeadline(time.Time{})
-			} else {
-				(*node.conn).Write(packDataTokenError)
-				(*node.conn).Close()
-				log.Warnf("auth error: %s", content)
-			}
 		case CMD_STOP:
 			log.Debug("get stop cmd, app will stop later")
 			tcp.ctx.CancelChan <- struct{}{}
 		case CMD_RELOAD:
-			content := string(node.recvBuf[6 : clen + 4])
 			log.Debugf("receive reload cmd：%s", string(content))
 			tcp.ctx.ReloadChan <- string(content)
 		case CMD_SHOW_MEMBERS:
@@ -329,7 +343,7 @@ func (tcp *TcpService) Start() {
 				log.Warnf("tcp service accept with error: %+v", err)
 				continue
 			}
-			go tcp.onConnect(conn)
+			go tcp.onConnect(&conn)
 		}
 	}()
 }
@@ -347,13 +361,13 @@ func (tcp *TcpService) Close() {
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	for _, cgroup := range tcp.groups {
-		for _, cnode := range cgroup.nodes {
-			close(cnode.sendQueue)
-			(*cnode.conn).Close()
-			if cnode.status & tcpNodeOnline > 0 {
-				cnode.status ^= tcpNodeOnline
-				cnode.status |= tcpNodeOffline
+	for _, group := range tcp.groups {
+		for _, node := range group.nodes {
+			close(node.sendQueue)
+			(*node.conn).Close()
+			if node.status & tcpNodeOnline > 0 {
+				node.status ^= tcpNodeOnline
+				node.status |= tcpNodeOffline
 			}
 		}
 	}
@@ -386,7 +400,7 @@ func (tcp *TcpService) Reload() {
 		tcp.Ip = config.Listen
 		tcp.Port = config.Port
 		// clear counter
-		tcp.recvTimes = 0
+		//tcp.recvTimes = 0
 		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
 		// close all connected nodes

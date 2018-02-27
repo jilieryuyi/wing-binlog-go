@@ -64,7 +64,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			tcp.status |= agentStatusOnline
 		}
 		tcp.lock.Unlock()
-		agentH := pack(CMD_AGENT, []byte(""))
+		agentH := PackPro(FlagAgent, []byte(""))
 		var readBuffer [tcpDefaultReadBufferSize]byte
 		for {
 			select {

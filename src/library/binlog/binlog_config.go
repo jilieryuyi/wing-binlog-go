@@ -13,6 +13,7 @@ import (
 
 var (
 	sessionEmpty = errors.New("session empty")
+	pingData = services.PackPro(services.FlagPing, []byte("ping"))
 )
 type AppConfig struct {
 	// mysql service ip and port, like: "127.0.0.1:3306"

@@ -43,6 +43,13 @@ const (
 )
 
 const (
+	FlagSetPro = iota
+	FlagPing
+	FlagControl
+	FlagAgent
+)
+
+const (
 	serviceEnable = 1 << iota
 	serviceDisable
 	agentStatusOffline
@@ -88,8 +95,9 @@ type httpNode struct {
 const (
 	tcpNodeOnline = 1 << iota
 	tcpNodeOffline
-	tcpNodeIsNotAgent
+	tcpNodeIsNormal
 	tcpNodeIsAgent
+	tcpNodeIsControl
 )
 
 type tcpClientNode struct {
@@ -117,7 +125,7 @@ type TcpService struct {
 	Service
 	Ip               string               // 监听ip
 	Port             int                  // 监听端口
-	recvTimes        int64                // 收到消息的次数
+	//recvTimes        int64                // 收到消息的次数
 	sendTimes        int64                // 发送消息的次数
 	sendFailureTimes int64                // 发送失败的次数
 	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
@@ -153,6 +161,7 @@ var (
 	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
 	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
+	//PackDataPing       = pack(CMD_PING, []byte(""))
 )
 
 

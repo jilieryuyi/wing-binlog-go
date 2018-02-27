@@ -29,7 +29,8 @@ func NewControl() *control {
 
 func (con *control) auth() {
 	token := app.GetKey(app.CachePath + "/token")
-	data := pack(CMD_AUTH, []byte(token))
+	log.Debugf("token(%d): %s", len(token), token)
+	data := PackPro(FlagControl, []byte(token))//pack(CMD_AUTH, []byte(token))
 	con.conn.Write(data)
 }
 
@@ -41,6 +42,10 @@ func (con *control) Close() {
 func (con *control) Stop() {
 	data := pack(CMD_STOP, []byte(""))
 	con.conn.Write(data)
+	var buf = make([]byte, 1024)
+	con.conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	con.conn.Read(buf)
+	fmt.Println(string(buf))
 }
 
 //-service-reload http

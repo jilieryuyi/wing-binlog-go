@@ -97,6 +97,25 @@ func (client *Client) pack(cmd int, content string) []byte {
 	r = append(r[:6], c...)
 	return r
 }
+func (client *Client) setPro(content string) []byte {
+	// 数据打包
+	c := []byte(content)
+	l := len(c) + 3
+	r := make([]byte, l + 4)
+	// 4字节数据包长度
+	r[0] = byte(l)
+	r[1] = byte(l >> 8)
+	r[2] = byte(l >> 16)
+	r[3] = byte(l >> 32)
+	// 2字节cmd
+	r[4] = byte(CMD_SET_PRO)
+	r[5] = byte(CMD_SET_PRO >> 8)
+	r[6] = byte(0)
+	// 实际数据内容
+	r = append(r[:7], c...)
+	return r
+}
+
 
 func (client *Client) Start() {
 	keepalive := client.pack(CMD_TICK, "")
@@ -134,7 +153,7 @@ func (client *Client) Start() {
 			}
 			log.Debugf("====================client start====================")
 			//握手包
-			clientH := client.pack(CMD_SET_PRO, server.groupName)
+			clientH := client.setPro(server.groupName)
 			var readBuffer [tcpDefaultReadBufferSize]byte
 			if client.isClose {
 				return

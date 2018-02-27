@@ -185,6 +185,24 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 		}
 	}
 }
-
+//
+//func ping() []byte {
+//	// 数据打包
+//	c := []byte("ping")
+//	l := len(c) + 3
+//	r := make([]byte, l + 4)
+//	// 4字节数据包长度
+//	r[0] = byte(l)
+//	r[1] = byte(l >> 8)
+//	r[2] = byte(l >> 16)
+//	r[3] = byte(l >> 32)
+//	// 2字节cmd
+//	r[4] = byte(services.CMD_SET_PRO)
+//	r[5] = byte(services.CMD_SET_PRO >> 8)
+//	r[6] = byte(services.FlagPing)
+//	// 实际数据内容
+//	r = append(r[:7], c...)
+//	return r
+//}
 
 

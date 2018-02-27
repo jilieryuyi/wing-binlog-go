@@ -110,6 +110,11 @@ func (h *Binlog) keepalive() {
 		return
 	}
 	for {
+		select {
+		case <- h.ctx.Ctx.Done():
+			return
+			default:
+		}
 		h.Session.renew()
 		h.registerService()
 		time.Sleep(time.Second * keepaliveInterval)
@@ -194,6 +199,11 @@ func (h *Binlog) checkAlive() {
 	}
 	time.Sleep(6)
 	for {
+		select {
+		case <- h.ctx.Ctx.Done():
+			return
+		default:
+		}
 		members := h.GetMembers()
 		if members == nil {
 			time.Sleep(time.Second * checkAliveInterval)
@@ -244,6 +254,10 @@ func (h *Binlog) alive(ip string, port int) bool {
 	if err != nil || conn == nil {
 		return false
 	}
+	conn.Write(pingData)
+	var buf = make([]byte, 64)
+	n, err := conn.Read(buf)
+	log.Debugf("%v, %v", n, err)
 	conn.Close()
 	return true
 }
