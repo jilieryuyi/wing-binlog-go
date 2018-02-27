@@ -177,7 +177,7 @@ func (h *Binlog) GetMembers() []*ClusterMember {
 		m := &ClusterMember{}
 		t, _:= strconv.ParseInt(v.Tags[2], 10, 64)
 		m.Status = statusOnline
-		if time.Now().Unix() - t > serviceKeepaliveTimeout && !h.alive(m.ServiceIp, m.Port) {
+		if (time.Now().Unix() - t > serviceKeepaliveTimeout) && !h.alive(m.ServiceIp, m.Port) {
 			m.Status = statusOffline
 			log.Debugf("now: %d, t:%d, diff: %d", time.Now().Unix(), t, time.Now().Unix() - t)
 		}
@@ -228,10 +228,10 @@ func (h *Binlog) checkAlive() {
 			}
 		}
 		if leaderCount == 0 && len(members) > 0 {
-			log.Warnf("no leader is running")
-			for _, v := range members {
-				log.Debugf("member: %+v", *v)
-			}
+			//log.Warnf("no leader is running")
+			//for _, v := range members {
+			//	log.Debugf("member: %+v", *v)
+			//}
 			// current not leader
 			if h.status & consulIsFollower > 0 {
 				log.Warnf("current is not leader, will unlock")
@@ -247,14 +247,20 @@ func (h *Binlog) checkAlive() {
 }
 
 func (h *Binlog) alive(ip string, port int) bool {
+	if ip == "" || port <= 0 {
+		return true
+	}
+	log.Debugf("check alive %s:%d", ip, port)
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), time.Second * 3)
 	if err != nil || conn == nil {
+		log.Debugf("is not alive: %v", err)
 		return false
 	}
+	conn.SetWriteDeadline(time.Now().Add(time.Second * 3))
 	conn.Write(pingData)
 	var buf = make([]byte, 64)
 	n, err := conn.Read(buf)
-	log.Debugf("%v, %v", n, err)
+	log.Debugf("===>%v, %v", n, err)
 	conn.Close()
 	return true
 }
@@ -264,22 +270,19 @@ func (h *Binlog) alive(ip string, port int) bool {
 // return empty string and 0
 func (h *Binlog) GetLeader() (string, int) {
 	if h.status & disableConsul > 0 {
-		log.Debugf("not enable")
 		return "", 0
 	}
 	members := h.GetMembers()
 	if members == nil || len(members) == 0 {
 		return "", 0
 	}
-	ip   := ""
-	port := 0
 	for _, v := range members {
 		if v.IsLeader && v.Status == statusOnline {
 			return v.ServiceIp, v.Port
 			break
 		}
 	}
-	return ip, port
+	return "", 0
 }
 
 // if app is close, it will be call for clear some source
@@ -322,6 +325,7 @@ func (h *Binlog) Lock() (bool, error) {
 	if success && h.status & consulIsFollower > 0 {
 		h.status ^= consulIsFollower
 		h.status |= consulIsLeader
+		//log.Debugf("===============>current node is leader")
 	}
 	return success, nil
 }
@@ -350,6 +354,7 @@ func (h *Binlog) Unlock() (bool, error) {
 	if success && h.status & consulIsLeader > 0 {
 		h.status ^= consulIsLeader
 		h.status |= consulIsFollower
+		//log.Debugf("===============>current node is follower")
 	}
 	return success, nil
 }

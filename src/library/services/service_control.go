@@ -32,6 +32,9 @@ func (con *control) auth() {
 	log.Debugf("token(%d): %s", len(token), token)
 	data := PackPro(FlagControl, []byte(token))//pack(CMD_AUTH, []byte(token))
 	con.conn.Write(data)
+	var buf = make([]byte, 1024)
+	con.conn.SetReadDeadline(time.Now().Add(time.Second*3))
+	con.conn.Read(buf)
 }
 
 func (con *control) Close() {
@@ -63,6 +66,7 @@ func (con *control) Restart() {
 
 // -members
 func (con *control) ShowMembers() {
+	log.Debugf("show members")
 	data := pack(CMD_SHOW_MEMBERS, []byte(""))
 	con.conn.Write(data)
 	var buf = make([]byte, 40960)

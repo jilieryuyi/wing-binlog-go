@@ -110,7 +110,7 @@ func matchFilters(filters []string, table string) bool {
 func PackPro(flag int, content []byte) []byte {
 	// 数据打包
 	l := len(content) + 3
-	log.Debugf("PackPro len: %d", l)
+	//log.Debugf("PackPro len: %d", l)
 	r := make([]byte, l + 4)
 	// 4字节数据包长度
 	r[0] = byte(l)

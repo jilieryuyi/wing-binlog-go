@@ -109,13 +109,7 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	if node.status & tcpNodeOnline > 0 {
-		close(node.sendQueue)
-	}
-	if node.status & tcpNodeOnline > 0 {
-		node.status ^= tcpNodeOnline
-		node.status |= tcpNodeOffline
-	}
+	node.close()
 	if node.status & tcpNodeIsAgent > 0 {
 		for index, n := range tcp.Agents {
 			if n == node {
@@ -212,6 +206,7 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 		tcp.Agents = append(tcp.Agents, node)
 		go tcp.clientSendService(node)
 	case FlagPing:
+		log.Debugf("receive ping data")
 		node.send(packDataSetPro)
 		node.close()
 	default:
@@ -225,9 +220,6 @@ func (tcp *TcpService) onConnect(conn *net.Conn) {
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	for {
-		if node.status & tcpNodeOffline > 0 {
-			return
-		}
 		size, err := (*conn).Read(readBuffer[0:])
 		if err != nil {
 			if err != io.EOF {
@@ -240,13 +232,7 @@ func (tcp *TcpService) onConnect(conn *net.Conn) {
 			return
 		}
 		//log.Debugf("tcp receive: %v", readBuffer[:size])
-		//atomic.AddInt64(&tcp.recvTimes, int64(1))
 		tcp.onMessage(node, readBuffer[:size])
-		select {
-			case <-tcp.ctx.Ctx.Done():
-				return
-			default:
-		}
 	}
 }
 
@@ -276,16 +262,18 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 		content := node.recvBuf[6 : clen + 4]
 		switch cmd {
 		case CMD_SET_PRO:
+			//log.Debugf("set pro")
 			tcp.onSetPro(node, content)
 		case CMD_TICK:
 			node.sendQueue <- packDataTickOk
 		case CMD_STOP:
-			log.Debug("get stop cmd, app will stop later")
+			//log.Debug("get stop cmd, app will stop later")
 			tcp.ctx.CancelChan <- struct{}{}
 		case CMD_RELOAD:
-			log.Debugf("receive reload cmd：%s", string(content))
+			//log.Debugf("receive reload cmd：%s", string(content))
 			tcp.ctx.ReloadChan <- string(content)
 		case CMD_SHOW_MEMBERS:
+			//log.Debugf("show members")
 			tcp.ctx.ShowMembersChan <- struct{}{}
 			select {
 				case members, ok := <- tcp.ctx.ShowMembersRes:
@@ -350,13 +338,11 @@ func (tcp *TcpService) Close() {
 	}
 	for _, group := range tcp.groups {
 		for _, node := range group.nodes {
-			close(node.sendQueue)
-			(*node.conn).Close()
-			if node.status & tcpNodeOnline > 0 {
-				node.status ^= tcpNodeOnline
-				node.status |= tcpNodeOffline
-			}
+			node.close()
 		}
+	}
+	for _, agent := range tcp.Agents {
+		agent.close()
 	}
 	log.Debugf("tcp service closed.")
 }
@@ -395,12 +381,7 @@ func (tcp *TcpService) Reload() {
 		for name, group := range tcp.groups {
 			for _, node := range group.nodes {
 				log.Debugf("closing service：%s", (*node.conn).RemoteAddr().String())
-				if node.status & tcpNodeOnline > 0 {
-					node.status ^= tcpNodeOnline
-					node.status |= tcpNodeOffline
-				}
-				close(node.sendQueue)
-				(*node.conn).Close()
+				node.close()
 			}
 			log.Debugf("removing groups：%s", name)
 			delete(tcp.groups, name)
@@ -430,13 +411,7 @@ func (tcp *TcpService) Reload() {
 				log.Debugf("group removed: %s", name)
 				for _, node := range group.nodes {
 					log.Debugf("closing connection: %s", (*node.conn).RemoteAddr().String())
-					close(node.sendQueue)
-					//cnode.isConnected = false
-					if node.status & tcpNodeOnline > 0 {
-						node.status ^= tcpNodeOnline
-						node.status |= tcpNodeOffline
-					}
-					(*node.conn).Close()
+					node.close()
 				}
 				delete(tcp.groups, name)
 			} else {
