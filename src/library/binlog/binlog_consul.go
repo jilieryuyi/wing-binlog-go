@@ -92,7 +92,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
-	log.Debugf("register service: %+v", *service)
+	//log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)

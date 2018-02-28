@@ -109,12 +109,16 @@ type tcpClientNode struct {
 	connectTime      int64       // 连接成功的时间戳
 	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
 	status           int
+	wg               *sync.WaitGroup
+	ctx              *app.Context//*context.Context     //
 }
+
+type tcpClients []*tcpClientNode
 
 type tcpGroup struct {
 	name   string
 	filter []string
-	nodes  []*tcpClientNode
+	nodes  tcpClients//[]*tcpClientNode
 }
 
 type agentNode struct {
@@ -134,7 +138,7 @@ type TcpService struct {
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	ServiceIp        string
-	Agents           []*tcpClientNode
+	Agents           tcpClients//[]*tcpClientNode
 	status           int
 	token            string
 	node         *agentNode

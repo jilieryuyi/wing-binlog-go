@@ -271,3 +271,11 @@ func (ctx *Context) signalHandler() {
 	log.Warnf("get exit signal, service will exit later")
 	ctx.CancelChan <- struct{}{}
 }
+
+func (ctx *Context) Stop() {
+	ctx.CancelChan <- struct{}{}
+}
+
+func (ctx *Context) Reload(serviceName string) {
+	ctx.ReloadChan <- serviceName
+}

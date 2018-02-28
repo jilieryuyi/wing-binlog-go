@@ -5,7 +5,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 	"library/app"
 	"io"
@@ -27,16 +26,12 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		listener:         nil,
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
-		Agents:           make([]*tcpClientNode, 0),
+		Agents:           nil,
 		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
 	for _, group := range config.Groups{
-		tcp.groups[group.Name] = &tcpGroup{
-			name: group.Name,
-			filter: group.Filter,
-			nodes: nil,
-		}
+		tcp.groups[group.Name] = newTcpGroup(group)
 	}
 	go tcp.agentKeepalive()
 	return tcp
@@ -48,30 +43,18 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 		return false
 	}
 	log.Debugf("tcp SendAll: %s, %+v", table, string(data))
+	// pack data
 	packData := pack(CMD_EVENT, data)
+	//send to agents
 	for _, agent := range tcp.Agents {
-		if agent.status & tcpNodeOnline > 0 {
-			agent.sendQueue <- packData
-		}
+		agent.asyncSend(packData)
 	}
+	// send to all groups
 	for _, group := range tcp.groups {
-		if group.nodes == nil || len(group.nodes) <= 0 ||
-			!matchFilters(group.filter, table) {
+		if !group.match(table) {
 			continue
 		}
-		for _, node := range group.nodes {
-			if node.status & tcpNodeOffline > 0 {
-				continue
-			}
-			for {
-				// if cache is full, try to wait it
-				if len(node.sendQueue) < cap(node.sendQueue) {
-					break
-				}
-				log.Warnf("cache full, try wait")
-			}
-			node.sendQueue <- packData
-		}
+		group.send(packData)
 	}
 	return true
 }
@@ -84,24 +67,10 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 	}
 	log.Debugf("tcp sendRaw: %+v", msg)
 	for _, agent := range tcp.Agents {
-		agent.sendQueue <- msg
+		agent.asyncSend(msg)
 	}
 	for _, group := range tcp.groups {
-		if group.nodes == nil || len(group.nodes) <= 0 {
-			continue
-		}
-		for _, node := range group.nodes {
-			if node.status & tcpNodeOffline > 0  {
-				continue
-			}
-			for {
-				if len(node.sendQueue) < cap(node.sendQueue) {
-					break
-				}
-				log.Warnf("cache full, try wait")
-			}
-			node.sendQueue <- msg
-		}
+		group.send(msg)
 	}
 	return true
 }
@@ -111,57 +80,12 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	defer tcp.lock.Unlock()
 	node.close()
 	if node.status & tcpNodeIsAgent > 0 {
-		for index, n := range tcp.Agents {
-			if n == node {
-				tcp.Agents = append(tcp.Agents[:index], tcp.Agents[index+1:]...)
-				break
-			}
-		}
+		tcp.Agents.remove(node)
 		return
 	}
 	if node.status & tcpNodeIsNormal > 0 {
-		if node.group != "" {
-			// remove node if exists
-			if group, found := tcp.groups[node.group]; found {
-				for index, cnode := range group.nodes {
-					if cnode.conn == node.conn {
-						group.nodes = append(group.nodes[:index], group.nodes[index+1:]...)
-						break
-					}
-				}
-			}
-		}
-	}
-}
-
-// 客户端服务协程，一个客户端一个
-func (tcp *TcpService) clientSendService(node *tcpClientNode) {
-	tcp.wg.Add(1)
-	defer tcp.wg.Done()
-	for {
-		if node.status & tcpNodeOffline > 0 {
-			log.Info("tcp service, clientSendService exit.")
-			return
-		}
-		select {
-		case msg, ok := <-node.sendQueue:
-			if !ok {
-				log.Info("tcp service, sendQueue channel closed.")
-				return
-			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 3))
-			size, err := (*node.conn).Write(msg)
-			atomic.AddInt64(&node.sendTimes, int64(1))
-			if size <= 0 || err != nil {
-				atomic.AddInt64(&tcp.sendFailureTimes, int64(1))
-				atomic.AddInt64(&node.sendFailureTimes, int64(1))
-				log.Errorf("tcp send to %s error: %v", (*node.conn).RemoteAddr().String(), err)
-			}
-		case <-tcp.ctx.Ctx.Done():
-			if len(node.sendQueue) <= 0 {
-				log.Info("tcp service, clientSendService exit.")
-				return
-			}
+		if group, found := tcp.groups[node.group]; found {
+			group.remove(node)
 		}
 	}
 }
@@ -179,32 +103,32 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 		log.Debugf("add to group: %s", content)
 		group, found := tcp.groups[content]
 		if !found || content == "" {
-			(*node.conn).Write(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
+			node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
 			node.close()
 			return
 		}
-		(*node.conn).SetReadDeadline(time.Time{})
+		node.setReadDeadline(time.Time{})
 		node.send(packDataSetPro)
 		node.setGroup(content)
-		group.nodes = append(group.nodes, node)
-		go tcp.clientSendService(node)
+		group.append(node)
+		go node.asyncSendService()
 	case FlagControl:
 		if tcp.token != content {
-			(*node.conn).Write(packDataTokenError)
+			node.send(packDataTokenError)
 			node.close()
 			log.Warnf("token error")
 			return
 		}
-		(*node.conn).SetReadDeadline(time.Time{})
+		node.setReadDeadline(time.Time{})
 		node.send(packDataSetPro)
 		node.changNodeType(tcpNodeIsControl)
-		go tcp.clientSendService(node)
+		go node.asyncSendService()
 	case FlagAgent:
-		(*node.conn).SetReadDeadline(time.Time{})
+		node.setReadDeadline(time.Time{})
 		node.send(packDataSetPro)
 		node.changNodeType(tcpNodeIsAgent)
-		tcp.Agents = append(tcp.Agents, node)
-		go tcp.clientSendService(node)
+		tcp.Agents.append(node)
+		go node.asyncSendService()
 	case FlagPing:
 		log.Debugf("receive ping data")
 		node.send(packDataSetPro)
@@ -215,8 +139,8 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 }
 
 func (tcp *TcpService) onConnect(conn *net.Conn) {
-	(*conn).SetReadDeadline(time.Now().Add(time.Second * 3))
-	node := newNode(conn)
+	node := newNode(tcp.ctx, conn)
+	node.setReadDeadline(time.Now().Add(time.Second * 3))
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
 	for {
@@ -228,7 +152,6 @@ func (tcp *TcpService) onConnect(conn *net.Conn) {
 				log.Debugf("tcp node %s disconnect with error: %v", (*conn).RemoteAddr().String(), err)
 			}
 			tcp.onClose(node)
-			(*conn).Close()
 			return
 		}
 		//log.Debugf("tcp receive: %v", readBuffer[:size])
@@ -265,26 +188,26 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			//log.Debugf("set pro")
 			tcp.onSetPro(node, content)
 		case CMD_TICK:
-			node.sendQueue <- packDataTickOk
+			node.asyncSend(packDataTickOk)
 		case CMD_STOP:
 			//log.Debug("get stop cmd, app will stop later")
-			tcp.ctx.CancelChan <- struct{}{}
+			tcp.ctx.Stop()
 		case CMD_RELOAD:
 			//log.Debugf("receive reload cmd：%s", string(content))
-			tcp.ctx.ReloadChan <- string(content)
+			tcp.ctx.Reload(string(content))
 		case CMD_SHOW_MEMBERS:
 			//log.Debugf("show members")
 			tcp.ctx.ShowMembersChan <- struct{}{}
 			select {
 				case members, ok := <- tcp.ctx.ShowMembersRes:
 					if ok && members != "" {
-						(*node.conn).Write(pack(CMD_SHOW_MEMBERS, []byte(members)))
+						node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
 					}
 				case <-time.After(time.Second * 30):
-					(*node.conn).Write([]byte("get members timeout"))
+					node.send([]byte("get members timeout"))
 			}
 		default:
-			node.sendQueue <- pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd)))
+			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}
@@ -327,19 +250,17 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	for _, cgroup := range tcp.groups {
-		if len(cgroup.nodes) > 0 {
-			tcp.wg.Wait()
-			break
-		}
-	}
+	//for _, cgroup := range tcp.groups {
+	//	if len(cgroup.nodes) > 0 {
+	//		tcp.wg.Wait()
+	//		break
+	//	}
+	//}
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
 	for _, group := range tcp.groups {
-		for _, node := range group.nodes {
-			node.close()
-		}
+		group.close()
 	}
 	for _, agent := range tcp.Agents {
 		agent.close()
@@ -455,14 +376,6 @@ func (tcp *TcpService) Reload() {
 func (tcp *TcpService) SendPos(data []byte) {
 	packData := pack(CMD_POS, data)
 	for _, agent := range tcp.Agents {
-		if agent.status & tcpNodeOnline > 0 {
-			for {
-				if len(agent.sendQueue) < cap(agent.sendQueue) {
-					break
-				}
-				log.Warnf("cache full, try wait")
-			}
-			agent.sendQueue <- packData
-		}
+		agent.asyncSend(packData)
 	}
 }
