@@ -1,4 +1,4 @@
-// +build  linux,386 darwin,!windows
+// +build  !windows
 
 package app
 

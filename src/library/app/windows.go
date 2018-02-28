@@ -1,4 +1,4 @@
-// +build  !linux,!darwin,windows
+// +build windows
 
 //https://studygolang.com/articles/4207
 package app
