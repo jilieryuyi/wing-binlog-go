@@ -249,12 +249,6 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	//for _, cgroup := range tcp.groups {
-	//	if len(cgroup.nodes) > 0 {
-	//		tcp.wg.Wait()
-	//		break
-	//	}
-	//}
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
