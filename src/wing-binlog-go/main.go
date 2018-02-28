@@ -18,7 +18,7 @@ var (
 	//-service-reload http
 	//-service-reload tcp
 	//-service-reload all ##重新加载全部服务
-	serviceReload  = flag.String("service-reload", "", "reload service config, usage: -service-reload  all|http|tcp")
+	serviceReload  = flag.String("reload", "", "reload service config, usage: -reload  all|http|tcp")
 	// show help info
 	help           = flag.Bool("help", false, "help")
 	// show members
