@@ -244,7 +244,7 @@ func (h *Binlog) lookPosChange() {
 }
 
 func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
-	log.Debugf("OnPosSynced fired with data: %+v, %b", p, b)
+	log.Debugf("OnPosSynced fired with data: %+v, %v", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
 	pos        := int64(p.Pos)
 	data       := packPos(p.Name, pos, eventIndex)

@@ -138,7 +138,7 @@ type TcpService struct {
 	listener         *net.Listener        //
 	wg               *sync.WaitGroup      //
 	ServiceIp        string
-	Agents           tcpClients//[]*tcpClientNode
+	agents           tcpClients//[]*tcpClientNode
 	status           int
 	token            string
 	node         *agentNode

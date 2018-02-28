@@ -26,7 +26,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		listener:         nil,
 		ctx:              ctx,
 		ServiceIp:        config.ServiceIp,
-		Agents:           nil,
+		agents:           nil,
 		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
@@ -46,9 +46,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	// pack data
 	packData := pack(CMD_EVENT, data)
 	//send to agents
-	for _, agent := range tcp.Agents {
-		agent.asyncSend(packData)
-	}
+	tcp.agents.send(packData)
 	// send to all groups
 	for _, group := range tcp.groups {
 		if !group.match(table) {
@@ -66,9 +64,7 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 		return false
 	}
 	log.Debugf("tcp sendRaw: %+v", msg)
-	for _, agent := range tcp.Agents {
-		agent.asyncSend(msg)
-	}
+	tcp.agents.send(msg)
 	for _, group := range tcp.groups {
 		group.send(msg)
 	}
@@ -79,28 +75,31 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 	node.close()
-	if node.status & tcpNodeIsAgent > 0 {
-		tcp.Agents.remove(node)
-		return
-	}
-	if node.status & tcpNodeIsNormal > 0 {
-		if group, found := tcp.groups[node.group]; found {
-			group.remove(node)
+	for {
+		if node.status & tcpNodeIsAgent > 0 {
+			tcp.agents.remove(node)
+			break
 		}
+		if node.status & tcpNodeIsNormal > 0 {
+			if group, found := tcp.groups[node.group]; found {
+				group.remove(node)
+			}
+			break
+		}
+		break
 	}
 }
 
 func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
-	//客户端角色分为三种，一种是普通的客户端，一种是用来控制进程的客户端，还有另外一种就是agent代理客户端
+	// 客户端角色分为三种
+	// 一种是普通的客户端
+	// 一种是用来控制进程的客户端
+	// 还有另外一种就是agent代理客户端
 	flag    := data[0]
 	content := string(data[1:])
-	//log.Debugf("content(%d): %v", len(content), content)
-	//log.Debugf("flag=%d", flag)
 	switch flag {
 	//set pro add to group
 	case FlagSetPro:
-		//内容长度+4字节的前缀（存放内容长度的数值）
-		log.Debugf("add to group: %s", content)
 		group, found := tcp.groups[content]
 		if !found || content == "" {
 			node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
@@ -127,7 +126,7 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 		node.setReadDeadline(time.Time{})
 		node.send(packDataSetPro)
 		node.changNodeType(tcpNodeIsAgent)
-		tcp.Agents.append(node)
+		tcp.agents.append(node)
 		go node.asyncSendService()
 	case FlagPing:
 		log.Debugf("receive ping data")
@@ -262,7 +261,7 @@ func (tcp *TcpService) Close() {
 	for _, group := range tcp.groups {
 		group.close()
 	}
-	for _, agent := range tcp.Agents {
+	for _, agent := range tcp.agents {
 		agent.close()
 	}
 	log.Debugf("tcp service closed.")
@@ -375,7 +374,5 @@ func (tcp *TcpService) Reload() {
 
 func (tcp *TcpService) SendPos(data []byte) {
 	packData := pack(CMD_POS, data)
-	for _, agent := range tcp.Agents {
-		agent.asyncSend(packData)
-	}
+	tcp.agents.send(packData)
 }
