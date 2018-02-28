@@ -16,9 +16,7 @@ func (h *Binlog) consulInit() {
 	var err error
 	consulConfig, err := getConfig()
 	h.LockKey     = consulConfig.Lock
-	//consul config
 	h.Address     = consulConfig.Consul.Address
-	//h.isLock      = 0
 	h.sessionId   = app.GetKey(app.CachePath + "/session")
 	if consulConfig.Enable {
 		h.status ^= disableConsul
@@ -52,7 +50,7 @@ func (h *Binlog) consulInit() {
 	go h.keepalive()
 }
 
-func (h *Binlog) getService() *ClusterMember{
+func (h *Binlog) getService() *ClusterMember {
 	if h.status & disableConsul > 0 {
 		return nil
 	}
@@ -94,6 +92,7 @@ func (h *Binlog) registerService() {
 		Check:             nil,
 		Checks:            nil,
 	}
+	log.Debugf("register service: %+v", *service)
 	err = h.agent.ServiceRegister(service)
 	if err != nil {
 		log.Errorf("register service with error: %+v", err)

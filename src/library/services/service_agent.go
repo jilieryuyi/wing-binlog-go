@@ -9,7 +9,7 @@ import (
 )
 
 func (tcp *TcpService) agentKeepalive() {
-	data := pack(CMD_TICK, []byte("agent keep alive"))
+	data := pack(CMD_TICK, []byte(""))
 	for {
 		select {
 			case <-tcp.ctx.Ctx.Done():
@@ -97,7 +97,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				continue
 			}
 			for {
-				//log.Debugf("====agent is running====")
+				log.Debugf("====agent is running====")
 				if tcp.status & agentStatusOffline > 0 {
 					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&agentStatusOffline)
 					return
