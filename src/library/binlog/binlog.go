@@ -53,7 +53,7 @@ func (h *Binlog) showMembersService() {
 func (h *Binlog) reloadService() {
 	for {
 		select {
-		case service, ok := <-h.ctx.ReloadChan:
+		case service, ok := <-h.ctx.ReloadDone():
 			if !ok {
 				return
 			}

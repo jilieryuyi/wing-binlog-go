@@ -49,8 +49,8 @@ type Context struct {
 	Cancel context.CancelFunc
 	// pid file path
 	PidFile string
-	CancelChan chan struct{}
-	ReloadChan chan string
+	cancelChan chan struct{}
+	reloadChan chan string
 	ShowMembersChan chan struct{}
 	ShowMembersRes chan string
 	PosChan chan string//[]byte
@@ -246,8 +246,8 @@ func getAppConfig() (*Config, error) {
 // new app context
 func NewContext() *Context {
 	ctx := &Context{
-		CancelChan:make(chan struct{}),
-		ReloadChan:make(chan string, 100),
+		cancelChan:make(chan struct{}),
+		reloadChan:make(chan string, 100),
 		ShowMembersChan:make(chan struct{}, 100),
 		ShowMembersRes:make(chan string, 12),
 		PosChan:make(chan string, 10000),
@@ -269,17 +269,21 @@ func (ctx *Context) signalHandler() {
 		syscall.SIGQUIT)
 	<-sc
 	log.Warnf("get exit signal, service will exit later")
-	ctx.CancelChan <- struct{}{}
+	ctx.cancelChan <- struct{}{}
 }
 
 func (ctx *Context) Stop() {
-	ctx.CancelChan <- struct{}{}
+	ctx.cancelChan <- struct{}{}
 }
 
 func (ctx *Context) Done() <-chan struct{} {
-	return ctx.CancelChan
+	return ctx.cancelChan
 }
 
 func (ctx *Context) Reload(serviceName string) {
-	ctx.ReloadChan <- serviceName
+	ctx.reloadChan <- serviceName
+}
+
+func (ctx *Context) ReloadDone() <-chan string {
+	return ctx.reloadChan
 }
