@@ -276,6 +276,10 @@ func (ctx *Context) Stop() {
 	ctx.CancelChan <- struct{}{}
 }
 
+func (ctx *Context) Done() <-chan struct{} {
+	return ctx.CancelChan
+}
+
 func (ctx *Context) Reload(serviceName string) {
 	ctx.ReloadChan <- serviceName
 }

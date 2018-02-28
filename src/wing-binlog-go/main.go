@@ -99,7 +99,7 @@ func main() {
 
 	// wait exit
 	select {
-		case <- appContext.CancelChan:
+		case <- appContext.Done():
 	}
 
 	appContext.Cancel()
