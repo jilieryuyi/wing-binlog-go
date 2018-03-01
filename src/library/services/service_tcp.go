@@ -21,7 +21,6 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Port:             config.Port,
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*tcpGroup),
-		sendTimes:        0,
 		sendFailureTimes: 0,
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
@@ -332,8 +331,6 @@ func (tcp *TcpService) Reload() {
 		tcp.Ip = config.Listen
 		tcp.Port = config.Port
 		// clear counter
-		//tcp.recvTimes = 0
-		tcp.sendTimes = 0
 		tcp.sendFailureTimes = 0
 		// close all connected nodes
 		// remove all groups
