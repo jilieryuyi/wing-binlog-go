@@ -160,8 +160,7 @@ func (client *Client) keepalive() {
 				n, err := client.node.conn.Write(data)
 				if err != nil {
 					client.disconnect()
-				}
-				if n != dl {
+				} else if n != dl {
 					log.Errorf("发送数据不完整")
 				}
 			}
