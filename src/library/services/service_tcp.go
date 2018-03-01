@@ -48,7 +48,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	// pack data
 	packData := pack(CMD_EVENT, data)
 	//send to agents
-	tcp.agents.send(packData)
+	tcp.agents.asyncSend(packData)
 	// send to all groups
 	for _, group := range tcp.groups {
 		if !group.match(table) {
@@ -66,7 +66,7 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 		return false
 	}
 	log.Debugf("tcp sendRaw: %+v", msg)
-	tcp.agents.send(msg)
+	tcp.agents.asyncSend(msg)
 	for _, group := range tcp.groups {
 		group.send(msg)
 	}
@@ -413,7 +413,7 @@ func (tcp *TcpService) Reload() {
 
 func (tcp *TcpService) SendPos(data []byte) {
 	packData := pack(CMD_POS, data)
-	tcp.agents.send(packData)
+	tcp.agents.asyncSend(packData)
 }
 
 func (tcp *TcpService) keepalive() {
@@ -423,7 +423,7 @@ func (tcp *TcpService) keepalive() {
 			return
 		default:
 		}
-		tcp.agents.send(packDataTickOk)
+		tcp.agents.asyncSend(packDataTickOk)
 		for _, group := range tcp.groups {
 			group.send(packDataTickOk)
 		}

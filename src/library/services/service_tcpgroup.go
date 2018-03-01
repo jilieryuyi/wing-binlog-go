@@ -50,6 +50,12 @@ func (c *tcpClients) send(data []byte) {
 	}
 }
 
+func (c *tcpClients) asyncSend(data []byte) {
+	for _, node := range *c {
+		node.asyncSend(data)
+	}
+}
+
 func (c *tcpClients) remove(node *tcpClientNode) {
 	for index, n := range *c {
 		if n == node {
