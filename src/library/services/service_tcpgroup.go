@@ -2,15 +2,15 @@ package services
 
 import (
 	"regexp"
-	//log "github.com/sirupsen/logrus"
 )
 
 func newTcpGroup(group tcpGroupConfig) *tcpGroup {
-	return &tcpGroup{
+	g := &tcpGroup{
 		name: group.Name,
 		filter: group.Filter,
 		nodes: nil,
 	}
+	return g
 }
 
 func (g *tcpGroup) match(table string) bool {
@@ -27,17 +27,11 @@ func (g *tcpGroup) match(table string) bool {
 }
 
 func (g *tcpGroup) append(node *tcpClientNode) {
-	g.nodes.append(node)// = append(g.nodes, node)
+	g.nodes.append(node)
 }
 
 func (g *tcpGroup) remove(node *tcpClientNode) {
 	g.nodes.remove(node)
-	//for index, n := range g.nodes {
-	//	if n == node {
-	//		g.nodes = append(g.nodes[:index], g.nodes[index+1:]...)
-	//		break
-	//	}
-	//}
 }
 
 func (g *tcpGroup) close() {

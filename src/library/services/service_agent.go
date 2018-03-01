@@ -10,29 +10,33 @@ import (
 
 func (tcp *TcpService) agentKeepalive() {
 	data := pack(CMD_TICK, []byte(""))
+	dl := len(data)
 	for {
 		select {
 			case <-tcp.ctx.Ctx.Done():
 				return
 			default:
 		}
-		if tcp.node == nil || tcp.node.conn == nil ||
+		if tcp.conn == nil ||
 			tcp.status & agentStatusDisconnect > 0 ||
 			tcp.status & agentStatusOffline > 0 {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		n, err := tcp.node.conn.Write(data)
-		if n <= 0 || err != nil {
+		n, err := tcp.conn.Write(data)
+		if err != nil {
 			log.Errorf("agent keepalive error: %d, %v", n, err)
 			tcp.disconnect()
+		}
+		if n != dl {
+			log.Errorf("%s send not complete", tcp.conn.RemoteAddr().String())
 		}
 		time.Sleep(3 * time.Second)
 	}
 }
 
 func (tcp *TcpService) nodeInit(ip string, port int) {
-	if tcp.node != nil && tcp.node.conn != nil {
+	if tcp.conn != nil {
 		tcp.disconnect()
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
@@ -40,69 +44,86 @@ func (tcp *TcpService) nodeInit(ip string, port int) {
 		log.Panicf("start agent with error: %+v", err)
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	tcp.node = &agentNode{
-		conn:conn,
-	}
+	tcp.conn = conn
 	if err != nil {
 		log.Errorf("start agent with error: %+v", err)
-		tcp.node.conn = nil
+		tcp.conn = nil
 	}
 }
 
 func (tcp *TcpService) AgentStart(serviceIp string, port int) {
+	agentH := PackPro(FlagAgent, []byte(""))
+	hl := len(agentH)
+	var readBuffer [tcpDefaultReadBufferSize]byte
 	go func() {
 		if serviceIp == "" || port == 0 {
 			log.Warnf("ip or port empty %s:%d", serviceIp, port)
 			return
 		}
+
+		tcp.lock.Lock()
 		if tcp.status & agentStatusConnect > 0 {
+			tcp.lock.Unlock()
 			return
 		}
-		tcp.lock.Lock()
 		if tcp.status & agentStatusOffline > 0 {
 			tcp.status ^= agentStatusOffline
 			tcp.status |= agentStatusOnline
 		}
 		tcp.lock.Unlock()
-		agentH := PackPro(FlagAgent, []byte(""))
-		var readBuffer [tcpDefaultReadBufferSize]byte
+
 		for {
 			select {
-			case <-tcp.ctx.Ctx.Done():
-				return
-			default:
+				case <-tcp.ctx.Ctx.Done():
+					return
+				default:
 			}
+
+			tcp.lock.Lock()
 			if tcp.status & agentStatusOffline > 0 {
+				tcp.lock.Unlock()
 				log.Warnf("agentStatusOffline return")
 				return
 			}
+			tcp.lock.Unlock()
+
 			tcp.nodeInit(serviceIp, port)
-			if tcp.node == nil || tcp.node.conn == nil {
+			if tcp.conn == nil {
 				log.Warnf("node | conn is nil")
 				time.Sleep(time.Second * 3)
 				continue
 			}
+
 			tcp.lock.Lock()
 			if tcp.status & agentStatusDisconnect > 0 {
 				tcp.status ^= agentStatusDisconnect
 				tcp.status |= agentStatusConnect
 			}
 			tcp.lock.Unlock()
+
 			log.Debugf("====================agent start %s:%d====================", serviceIp, port)
 			// 简单的握手
-			n, err := tcp.node.conn.Write(agentH)
-			if n <= 0 || err != nil {
+			n, err := tcp.conn.Write(agentH)
+			if err != nil {
 				log.Warnf("write agent header data with error: %d, err", n, err)
 				tcp.disconnect()
 				continue
 			}
+			if n != hl {
+				log.Errorf("%s tcp send not complete", tcp.conn.RemoteAddr().String())
+			}
 			for {
 				log.Debugf("====agent is running====")
+
+				tcp.lock.Lock()
 				if tcp.status & agentStatusOffline > 0 {
+					tcp.lock.Unlock()
 					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&agentStatusOffline)
 					return
 				}
-				size, err := tcp.node.conn.Read(readBuffer[0:])
+				tcp.lock.Unlock()
+
+				size, err := tcp.conn.Read(readBuffer[0:])
 				//log.Debugf("read buffer len: %d, cap:%d", len(readBuffer), cap(readBuffer))
 				if err != nil || size <= 0 {
 					log.Warnf("agent read with error: %+v", err)
@@ -135,7 +156,7 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 		//log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
 		//log.Debugf("%v, %v", tcp.buffer, string(tcp.buffer))
 		if !hasCmd(cmd) {
-			log.Errorf("cmd %d dos not exists: %v", cmd, tcp.buffer)
+			log.Errorf("cmd %d dos not exists: %v, %s", cmd, tcp.buffer, string(tcp.buffer))
 			tcp.buffer = make([]byte, 0)
 			return
 		}
@@ -178,12 +199,13 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 }
 
 func (tcp *TcpService) disconnect() {
-	if tcp.node == nil || tcp.status & agentStatusDisconnect > 0 {
+	if tcp.conn == nil || tcp.status & agentStatusDisconnect > 0 {
 		log.Debugf("agent is in disconnect status")
 		return
 	}
 	log.Warnf("====================agent disconnect====================")
-	tcp.node.conn.Close()
+	tcp.conn.Close()
+
 	tcp.lock.Lock()
 	if tcp.status & agentStatusConnect > 0 {
 		tcp.status ^= agentStatusConnect
@@ -194,11 +216,11 @@ func (tcp *TcpService) disconnect() {
 
 func (tcp *TcpService) AgentStop() {
 	if tcp.status & agentStatusOffline > 0 {
-		//log.Debugf("agent close was called, but not running")
 		return
 	}
 	log.Warnf("====================agent close====================")
 	tcp.disconnect()
+
 	tcp.lock.Lock()
 	if tcp.status & agentStatusOnline > 0 {
 		tcp.status ^= agentStatusOnline

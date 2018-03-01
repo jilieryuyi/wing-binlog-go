@@ -8,6 +8,7 @@ import (
 	"time"
 	"library/app"
 	"io"
+	"sync/atomic"
 )
 
 func NewTcpService(ctx *app.Context) *TcpService {
@@ -34,6 +35,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		tcp.groups[group.Name] = newTcpGroup(group)
 	}
 	go tcp.agentKeepalive()
+	go tcp.keepalive()
 	return tcp
 }
 
@@ -101,7 +103,7 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, groupName string) {
 	node.send(packDataSetPro)
 	node.setGroup(groupName)
 	group.append(node)
-	go node.asyncSendService()
+	go tcp.asyncSendService(node)
 }
 
 func (tcp *TcpService) onControl(node *tcpClientNode, token string) {
@@ -114,7 +116,7 @@ func (tcp *TcpService) onControl(node *tcpClientNode, token string) {
 	node.setReadDeadline(time.Time{})
 	node.send(packDataSetPro)
 	node.changNodeType(tcpNodeIsControl)
-	go node.asyncSendService()
+	go tcp.asyncSendService(node)
 }
 
 func (tcp *TcpService) onAgent(node *tcpClientNode) {
@@ -122,7 +124,7 @@ func (tcp *TcpService) onAgent(node *tcpClientNode) {
 	node.send(packDataSetPro)
 	node.changNodeType(tcpNodeIsAgent)
 	tcp.agents.append(node)
-	go node.asyncSendService()
+	go tcp.asyncSendService(node)
 }
 
 func (tcp *TcpService) onPing(node *tcpClientNode) {
@@ -161,6 +163,40 @@ func (tcp *TcpService) onShowMembersEvent(node *tcpClientNode) {
 		}
 	case <-time.After(time.Second * 30):
 		node.send([]byte("get members timeout"))
+	}
+}
+
+func (tcp *TcpService) asyncSendService(node *tcpClientNode) {
+	tcp.wg.Add(1)
+	defer tcp.wg.Done()
+	for {
+		if node.status & tcpNodeOffline > 0 {
+			log.Info("tcp service, clientSendService exit.")
+			return
+		}
+		select {
+		case msg, ok := <-node.sendQueue:
+			if !ok {
+				log.Info("tcp service, sendQueue channel closed.")
+				return
+			}
+			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 30))
+			size, err := (*node.conn).Write(msg)
+			if err != nil {
+				atomic.AddInt64(&node.sendFailureTimes, int64(1))
+				log.Errorf("tcp send to %s error: %v", (*node.conn).RemoteAddr().String(), err)
+				tcp.onClose(node)
+				return
+			}
+			if size != len(msg) {
+				log.Errorf("%s send not complete: %v", (*node.conn).RemoteAddr().String(), msg)
+			}
+		case <-node.ctx.Ctx.Done():
+			if len(node.sendQueue) <= 0 {
+				log.Info("tcp service, clientSendService exit.")
+				return
+			}
+		}
 	}
 }
 
@@ -378,4 +414,19 @@ func (tcp *TcpService) Reload() {
 func (tcp *TcpService) SendPos(data []byte) {
 	packData := pack(CMD_POS, data)
 	tcp.agents.send(packData)
+}
+
+func (tcp *TcpService) keepalive() {
+	for {
+		select {
+		case <-tcp.ctx.Ctx.Done():
+			return
+		default:
+		}
+		tcp.agents.send(packDataTickOk)
+		for _, group := range tcp.groups {
+			group.send(packDataTickOk)
+		}
+		time.Sleep(time.Second * 3)
+	}
 }

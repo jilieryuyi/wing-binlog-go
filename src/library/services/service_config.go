@@ -75,8 +75,8 @@ type HttpService struct {
 	groups           map[string]*httpGroup //
 	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
 	timeTick         time.Duration         // 故障检测的时间间隔
-	ctx              *app.Context//*context.Context      //
-	wg               *sync.WaitGroup       //
+	ctx              *app.Context
+	wg               *sync.WaitGroup
 	status           int
 }
 
@@ -107,10 +107,10 @@ type tcpClientNode struct {
 	group            string      // 所属分组
 	recvBuf          []byte      // 读缓冲区
 	connectTime      int64       // 连接成功的时间戳
-	sendTimes        int64       // 发送次数，用来计算负载均衡，如果 mode == 2
 	status           int
 	wg               *sync.WaitGroup
-	ctx              *app.Context//*context.Context     //
+	ctx              *app.Context
+	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
 }
 
 type tcpClients []*tcpClientNode
@@ -118,31 +118,26 @@ type tcpClients []*tcpClientNode
 type tcpGroup struct {
 	name   string
 	filter []string
-	nodes  tcpClients//[]*tcpClientNode
-}
-
-type agentNode struct {
-	conn *net.TCPConn
+	nodes  tcpClients
 }
 
 type TcpService struct {
 	Service
 	Ip               string               // 监听ip
 	Port             int                  // 监听端口
-	//recvTimes        int64                // 收到消息的次数
 	sendTimes        int64                // 发送消息的次数
 	sendFailureTimes int64                // 发送失败的次数
-	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
-	groups           map[string]*tcpGroup //
-	ctx              *app.Context//*context.Context     //
-	listener         *net.Listener        //
-	wg               *sync.WaitGroup      //
+	lock             *sync.Mutex
+	groups           map[string]*tcpGroup
+	ctx              *app.Context
+	listener         *net.Listener
+	wg               *sync.WaitGroup
 	ServiceIp        string
-	agents           tcpClients//[]*tcpClientNode
+	agents           tcpClients
 	status           int
 	token            string
-	node         *agentNode
-	buffer       []byte
+	conn             *net.TCPConn
+	buffer           []byte
 }
 
 type tcpGroupConfig struct {
@@ -165,7 +160,6 @@ var (
 	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
 	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
-	//PackDataPing       = pack(CMD_PING, []byte(""))
 )
 
 
