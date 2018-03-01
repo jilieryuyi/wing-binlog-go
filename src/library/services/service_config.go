@@ -125,7 +125,6 @@ type TcpService struct {
 	Service
 	Ip               string               // 监听ip
 	Port             int                  // 监听端口
-	sendFailureTimes int64                // 发送失败的次数
 	lock             *sync.Mutex
 	groups           map[string]*tcpGroup
 	ctx              *app.Context
