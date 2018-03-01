@@ -33,10 +33,8 @@ The system variables server_id, log_bin and binlog-format are madantory, and row
 
 Features:
 * TCP protocol support
-* WebSocket protocol support
 * Http protocal support
-* Support client group, broadcast, load balance and filters
-* Auto remove bad http node,
+* Support client group, broadcast and filters
 
 Use cases:
 * MySQL to NoSQL replication
@@ -57,16 +55,11 @@ Known issues:
 
 Special thanks:
 * https://github.com/go-sql-driver/mysql
-* https://github.com/larspensjo/config
 * https://github.com/siddontang/go-mysql
 * https://github.com/BurntSushi/toml
-* https://github.com/go-martini/martini
-* https://github.com/gorilla/websocket
-* https://github.com/garyburd/redigo/redis
 * https://github.com/takama/daemon
-* https://github.com/mattn/go-sqlite3
-* https://github.com/segmentio/kafka-go
-* https://github.com/axgle/mahonia
+* https://github.com/hashicorp/consul
+* https://github.com/sirupsen/logrus
 
 Contributors
 * jilieryuyi
