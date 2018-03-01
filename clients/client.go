@@ -258,12 +258,19 @@ func main() {
 		FullTimestamp:    true,
 	})
 	log.SetLevel(log.Level(5))
+	defaultIp := "127.0.0.1"
+	defaultPort := 9998
 
-	port, _:= strconv.Atoi(os.Args[2])//strconv.ParseInt(os.Args[1], 10, 64)
+	if len(os.Args) >= 3 {
+		defaultIp = os.Args[1]
+		port, _:= strconv.Atoi(os.Args[2])//strconv.ParseInt(os.Args[1], 10, 64)
+		defaultPort = port
+	}
+
 	ser1 := &service{
 		groupName : "group1",
-		ip : os.Args[1],
-		port :port,
+		ip : defaultIp,
+		port : defaultPort,
 	}
 	//ser2 := &service{
 	//	groupName : "group1",

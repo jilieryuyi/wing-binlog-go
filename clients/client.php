@@ -98,9 +98,17 @@ function start_service()
 {
     pcntl_signal(SIGINT,  "sig_handler", false);
 
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    $con    = socket_connect($socket, '127.0.0.1', 9998);
+    global $argv, $argc;
+    $ip = "127.0.0.1";
+    $port = 9998;
 
+    if ($argc >= 3) {
+        $ip = $argv[1];
+        $port = $argv[2];
+    }
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    $con    = socket_connect($socket, $ip, $port);
+    clog("连接服务器". $ip . ":" . $port);
     if (!$con) {
         socket_close($socket);
         clog("无法连接服务器，等待重试");
