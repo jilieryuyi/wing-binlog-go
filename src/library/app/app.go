@@ -53,7 +53,7 @@ type Context struct {
 	reloadChan chan string
 	ShowMembersChan chan struct{}
 	ShowMembersRes chan string
-	PosChan chan string//[]byte
+	PosChan chan string
 }
 
 // app init
@@ -152,15 +152,15 @@ func configPathParse(configPath string) {
 // show usage
 func Usage() {
 	fmt.Println("*********************************************************************")
-	fmt.Println("wing-binlog-go                                   --start service")
-	fmt.Println("wing-binlog-go -version                          --show version info")
-	fmt.Println("wing-binlog-go -stop                             --stop service")
-	fmt.Println("wing-binlog-go -reload  http                     --reload http service")
-	fmt.Println("wing-binlog-go -reload  tcp                      --reload tcp service")
-	fmt.Println("wing-binlog-go -reload  all                      --reload all service")
-	fmt.Println("wing-binlog-go -members                          --show cluster members")
-	fmt.Println("wing-binlog-go -d|-daemon                        --run as daemon process")
-	fmt.Println("wing-binlog-go -config-path                      --set config path")
+	fmt.Println("wing-binlog-go                                     --start service")
+	fmt.Println("wing-binlog-go -version                            --show version info")
+	fmt.Println("wing-binlog-go -stop                               --stop service")
+	fmt.Println("wing-binlog-go -reload  http                       --reload http service")
+	fmt.Println("wing-binlog-go -reload  tcp                        --reload tcp service")
+	fmt.Println("wing-binlog-go -reload  all                        --reload all service")
+	fmt.Println("wing-binlog-go -members                            --show cluster members")
+	fmt.Println("wing-binlog-go -d|-daemon                          --run as daemon process")
+	fmt.Println("wing-binlog-go -config-path [path like: /tmp/wing] --set config path")
 	fmt.Println("*********************************************************************")
 }
 

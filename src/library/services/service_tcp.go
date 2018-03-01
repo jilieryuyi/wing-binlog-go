@@ -90,7 +90,48 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	}
 }
 
-func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
+func (tcp *TcpService) onSetPro(node *tcpClientNode, groupName string) {
+	group, found := tcp.groups[groupName]
+	if !found || groupName == "" {
+		node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", groupName))))
+		node.close()
+		return
+	}
+	node.setReadDeadline(time.Time{})
+	node.send(packDataSetPro)
+	node.setGroup(groupName)
+	group.append(node)
+	go node.asyncSendService()
+}
+
+func (tcp *TcpService) onControl(node *tcpClientNode, token string) {
+	if tcp.token != token {
+		node.send(packDataTokenError)
+		node.close()
+		log.Warnf("token error")
+		return
+	}
+	node.setReadDeadline(time.Time{})
+	node.send(packDataSetPro)
+	node.changNodeType(tcpNodeIsControl)
+	go node.asyncSendService()
+}
+
+func (tcp *TcpService) onAgent(node *tcpClientNode) {
+	node.setReadDeadline(time.Time{})
+	node.send(packDataSetPro)
+	node.changNodeType(tcpNodeIsAgent)
+	tcp.agents.append(node)
+	go node.asyncSendService()
+}
+
+func (tcp *TcpService) onPing(node *tcpClientNode) {
+	log.Debugf("receive ping data")
+	node.send(packDataSetPro)
+	node.close()
+}
+
+func (tcp *TcpService) onSetProEvent(node *tcpClientNode, data []byte) {
 	// 客户端角色分为三种
 	// 一种是普通的客户端
 	// 一种是用来控制进程的客户端
@@ -98,42 +139,28 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, data []byte) {
 	flag    := data[0]
 	content := string(data[1:])
 	switch flag {
-	//set pro add to group
 	case FlagSetPro:
-		group, found := tcp.groups[content]
-		if !found || content == "" {
-			node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", content))))
-			node.close()
-			return
-		}
-		node.setReadDeadline(time.Time{})
-		node.send(packDataSetPro)
-		node.setGroup(content)
-		group.append(node)
-		go node.asyncSendService()
+		tcp.onSetPro(node, content)
 	case FlagControl:
-		if tcp.token != content {
-			node.send(packDataTokenError)
-			node.close()
-			log.Warnf("token error")
-			return
-		}
-		node.setReadDeadline(time.Time{})
-		node.send(packDataSetPro)
-		node.changNodeType(tcpNodeIsControl)
-		go node.asyncSendService()
+		tcp.onControl(node, content)
 	case FlagAgent:
-		node.setReadDeadline(time.Time{})
-		node.send(packDataSetPro)
-		node.changNodeType(tcpNodeIsAgent)
-		tcp.agents.append(node)
-		go node.asyncSendService()
+		tcp.onAgent(node)
 	case FlagPing:
-		log.Debugf("receive ping data")
-		node.send(packDataSetPro)
-		node.close()
+		tcp.onPing(node)
 	default:
 		node.close()
+	}
+}
+
+func (tcp *TcpService) onShowMembersEvent(node *tcpClientNode) {
+	tcp.ctx.ShowMembersChan <- struct{}{}
+	select {
+	case members, ok := <- tcp.ctx.ShowMembersRes:
+		if ok && members != "" {
+			node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
+		}
+	case <-time.After(time.Second * 30):
+		node.send([]byte("get members timeout"))
 	}
 }
 
@@ -161,58 +188,40 @@ func (tcp *TcpService) onConnect(conn *net.Conn) {
 // receive a new message
 func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 	node.recvBuf = append(node.recvBuf, msg...)
-	//log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
 	for {
 		size := len(node.recvBuf)
 		if size < 6 {
 			return
 		}
-		//log.Debugf("buffer: %v", node.recvBuf)
 		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
 			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
 		if len(node.recvBuf) < 	clen + 4 {
 			return
 		}
-		//2字节 command
 		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
 		if !hasCmd(cmd) {
 			log.Errorf("cmd %d does not exists, data: %v", cmd, node.recvBuf)
 			node.recvBuf = make([]byte, 0)
 			return
 		}
-		//log.Debugf("receive: cmd=%d, content_len=%d", cmd, clen)
 		content := node.recvBuf[6 : clen + 4]
 		switch cmd {
 		case CMD_SET_PRO:
-			//log.Debugf("set pro")
-			tcp.onSetPro(node, content)
+			tcp.onSetProEvent(node, content)
 		case CMD_TICK:
 			node.asyncSend(packDataTickOk)
 		case CMD_STOP:
-			//log.Debug("get stop cmd, app will stop later")
 			tcp.ctx.Stop()
 		case CMD_RELOAD:
-			//log.Debugf("receive reload cmd：%s", string(content))
 			tcp.ctx.Reload(string(content))
 		case CMD_SHOW_MEMBERS:
-			//log.Debugf("show members")
-			tcp.ctx.ShowMembersChan <- struct{}{}
-			select {
-				case members, ok := <- tcp.ctx.ShowMembersRes:
-					if ok && members != "" {
-						node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
-					}
-				case <-time.After(time.Second * 30):
-					node.send([]byte("get members timeout"))
-			}
+			tcp.onShowMembersEvent(node)
 		default:
 			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}
-		//数据移动，清除已读数据
 		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
-		//log.Debugf("tcp node.recvBuf len: %d, cap: %d", len(node.recvBuf), cap(node.recvBuf))
 	}
 }
 
