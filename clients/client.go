@@ -42,7 +42,7 @@ type Node struct {
 }
 
 func NewClient(s []*service) *Client{
-	agent := &Client{
+	client := &Client{
 		isClose   : true,
 		node      : nil,
 		lock      : new(sync.Mutex),
@@ -51,7 +51,7 @@ func NewClient(s []*service) *Client{
 		Services  : s,
 		times     : 0,
 	}
-	return agent
+	return client
 }
 
 func (client *Client) init(ip string, port int) {
@@ -72,7 +72,7 @@ func (client *Client) init(ip string, port int) {
 		isConnect:true,
 	}
 	if err != nil {
-		log.Errorf("start agent with error: %+v", err)
+		log.Errorf("start client with error: %+v", err)
 		client.node.isConnect = false
 		client.node.conn = nil
 	} else {
@@ -171,7 +171,7 @@ func (client *Client) Start() {
 				}
 				size, err := client.node.conn.Read(buf[0:])
 				if err != nil || size <= 0 {
-					log.Warnf("agent read with error: %+v", err)
+					log.Warnf("client read with error: %+v", err)
 					client.disconnect()
 					break
 				}
@@ -187,7 +187,7 @@ func (client *Client) disconnect() {
 	if client.node == nil || !client.node.isConnect {
 		return
 	}
-	log.Warnf("---------------agent disconnect---------------")
+	log.Warnf("---------------client disconnect---------------")
 	client.node.conn.Close()
 	client.node.isConnect = false
 }
