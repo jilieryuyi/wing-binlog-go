@@ -12,24 +12,23 @@ import (
 )
 
 func NewTcpService(ctx *app.Context) *TcpService {
-	config, _ := GetTcpConfig()
-	if !config.Enable{
+	if !ctx.TcpConfig.Enable{
 		return &TcpService{status: serviceDisable}
 	}
 	tcp := &TcpService{
-		Ip:               config.Listen,
-		Port:             config.Port,
+		Ip:               ctx.TcpConfig.Listen,
+		Port:             ctx.TcpConfig.Port,
 		lock:             new(sync.Mutex),
 		groups:           make(map[string]*tcpGroup),
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
-		ServiceIp:        config.ServiceIp,
+		ServiceIp:        ctx.TcpConfig.ServiceIp,
 		agents:           nil,
 		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
-	for _, group := range config.Groups{
+	for _, group := range ctx.TcpConfig.Groups{
 		tcp.groups[group.Name] = newTcpGroup(group)
 	}
 	go tcp.agentKeepalive()
@@ -305,30 +304,26 @@ func (tcp *TcpService) Close() {
 }
 
 func (tcp *TcpService) Reload() {
-	config, err := GetTcpConfig()
-	if err != nil {
-		log.Errorf("tcp service reload get config with error: %+v", err)
-		return
-	}
-	log.Debugf("tcp service reload with new config：%+v", config)
-	if config.Enable && tcp.status & serviceDisable > 0 {
+	tcp.ctx.ReloadTcpConfig()
+	log.Debugf("tcp service reload with new config：%+v", tcp.ctx.TcpConfig)
+	if tcp.ctx.TcpConfig.Enable && tcp.status & serviceDisable > 0 {
 		tcp.status ^= serviceDisable
 		tcp.status |= serviceEnable
 	}
-	if !config.Enable && tcp.status & serviceEnable > 0 {
+	if !tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable > 0 {
 		tcp.status ^= serviceEnable
 		tcp.status |= serviceDisable
 	}
 	// flag to mark if need restart
 	restart := false
 	// check if is need restart
-	if tcp.Ip != config.Listen || tcp.Port != config.Port {
+	if tcp.Ip != tcp.ctx.TcpConfig.Listen || tcp.Port != tcp.ctx.TcpConfig.Port {
 		log.Debugf("tcp service need to be restarted since ip address or/and port changed from %s:%d to %s:%d",
-			tcp.Ip, tcp.Port, config.Listen, config.Port)
+			tcp.Ip, tcp.Port, tcp.ctx.TcpConfig.Listen, tcp.ctx.TcpConfig.Port)
 		restart = true
 		// new config
-		tcp.Ip = config.Listen
-		tcp.Port = config.Port
+		tcp.Ip = tcp.ctx.TcpConfig.Listen
+		tcp.Port = tcp.ctx.TcpConfig.Port
 		// close all connected nodes
 		// remove all groups
 		for name, group := range tcp.groups {
@@ -340,7 +335,7 @@ func (tcp *TcpService) Reload() {
 			delete(tcp.groups, name)
 		}
 		// reset tcp config form new config
-		for _, group := range config.Groups { // new group
+		for _, group := range tcp.ctx.TcpConfig.Groups { // new group
 			tcp.groups[group.Name] = &tcpGroup{
 				name: group.Name,
 				filter: group.Filter,
@@ -353,7 +348,7 @@ func (tcp *TcpService) Reload() {
 		for name, group := range tcp.groups { // current group
 			found := false
 			// check the current group if exists in the new config group
-			for _, ngroup := range config.Groups { // new group
+			for _, ngroup := range tcp.ctx.TcpConfig.Groups { // new group
 				if name == ngroup.Name {
 					found = true
 					break
@@ -370,14 +365,14 @@ func (tcp *TcpService) Reload() {
 			} else {
 				// if exists, reset with the new config
 				// replace group filters
-				group, _ := config.Groups[name]
+				group, _ := tcp.ctx.TcpConfig.Groups[name]
 				//flen := len(group.Filter)
 				tcp.groups[name].filter = nil//make([]string, flen)
 				tcp.groups[name].filter = append(tcp.groups[name].filter, group.Filter...)
 			}
 		}
 		// check new group
-		for _, ngroup := range config.Groups { // new group
+		for _, ngroup := range tcp.ctx.TcpConfig.Groups { // new group
 			found := false
 			for name := range tcp.groups {
 				if name == ngroup.Name {

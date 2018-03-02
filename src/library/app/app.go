@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"strings"
 	wstring "library/string"
+	"library/ip"
 )
 
 var (
@@ -41,6 +42,18 @@ type Config struct {
 	PidFile string     `toml:"pid_file"`
 }
 
+type httpNodeConfig struct {
+	Name   string
+	Nodes  []string
+	Filter []string
+}
+
+type HttpConfig struct {
+	Enable   bool
+	TimeTick time.Duration //故障检测的时间间隔，单位为秒
+	Groups   map[string]httpNodeConfig
+}
+
 // context
 type Context struct {
 	// canal context
@@ -54,6 +67,8 @@ type Context struct {
 	ShowMembersChan chan struct{}
 	ShowMembersRes chan string
 	PosChan chan string
+	HttpConfig *HttpConfig
+	TcpConfig *TcpConfig
 }
 
 // app init
@@ -244,12 +259,16 @@ func getAppConfig() (*Config, error) {
 
 // new app context
 func NewContext() *Context {
+	httpConfig, _ := getHttpConfig()
+	tcpConfig, _ := getTcpConfig()
 	ctx := &Context{
 		cancelChan:make(chan struct{}),
 		reloadChan:make(chan string, 100),
 		ShowMembersChan:make(chan struct{}, 100),
 		ShowMembersRes:make(chan string, 12),
 		PosChan:make(chan string, 10000),
+		HttpConfig: httpConfig,
+		TcpConfig: tcpConfig,
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	go ctx.signalHandler()
@@ -286,3 +305,79 @@ func (ctx *Context) Reload(serviceName string) {
 func (ctx *Context) ReloadDone() <-chan string {
 	return ctx.reloadChan
 }
+
+func (ctx *Context) ReloadHttpConfig() {
+	httpConfig, err := getHttpConfig()
+	if err != nil {
+		log.Errorf("get http config error: %v", err)
+		return
+	}
+	ctx.HttpConfig = httpConfig
+}
+
+func (ctx *Context) ReloadTcpConfig() {
+	tcpConfig, err := getTcpConfig()
+	if err != nil {
+		log.Errorf("get tcp config error: %v", err)
+		return
+	}
+	ctx.TcpConfig = tcpConfig
+}
+
+func getHttpConfig() (*HttpConfig, error) {
+	var config HttpConfig
+	configFile := ConfigPath + "/http.toml"
+	if !file.Exists(configFile) {
+		log.Warnf("config file %s does not exists", configFile)
+		return nil, ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	if config.TimeTick <= 0 {
+		config.TimeTick = 1
+	}
+	return &config, nil
+}
+
+type TcpConfig struct {
+	Listen string `toml:"listen"`
+	Port   int    `toml:"port"`
+	Enable bool   `toml:"enable"`
+	ServiceIp string `toml:"service_ip"`
+	Groups map[string]TcpGroupConfig
+}
+
+type TcpGroupConfig struct {
+	Name   string
+	Filter []string
+}
+
+func getTcpConfig() (*TcpConfig, error) {
+	configFile := ConfigPath + "/tcp.toml"
+	var err error
+	if !file.Exists(configFile) {
+		log.Warnf("config %s does not exists", configFile)
+		return nil, ErrorFileNotFound
+	}
+	var tcpConfig TcpConfig
+	if _, err = toml.DecodeFile(configFile, &tcpConfig); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	if 	tcpConfig.ServiceIp == "" {
+		tcpConfig.ServiceIp, err = ip.Local()
+		if err != nil {
+			log.Panicf("can not get local ip, please set service ip(service_ip) in file %s", configFile)
+		}
+	}
+	if tcpConfig.ServiceIp == "" {
+		log.Panicf("service ip can not be empty (config file: %s)", configFile)
+	}
+	if tcpConfig.Port <= 0 {
+		log.Panicf("service port can not be 0 (config file: %s)", configFile)
+	}
+	return &tcpConfig, nil
+}
+

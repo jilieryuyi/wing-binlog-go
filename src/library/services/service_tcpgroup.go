@@ -2,9 +2,10 @@ package services
 
 import (
 	"regexp"
+	"library/app"
 )
 
-func newTcpGroup(group tcpGroupConfig) *tcpGroup {
+func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
 	g := &tcpGroup{
 		name: group.Name,
 		filter: group.Filter,

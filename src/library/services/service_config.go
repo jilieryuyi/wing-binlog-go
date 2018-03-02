@@ -58,12 +58,6 @@ const (
 	agentStatusDisconnect
 )
 
-type httpNodeConfig struct {
-	Name   string
-	Nodes  []string
-	Filter []string
-}
-
 type httpGroup struct {
 	name   string
 	filter []string
@@ -78,12 +72,6 @@ type HttpService struct {
 	ctx              *app.Context
 	wg               *sync.WaitGroup
 	status           int
-}
-
-type HttpConfig struct {
-	Enable   bool
-	TimeTick time.Duration //故障检测的时间间隔，单位为秒
-	Groups   map[string]httpNodeConfig
 }
 
 type httpNode struct {
@@ -136,19 +124,6 @@ type TcpService struct {
 	token            string
 	conn             *net.TCPConn
 	buffer           []byte
-}
-
-type tcpGroupConfig struct {
-	Name   string
-	Filter []string
-}
-
-type TcpConfig struct {
-	Listen string `toml:"listen"`
-	Port   int    `toml:"port"`
-	Enable bool   `toml:"enable"`
-	ServiceIp string `toml:"service_ip"`
-	Groups map[string]tcpGroupConfig
 }
 
 var (

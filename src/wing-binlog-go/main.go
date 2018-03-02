@@ -40,7 +40,7 @@ func Cmd() bool {
 		fmt.Println(app.VERSION)
 		return true
 	}
-	control := services.NewControl()
+	control := services.NewControl(app.NewContext())
 	defer control.Close()
 	// 停止服务
 	if *stop {

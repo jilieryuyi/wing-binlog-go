@@ -12,15 +12,15 @@ import (
 
 func NewBinlog(ctx *app.Context) *Binlog {
 	config, _ := getMysqlConfig()
-	tcpConfig, _:= services.GetTcpConfig()
+	//tcpConfig, _:= services.GetTcpConfig()
 	binlog := &Binlog{
 		Config   : config,
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
 		ctx      : ctx,
 		services : make(map[string]services.Service),
-		ServiceIp        : tcpConfig.ServiceIp,
-		ServicePort      : tcpConfig.Port,
+		ServiceIp        : ctx.TcpConfig.ServiceIp,
+		ServicePort      : ctx.TcpConfig.Port,
 		startServiceChan : make(chan struct{}, 100),
 		stopServiceChan  : make(chan bool, 100),
 		status           : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,

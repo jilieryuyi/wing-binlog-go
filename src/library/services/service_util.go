@@ -1,60 +1,8 @@
 package services
 
 import (
-	"library/file"
-	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
-	"library/app"
-	"library/ip"
 	"regexp"
 )
-
-// parse http config
-// config file is config/http.toml, here use absolute path
-// use for service_http.go NewHttpService and Reload
-func getHttpConfig() (*HttpConfig, error) {
-	var config HttpConfig
-	configFile := app.ConfigPath + "/http.toml"
-	if !file.Exists(configFile) {
-		log.Warnf("config file %s does not exists", configFile)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	if config.TimeTick <= 0 {
-		config.TimeTick = 1
-	}
-	return &config, nil
-}
-
-func GetTcpConfig() (*TcpConfig, error) {
-	configFile := app.ConfigPath + "/tcp.toml"
-	var err error
-	if !file.Exists(configFile) {
-		log.Warnf("config %s does not exists", configFile)
-		return nil, ErrorFileNotFound
-	}
-	var tcpConfig TcpConfig
-	if _, err = toml.DecodeFile(configFile, &tcpConfig); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	if 	tcpConfig.ServiceIp == "" {
-		tcpConfig.ServiceIp, err = ip.Local()
-		if err != nil {
-			log.Panicf("can not get local ip, please set service ip(service_ip) in file %s", configFile)
-		}
-	}
-	if tcpConfig.ServiceIp == "" {
-		log.Panicf("service ip can not be empty (config file: %s)", configFile)
-	}
-	if tcpConfig.Port <= 0 {
-		log.Panicf("service port can not be 0 (config file: %s)", configFile)
-	}
-	return &tcpConfig, nil
-}
 
 func pack(cmd int, msg []byte) []byte {
 	//m  := []byte(msg)
@@ -105,7 +53,6 @@ func matchFilters(filters []string, table string) bool {
 	}
 	return false
 }
-
 
 func PackPro(flag int, content []byte) []byte {
 	// 数据打包
