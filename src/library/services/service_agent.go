@@ -35,20 +35,23 @@ func (tcp *TcpService) agentKeepalive() {
 	}
 }
 
-func (tcp *TcpService) nodeInit(ip string, port int) {
+func (tcp *TcpService) connect(ip string, port int) {
 	if tcp.conn != nil {
 		tcp.disconnect()
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
-		log.Panicf("start agent with error: %+v", err)
+		log.Errorf("start agent with error: %+v", err)
+		tcp.conn = nil
+		return
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	tcp.conn = conn
 	if err != nil {
 		log.Errorf("start agent with error: %+v", err)
 		tcp.conn = nil
+		return
 	}
+	tcp.conn = conn
 }
 
 func (tcp *TcpService) AgentStart(serviceIp string, port int) {
@@ -87,9 +90,9 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			}
 			tcp.lock.Unlock()
 
-			tcp.nodeInit(serviceIp, port)
+			tcp.connect(serviceIp, port)
 			if tcp.conn == nil {
-				log.Warnf("node | conn is nil")
+				log.Warnf("conn is nil")
 				time.Sleep(time.Second * 3)
 				continue
 			}
@@ -153,8 +156,6 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 		contentLen := int(tcp.buffer[0]) | int(tcp.buffer[1]) << 8 | int(tcp.buffer[2]) << 16 | int(tcp.buffer[3]) << 24
 		//2字节 command
 		cmd := int(tcp.buffer[4]) | int(tcp.buffer[5]) << 8
-		//log.Debugf("bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
-		//log.Debugf("%v, %v", tcp.buffer, string(tcp.buffer))
 		if !hasCmd(cmd) {
 			log.Errorf("cmd %d dos not exists: %v, %s", cmd, tcp.buffer, string(tcp.buffer))
 			tcp.buffer = make([]byte, 0)
@@ -164,7 +165,6 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 			return
 		}
 		dataB := tcp.buffer[6:4 + contentLen]
-		//log.Debugf("clen=%d, cmd=%d, (%d)%+v", contentLen, cmd, len(dataB), dataB)
 		switch cmd {
 		case CMD_EVENT:
 			var data map[string] interface{}
@@ -194,7 +194,6 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 			return
 		}
 		tcp.buffer = append(tcp.buffer[:0], tcp.buffer[contentLen+4:]...)
-		//log.Debugf("=================>bufferLen=%d, buffercap:%d, contentLen=%d, cmd=%d", bufferLen, cap(tcp.buffer), contentLen, cmd)
 	}
 }
 

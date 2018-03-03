@@ -31,16 +31,16 @@ var (
 
 func hasCmd() bool {
 	// 显示版本信息
-	return *version||*stop ||*serviceReload != "" || *help ||*members
+	return *version || *stop || *serviceReload != "" || *help || *members
 }
 
-func Cmd() bool {
+func Cmd(ctx *app.Context) bool {
 	// 显示版本信息
 	if *version {
 		fmt.Println(app.VERSION)
 		return true
 	}
-	control := services.NewControl(app.NewContext())
+	control := services.NewControl(ctx)
 	defer control.Close()
 	// 停止服务
 	if *stop {
@@ -78,9 +78,11 @@ func main() {
 
 	// clear some resource after exit
 	defer app.Release()
+	appContext  := app.NewContext()
+
 	// if use cmd params
 	if isCmd {
-		Cmd()
+		Cmd(appContext)
 		return
 	}
 	// return true is parent process
@@ -88,7 +90,6 @@ func main() {
 		return
 	}
 
-	appContext  := app.NewContext()
 	httpService := services.NewHttpService(appContext)
 	tcpService  := services.NewTcpService(appContext)
 
