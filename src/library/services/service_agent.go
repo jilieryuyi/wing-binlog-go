@@ -27,8 +27,7 @@ func (tcp *TcpService) agentKeepalive() {
 		if err != nil {
 			log.Errorf("agent keepalive error: %d, %v", n, err)
 			tcp.disconnect()
-		}
-		if n != dl {
+		} else if n != dl {
 			log.Errorf("%s send not complete", tcp.conn.RemoteAddr().String())
 		}
 		time.Sleep(3 * time.Second)
