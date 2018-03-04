@@ -3,7 +3,6 @@ package binlog
 import (
 	"os"
 	"sync"
-	"time"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/hashicorp/consul/api"
@@ -15,34 +14,12 @@ var (
 	sessionEmpty = errors.New("session empty")
 	pingData = services.PackPro(services.FlagPing, []byte("ping"))
 )
-type AppConfig struct {
-	// mysql service ip and port, like: "127.0.0.1:3306"
-	Addr     string `toml:"addr"`
-	// mysql service user
-	User     string `toml:"user"`
-	// mysql password
-	Password string `toml:"password"`
-	// mysql default charset
-	Charset         string        `toml:"charset"`
-	// mysql binlog client id, it must be unique
-	ServerID        uint32        `toml:"server_id"`
-	// mysql or mariadb
-	Flavor          string        `toml:"flavor"`
-	// heartbeat interval, unit is ns, 30000000000  = 30s   1000000000 = 1s
-	HeartbeatPeriod time.Duration `toml:"heartbeat_period"`
-	// read timeout, unit is ns, 0 is never timeout, 30000000000  = 30s   1000000000 = 1s
-	ReadTimeout     time.Duration `toml:"read_timeout"`
-	// read start form the binlog file
-	BinFile string `toml:"bin_file"`
-	// read start form the pos
-	BinPos  uint32 `toml:"bin_pos"`
-}
 
 type Binlog struct {
 	// github.com/siddontang/go-mysql interface
 	canal.DummyEventHandler
 	// config
-	Config        *AppConfig
+	Config        *app.MysqlConfig
 	// github.com/siddontang/go-mysql mysql protocol handler
 	handler       *canal.Canal
 	// context, like that use for wait coroutine exit
@@ -127,17 +104,6 @@ const (
 	posChanLen      = 10000
 )
 
-type ConsulConfig struct{
-	Address string `toml:"address"`
-}
-// consul config
-type Config struct {
-	Enable bool `toml:"enable"`
-	Type string `toml:"type"`
-	Lock string `toml:"lock"`
-	Consul *ConsulConfig
-}
-
 // cluster interface
 type Cluster interface{
 	Close()
@@ -158,17 +124,6 @@ type ClusterMember struct {
 	ServiceIp string
 	Port int
 }
-
-// mysql config
-type MysqlConfig struct {
-	Addr string
-	Port int
-	User string
-	Password string
-	Database string
-	Charset string
-}
-
 
 
 

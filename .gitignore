@@ -23,7 +23,6 @@
 /tools
 /tests/bin/*
 /tests/bin/cache/*
-/tests/*
 /dev/*
 /clients/web/*.log
 /bin/wing-binlog-go.exe

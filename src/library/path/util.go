@@ -33,6 +33,7 @@ func GetCurrentPath() string {
 
 // current path
 var CurrentPath = GetCurrentPath()
+// working dir (project dir)
 var WorkingDir  = getWorkingPath()
 
 func getWorkingPath() string {
@@ -44,7 +45,7 @@ func getWorkingPath() string {
 	return "/"
 }
 
-
+// mkdir
 func Mkdir(dir string) bool {
 	if Exists(dir) {
 		return true
@@ -74,6 +75,7 @@ func GetPath(dir string) string {
 	return dir
 }
 
+// delete path
 func Delete(dir string) bool {
 	if !Exists(dir) {
 		log.Warnf("delete dir %s is not exists", dir)

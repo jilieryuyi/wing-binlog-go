@@ -69,6 +69,8 @@ type Context struct {
 	PosChan chan string
 	HttpConfig *HttpConfig
 	TcpConfig *TcpConfig
+	MysqlConfig *MysqlConfig
+	ClusterConfig *ClusterConfig
 }
 
 // app init
@@ -261,6 +263,8 @@ func getAppConfig() (*Config, error) {
 func NewContext() *Context {
 	httpConfig, _ := getHttpConfig()
 	tcpConfig, _ := getTcpConfig()
+	mysqlConfig, _:= getMysqlConfig()
+	clusterConfig, _ := getClusterConfig()
 	ctx := &Context{
 		cancelChan:make(chan struct{}),
 		reloadChan:make(chan string, 100),
@@ -269,6 +273,8 @@ func NewContext() *Context {
 		PosChan:make(chan string, 10000),
 		HttpConfig: httpConfig,
 		TcpConfig: tcpConfig,
+		MysqlConfig: mysqlConfig,
+		ClusterConfig: clusterConfig,
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	go ctx.signalHandler()
@@ -381,3 +387,65 @@ func getTcpConfig() (*TcpConfig, error) {
 	return &tcpConfig, nil
 }
 
+type MysqlConfig struct {
+	// mysql service ip and port, like: "127.0.0.1:3306"
+	Addr     string `toml:"addr"`
+	// mysql service user
+	User     string `toml:"user"`
+	// mysql password
+	Password string `toml:"password"`
+	// mysql default charset
+	Charset         string        `toml:"charset"`
+	// mysql binlog client id, it must be unique
+	ServerID        uint32        `toml:"server_id"`
+	// mysql or mariadb
+	Flavor          string        `toml:"flavor"`
+	// heartbeat interval, unit is ns, 30000000000  = 30s   1000000000 = 1s
+	HeartbeatPeriod time.Duration `toml:"heartbeat_period"`
+	// read timeout, unit is ns, 0 is never timeout, 30000000000  = 30s   1000000000 = 1s
+	ReadTimeout     time.Duration `toml:"read_timeout"`
+	// read start form the binlog file
+	BinFile string `toml:"bin_file"`
+	// read start form the pos
+	BinPos  uint32 `toml:"bin_pos"`
+}
+
+func getMysqlConfig() (*MysqlConfig, error) {
+	var appConfig MysqlConfig
+	configFile := ConfigPath + "/canal.toml"
+	if !file.Exists(configFile) {
+		log.Errorf("config file %s not found", configFile)
+		return nil, ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &appConfig); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	return &appConfig, nil
+}
+
+type ConsulConfig struct{
+	Address string `toml:"address"`
+}
+
+// consul config
+type ClusterConfig struct {
+	Enable bool `toml:"enable"`
+	Type string `toml:"type"`
+	Lock string `toml:"lock"`
+	Consul *ConsulConfig
+}
+
+func getClusterConfig() (*ClusterConfig, error) {
+	var config ClusterConfig
+	configFile := ConfigPath + "/cluster.toml"
+	if !file.Exists(configFile) {
+		log.Errorf("config file not found: %s", configFile)
+		return nil, ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		log.Println(err)
+		return nil, ErrorFileParse
+	}
+	return &config, nil
+}

@@ -14,11 +14,11 @@ import (
 
 func (h *Binlog) consulInit() {
 	var err error
-	consulConfig, err := getConfig()
-	h.LockKey     = consulConfig.Lock
-	h.Address     = consulConfig.Consul.Address
+	//consulConfig, err := getConfig()
+	h.LockKey     = h.ctx.ClusterConfig.Lock
+	h.Address     = h.ctx.ClusterConfig.Consul.Address
 	h.sessionId   = app.GetKey(app.CachePath + "/session")
-	if consulConfig.Enable {
+	if h.ctx.ClusterConfig.Enable {
 		h.status ^= disableConsul
 		h.status |= enableConsul
 	}

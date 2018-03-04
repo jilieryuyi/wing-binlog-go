@@ -11,10 +11,8 @@ import (
 )
 
 func NewBinlog(ctx *app.Context) *Binlog {
-	config, _ := getMysqlConfig()
-	//tcpConfig, _:= services.GetTcpConfig()
 	binlog := &Binlog{
-		Config   : config,
+		Config   : ctx.MysqlConfig,
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
 		ctx      : ctx,

@@ -1,12 +1,7 @@
 package binlog
 
 import (
-	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
-	"library/file"
-	"library/app"
-	"math/rand"
-	"time"
 	"github.com/siddontang/go-mysql/schema"
 	"reflect"
 )
@@ -56,45 +51,6 @@ func unpackPos(data []byte) (string, int64, int64) {
 		return "", 0, 0
 	}
 	return string(data[18:dl+2]), pos, eventIndex
-}
-
-func getConfig() (*Config, error) {
-	var config Config
-	configFile := app.ConfigPath + "/cluster.toml"
-	if !file.Exists(configFile) {
-		log.Errorf("config file not found: %s", configFile)
-		return nil, app.ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		log.Println(err)
-		return nil, app.ErrorFileParse
-	}
-	return &config, nil
-}
-
-// 获取mysql配置
-func getMysqlConfig() (*AppConfig, error) {
-	var appConfig AppConfig
-	configFile := app.ConfigPath + "/canal.toml"
-	if !file.Exists(configFile) {
-		log.Errorf("config file %s not found", configFile)
-		return nil, app.ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &appConfig); err != nil {
-		log.Println(err)
-		return nil, app.ErrorFileParse
-	}
-	return &appConfig, nil
-}
-
-func sRand(min int, max int) int {
-	r1 := rand.NewSource(time.Now().UnixNano())
-	r2 := rand.New(r1)
-	n := r2.Intn(max)
-	if n < min {
-		n = sRand(min, max)
-	}
-	return n
 }
 
 func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
@@ -185,24 +141,4 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 		}
 	}
 }
-//
-//func ping() []byte {
-//	// 数据打包
-//	c := []byte("ping")
-//	l := len(c) + 3
-//	r := make([]byte, l + 4)
-//	// 4字节数据包长度
-//	r[0] = byte(l)
-//	r[1] = byte(l >> 8)
-//	r[2] = byte(l >> 16)
-//	r[3] = byte(l >> 32)
-//	// 2字节cmd
-//	r[4] = byte(services.CMD_SET_PRO)
-//	r[5] = byte(services.CMD_SET_PRO >> 8)
-//	r[6] = byte(services.FlagPing)
-//	// 实际数据内容
-//	r = append(r[:7], c...)
-//	return r
-//}
-
 
