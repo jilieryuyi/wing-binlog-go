@@ -90,6 +90,7 @@ const (
 	// disable consul
 	disableConsul
 )
+
 const (
 	serviceKeepaliveTimeout  = 6  // timeout, unit is second
 	checkAliveInterval       = 1  // interval for checkalive
