@@ -13,7 +13,6 @@ type control struct {
 }
 
 func NewControl(ctx *app.Context) *control {
-	//config, _ := GetTcpConfig()
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ctx.TcpConfig.ServiceIp, ctx.TcpConfig.Port))
 	if err != nil {
 		log.Panicf("start control with error: %+v", err)

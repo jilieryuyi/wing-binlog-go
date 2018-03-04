@@ -47,7 +47,7 @@ Usage:
 * Start service: ./wing-binlog-go
 * Show version information: ./wing-binlog-go -version
 * Stop service: ./wing-binlog-go -stop
-* Reload service: ./wing-binlog-go -service-reload all|http|tcp
+* Reload service: ./wing-binlog-go -reload all|http|tcp
 
 Known issues:
 1. The underlying package go-mysql does not support compressed binlog

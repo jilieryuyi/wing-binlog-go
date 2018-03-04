@@ -18,11 +18,6 @@ type Service interface {
 	AgentStop()
 }
 
-var (
-	ErrorFileNotFound = errors.New("config file not found")
-	ErrorFileParse    = errors.New("config parse error")
-)
-
 const (
 	CMD_SET_PRO = iota // 注册客户端操作，加入到指定分组
 	CMD_AUTH           // 认证（暂未使用）

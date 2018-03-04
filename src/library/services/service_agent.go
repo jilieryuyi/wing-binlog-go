@@ -91,7 +91,6 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 
 			tcp.connect(serviceIp, port)
 			if tcp.conn == nil {
-				log.Warnf("conn is nil")
 				time.Sleep(time.Second * 3)
 				continue
 			}
