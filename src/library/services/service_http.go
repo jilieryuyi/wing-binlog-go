@@ -49,7 +49,7 @@ func (client *HttpService) Start() {
 	if client.status & serviceDisable > 0 {
 		return
 	}
-	cpu := runtime.NumCPU()
+	cpu := runtime.NumCPU() + 2
 	for _, cgroup := range client.groups {
 		for _, cnode := range cgroup.nodes {
 			// 启用cpu数量的服务协程
@@ -131,7 +131,6 @@ func (client *HttpService) Close() {
 }
 
 func (client *HttpService) Reload() {
-	//config, _ := getHttpConfig()
 	client.ctx.ReloadHttpConfig()
 	log.Debug("http service reloading...")
 	client.status = serviceDisable

@@ -15,7 +15,7 @@ func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
 }
 
 func (g *tcpGroup) match(table string) bool {
-	if g.filter == nil || len(g.filter) <= 0 {
+	if len(g.filter) <= 0 {
 		return true
 	}
 	for _, f := range g.filter {
