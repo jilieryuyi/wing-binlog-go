@@ -168,13 +168,13 @@ func (tcp *TcpService) asyncSendService(node *tcpClientNode) {
 	defer tcp.wg.Done()
 	for {
 		if node.status & tcpNodeOffline > 0 {
-			log.Info("tcp service, clientSendService exit.")
+			log.Info("tcp node is closed, clientSendService exit.")
 			return
 		}
 		select {
 		case msg, ok := <-node.sendQueue:
 			if !ok {
-				log.Info("tcp service, sendQueue channel closed.")
+				log.Info("tcp node sendQueue is closed, sendQueue channel closed.")
 				return
 			}
 			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 30))
@@ -189,6 +189,7 @@ func (tcp *TcpService) asyncSendService(node *tcpClientNode) {
 				log.Errorf("%s send not complete: %v", (*node.conn).RemoteAddr().String(), msg)
 			}
 		case <-node.ctx.Ctx.Done():
+			log.Debugf("context is closed, wait for exit, left: %d", len(node.sendQueue))
 			if len(node.sendQueue) <= 0 {
 				log.Info("tcp service, clientSendService exit.")
 				return

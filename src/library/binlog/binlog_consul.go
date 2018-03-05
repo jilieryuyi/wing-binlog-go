@@ -247,7 +247,7 @@ func (h *Binlog) checkAlive() {
 
 func (h *Binlog) alive(ip string, port int) bool {
 	if ip == "" || port <= 0 {
-		return true
+		return false
 	}
 	log.Debugf("check alive %s:%d", ip, port)
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), time.Second * 3)
