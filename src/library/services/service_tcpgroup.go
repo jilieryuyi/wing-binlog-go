@@ -72,7 +72,7 @@ func (c *tcpClients) close() {
 	}
 }
 
-func (g *tcpGroup) send(data []byte) {
+func (g *tcpGroup) asyncSend(data []byte) {
 	for _, node := range g.nodes {
 		node.asyncSend(data)
 	}
