@@ -124,6 +124,12 @@ func (h *Binlog) lookService() {
 						err := h.handler.RunFrom(startPos)
 						if err != nil {
 							log.Warnf("binlog service exit with error: %+v", err)
+							h.lock.Lock()
+							if h.status & binlogStatusIsRunning > 0 {
+								h.status ^= binlogStatusIsRunning
+								h.status |= binlogStatusIsStop
+							}
+							h.lock.Unlock()
 							return
 						}
 					}()
