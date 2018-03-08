@@ -135,10 +135,8 @@ func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 	default:
 		if edata != nil {
 			log.Warnf("binlog does not support type：%s %+v", column.Name, reflect.TypeOf(edata))
-			return edata
-		} else {
-			return edata
 		}
+		return edata
 	}
 }
 
