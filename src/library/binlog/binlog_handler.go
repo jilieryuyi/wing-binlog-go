@@ -190,7 +190,7 @@ func (h *Binlog) String() string {
 }
 
 func (h *Binlog) OnRotate(e *replication.RotateEvent) error {
-	log.Debugf("OnRotate event fired, %+v", e)
+	log.Debugf("OnRotate event fired with data: %+v", e)
 	return nil
 }
 
