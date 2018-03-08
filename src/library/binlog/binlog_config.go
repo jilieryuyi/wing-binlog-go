@@ -28,6 +28,7 @@ type Binlog struct {
 	wg            *sync.WaitGroup
 	// lock
 	lock          *sync.Mutex
+	statusLock    *sync.Mutex
 	// event unique index
 	EventIndex    int64
 	// registered service, key is the name of the service
@@ -66,29 +67,13 @@ type Binlog struct {
 }
 
 const (
-	// 针对停止服务 和 开始服务
-	// binlog is stop service status
-	binlogStatusIsStop = 1 << iota
-	// binlog is start service status
-	binlogStatusIsRunning
-	// 最后两个状态成对
-	// normal status
-	binlogStatusIsNormal
+	//start stop
+	_binlogIsRunning = 1 << iota
 	// binlog is in exit status, will exit later
-	binlogStatusIsExit
-	//针对binlog cache
-	// binlog cache handler is closed
-	cacheHandlerClosed
-	// binlog cache handler is opened
-	cacheHandlerOpened
-	// consul is in locked status
-	consulIsLeader//Lock
-	// consul is in unlock status
-	consulIsFollower
-	// enable consul
-	enableConsul
-	// disable consul
-	disableConsul
+	_binlogIsExit
+	_cacheHandlerIsOpened
+	_consulIsLeader
+	_enableConsul
 )
 
 const (

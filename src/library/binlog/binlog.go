@@ -15,13 +15,14 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		Config   : ctx.MysqlConfig,
 		wg       : new(sync.WaitGroup),
 		lock     : new(sync.Mutex),
+		statusLock: new(sync.Mutex),
 		ctx      : ctx,
 		services : make(map[string]services.Service),
 		ServiceIp        : ctx.TcpConfig.ServiceIp,
 		ServicePort      : ctx.TcpConfig.Port,
 		startServiceChan : make(chan struct{}, 100),
 		stopServiceChan  : make(chan bool, 100),
-		status           : binlogStatusIsNormal | binlogStatusIsStop | cacheHandlerClosed | consulIsFollower | disableConsul,
+		status           : 0,
 	}
 	binlog.consulInit()
 	binlog.handlerInit()
@@ -63,13 +64,14 @@ func (h *Binlog) reloadService() {
 }
 
 func (h *Binlog) Close() {
-	if h.status & binlogStatusIsExit > 0 {
+	h.statusLock.Lock()
+	if h.status & _binlogIsExit > 0 {
+		h.statusLock.Unlock()
 		return
 	}
-	if h.status & binlogStatusIsNormal > 0 {
-		h.status ^= binlogStatusIsNormal
-		h.status |= binlogStatusIsExit
-	}
+	h.status |= _binlogIsExit
+	h.statusLock.Unlock()
+
 	log.Warn("binlog service exit")
 	h.StopService(true)
 	for name, service := range h.services {
@@ -92,14 +94,16 @@ func (h *Binlog) lookService() {
 					return
 				}
 				for {
-					if h.status & binlogStatusIsRunning > 0 {
+					h.statusLock.Lock()
+					if h.status & _binlogIsRunning > 0 {
+						h.statusLock.Unlock()
 						break
 					}
+					h.status |= _binlogIsRunning
+					h.statusLock.Unlock()
+
 					log.Debug("binlog service start")
-					if h.status & binlogStatusIsStop > 0 {
-						h.status ^= binlogStatusIsStop
-						h.status |= binlogStatusIsRunning
-					}
+
 					go func() {
 						for {
 							if h.lastBinFile == "" {
@@ -124,12 +128,9 @@ func (h *Binlog) lookService() {
 						err := h.handler.RunFrom(startPos)
 						if err != nil {
 							log.Warnf("binlog service exit with error: %+v", err)
-							h.lock.Lock()
-							if h.status & binlogStatusIsRunning > 0 {
-								h.status ^= binlogStatusIsRunning
-								h.status |= binlogStatusIsStop
-							}
-							h.lock.Unlock()
+							h.statusLock.Lock()
+							h.status ^= _binlogIsRunning
+							h.statusLock.Unlock()
 							return
 						}
 					}()
@@ -148,25 +149,37 @@ func (h *Binlog) lookService() {
 				if !ok {
 					return
 				}
-				if h.status & binlogStatusIsRunning > 0 && !exit {
+
+				h.statusLock.Lock()
+				if h.status & _binlogIsRunning > 0 && !exit {
+					h.statusLock.Unlock()
 					log.Debug("binlog service stop")
 					h.handler.Close()
 					//reset handler
 					h.setHandler()
+				} else {
+					h.statusLock.Unlock()
 				}
+
 				if exit {
 					r := packPos(h.lastBinFile, int64(h.lastPos), atomic.LoadInt64(&h.EventIndex))
 					h.SaveBinlogPositionCache(r)
-					if h.status & cacheHandlerOpened > 0 {
+
+					h.statusLock.Lock()
+					if h.status & _cacheHandlerIsOpened > 0 {
+						h.status ^= _cacheHandlerIsOpened
+						h.statusLock.Unlock()
 						h.cacheHandler.Close()
-						h.status ^= cacheHandlerOpened
-						h.status |= cacheHandlerClosed
+					} else {
+						h.statusLock.Unlock()
 					}
 				}
-				if h.status & binlogStatusIsRunning > 0 {
-					h.status ^= binlogStatusIsRunning
-					h.status |= binlogStatusIsStop
+
+				h.statusLock.Lock()
+				if h.status & _binlogIsRunning > 0 {
+					h.status ^= _binlogIsRunning
 				}
+				h.statusLock.Unlock()
 			case <- h.ctx.Ctx.Done():
 				return
 			}
@@ -193,16 +206,22 @@ func (h *Binlog) Start() {
 	for _, service := range h.services {
 		service.Start()
 	}
-	if h.status & disableConsul > 0 {
+	h.statusLock.Lock()
+	if h.status & _enableConsul <= 0 {
+		h.statusLock.Unlock()
 		log.Debugf("is not enable consul")
 		h.StartService()
 		return
 	}
+	h.statusLock.Unlock()
 	go func() {
 		for {
-			if h.status & binlogStatusIsExit > 0 {
+			h.statusLock.Lock()
+			if h.status & _binlogIsExit > 0 {
+				h.statusLock.Unlock()
 				return
 			}
+			h.statusLock.Unlock()
 			lock, err := h.Lock()
 			if err != nil {
 				time.Sleep(time.Second * 3)

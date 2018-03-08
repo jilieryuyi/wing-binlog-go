@@ -25,8 +25,9 @@ func (h *Binlog) handlerInit() {
 	if err != nil {
 		log.Panicf("open cache file with error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
-	h.status ^= cacheHandlerClosed
-	h.status |= cacheHandlerOpened
+	h.statusLock.Lock()
+	h.status |= _cacheHandlerIsOpened
+	h.statusLock.Unlock()
 	f, p, index := h.getBinlogPositionCache()
 	//h.EventIndex = index
 	atomic.StoreInt64(&h.EventIndex, index)
@@ -66,12 +67,15 @@ func (h *Binlog) asyncSavePosition() {
 				return
 			}
 			log.Debugf("write binlog pos cache: %+v", r)
-			if h.status & cacheHandlerOpened > 0 {
+			h.statusLock.Lock()
+			if h.status & _cacheHandlerIsOpened > 0 {
+				h.statusLock.Unlock()
 				n, err := h.cacheHandler.WriteAt(r, 0)
 				if err != nil || n <= 0 {
 					log.Errorf("write binlog cache file with error: %+v", err)
 				}
 			} else {
+				h.statusLock.Unlock()
 				log.Warnf("handler is closed")
 			}
 		case <- h.ctx.Ctx.Done():
@@ -114,9 +118,12 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 }
 
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
-	if h.status & binlogStatusIsExit > 0 {
+	h.statusLock.Lock()
+	if h.status & _binlogIsExit > 0 {
+		h.statusLock.Unlock()
 		return nil
 	}
+	h.statusLock.Unlock()
 	// 发生变化的数据表e.Table，如xsl.x_reports
 	// 发生的操作类型e.Action，如update、insert、delete
 	// 如update的数据，update的数据以双数出现前面为更新前的数据，后面的为更新后的数据
@@ -258,9 +265,12 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 }
 
 func (h *Binlog) SaveBinlogPositionCache(r []byte) {
-	if h.status & binlogStatusIsExit > 0 {
+	h.statusLock.Lock()
+	if h.status & _binlogIsExit > 0 {
+		h.statusLock.Unlock()
 		return
 	}
+	h.statusLock.Unlock()
 	for {
 		if len(h.posChan) < cap(h.posChan) {
 			break
@@ -271,10 +281,13 @@ func (h *Binlog) SaveBinlogPositionCache(r []byte) {
 }
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
-	if h.status & cacheHandlerClosed > 0 {
+	h.statusLock.Lock()
+	if h.status & _cacheHandlerIsOpened <= 0 {
+		h.statusLock.Unlock()
 		log.Warnf("handler is closed")
 		return "", 0, 0
 	}
+	h.statusLock.Unlock()
 	h.cacheHandler.Seek(0, io.SeekStart)
 	data   := make([]byte, bytes.MinRead)
 	n, err := h.cacheHandler.Read(data)

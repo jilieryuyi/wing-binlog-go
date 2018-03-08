@@ -3,14 +3,15 @@ package main
 import "fmt"
 
 const (
-	a = iota
-	b
-	c
-	d = 9
-	e = 1 << iota
-	f
+	//start stop
+	_binlogIsRunning = 1 << iota
+	// binlog is in exit status, will exit later
+	_binlogIsExit
+	_cacheHandlerISOpened
+	_consulIsLeader
+	_enableConsul
 )
 
 func main() {
-	fmt.Println(a,b,c,d, e,f)
+	fmt.Println(_binlogIsRunning)
 }
