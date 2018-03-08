@@ -29,7 +29,6 @@ func (h *Binlog) handlerInit() {
 	h.status |= _cacheHandlerIsOpened
 	h.statusLock.Unlock()
 	f, p, index := h.getBinlogPositionCache()
-	//h.EventIndex = index
 	atomic.StoreInt64(&h.EventIndex, index)
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
@@ -236,7 +235,6 @@ func (h *Binlog) lookPosChange() {
 				}
 				h.lastBinFile = file
 				h.lastPos = uint32(pos)
-				//h.EventIndex = index
 				atomic.StoreInt64(&h.EventIndex, index)
 				r := packPos(file, pos, index)
 				h.SaveBinlogPositionCache(r)
