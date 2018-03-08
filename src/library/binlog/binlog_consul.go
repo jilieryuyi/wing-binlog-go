@@ -77,8 +77,6 @@ func (h *Binlog) registerService() {
 		return
 	}
 	h.statusLock.Unlock()
-	h.lock.Lock()
-	defer h.lock.Unlock()
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = ""

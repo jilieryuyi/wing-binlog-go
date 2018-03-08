@@ -86,8 +86,6 @@ func (h *Binlog) asyncSavePosition() {
 }
 
 func (h *Binlog) setHandler()  {
-	h.lock.Lock()
-	defer h.lock.Unlock()
 	cfg, err := canal.NewConfigWithFile(app.ConfigPath + "/canal.toml")
 	if err != nil {
 		log.Panicf("new canal config with error：%+v", err)
@@ -96,12 +94,16 @@ func (h *Binlog) setHandler()  {
 	if err != nil {
 		log.Panicf("new canal with error：%+v", err)
 	}
+	h.lock.Lock()
 	h.handler = handler
+	h.lock.Unlock()
 	h.handler.SetEventHandler(h)
 }
 
 func (h *Binlog) RegisterService(name string, s services.Service) {
+	h.lock.Lock()
 	h.services[name] = s
+	h.lock.Unlock()
 }
 
 func (h *Binlog) notify(table string, data map[string] interface{}) {

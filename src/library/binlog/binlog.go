@@ -12,12 +12,12 @@ import (
 
 func NewBinlog(ctx *app.Context) *Binlog {
 	binlog := &Binlog{
-		Config   : ctx.MysqlConfig,
-		wg       : new(sync.WaitGroup),
-		lock     : new(sync.Mutex),
-		statusLock: new(sync.Mutex),
-		ctx      : ctx,
-		services : make(map[string]services.Service),
+		Config     : ctx.MysqlConfig,
+		wg         : new(sync.WaitGroup),
+		lock       : new(sync.Mutex),
+		statusLock : new(sync.Mutex),
+		ctx        : ctx,
+		services   : make(map[string]services.Service),
 		ServiceIp        : ctx.TcpConfig.ServiceIp,
 		ServicePort      : ctx.TcpConfig.Port,
 		startServiceChan : make(chan struct{}, 100),
