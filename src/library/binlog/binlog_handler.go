@@ -28,7 +28,8 @@ func (h *Binlog) handlerInit() {
 	h.status ^= cacheHandlerClosed
 	h.status |= cacheHandlerOpened
 	f, p, index := h.getBinlogPositionCache()
-	h.EventIndex = index
+	//h.EventIndex = index
+	atomic.StoreInt64(&h.EventIndex, index)
 	h.setHandler()
 	currentPos, err := h.handler.GetMasterPos()
 	if err != nil {
@@ -137,8 +138,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 
 	if e.Action == "update" {
 		for i := 0; i < len(e.Rows); i += 2 {
-			atomic.AddInt64(&h.EventIndex, int64(1))
-			rowData["event_index"] = h.EventIndex
+			rowData["event_index"] = atomic.AddInt64(&h.EventIndex, int64(1))
 			oldData := make(map[string] interface{})
 			newData := make(map[string] interface{})
 			rowsLen := len(e.Rows[i])
@@ -167,8 +167,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
-			atomic.AddInt64(&h.EventIndex, int64(1))
-			rowData["event_index"] = h.EventIndex
+			rowData["event_index"] = atomic.AddInt64(&h.EventIndex, int64(1))
 			rowsLen := len(e.Rows[i])
 			for k, col := range e.Table.Columns {
 				if k < rowsLen {
@@ -230,7 +229,8 @@ func (h *Binlog) lookPosChange() {
 				}
 				h.lastBinFile = file
 				h.lastPos = uint32(pos)
-				h.EventIndex = index
+				//h.EventIndex = index
+				atomic.StoreInt64(&h.EventIndex, index)
 				r := packPos(file, pos, index)
 				h.SaveBinlogPositionCache(r)
 				break
