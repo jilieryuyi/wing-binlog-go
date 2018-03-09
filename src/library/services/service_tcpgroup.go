@@ -3,6 +3,7 @@ package services
 import (
 	"regexp"
 	"library/app"
+	"sync"
 )
 
 func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
@@ -10,6 +11,7 @@ func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
 		name: group.Name,
 		filter: group.Filter,
 		nodes: nil,
+		lock: new(sync.Mutex),
 	}
 	return g
 }
@@ -28,11 +30,15 @@ func (g *tcpGroup) match(table string) bool {
 }
 
 func (g *tcpGroup) append(node *tcpClientNode) {
+	g.lock.Lock()
 	g.nodes.append(node)
+	g.lock.Unlock()
 }
 
 func (g *tcpGroup) remove(node *tcpClientNode) {
+	g.lock.Lock()
 	g.nodes.remove(node)
+	g.lock.Unlock()
 }
 
 func (g *tcpGroup) close() {

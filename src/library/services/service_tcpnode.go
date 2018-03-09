@@ -70,10 +70,11 @@ func (node *tcpClientNode) send(data []byte) (int, error) {
 
 func (node *tcpClientNode) asyncSend(data []byte) {
 	node.lock.Lock()
-	defer node.lock.Unlock()
 	if node.status & tcpNodeOnline <= 0 {
+		node.lock.Unlock()
 		return
 	}
+	node.lock.Unlock()
 	for {
 		if len(node.sendQueue) < cap(node.sendQueue) {
 			break

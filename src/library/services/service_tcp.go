@@ -19,6 +19,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		Ip:               ctx.TcpConfig.Listen,
 		Port:             ctx.TcpConfig.Port,
 		lock:             new(sync.Mutex),
+		statusLock:       new(sync.Mutex),
 		groups:           make(map[string]*tcpGroup),
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
@@ -38,9 +39,12 @@ func NewTcpService(ctx *app.Context) *TcpService {
 
 // send event data to all connects client
 func (tcp *TcpService) SendAll(table string, data []byte) bool {
+	tcp.statusLock.Lock()
 	if tcp.status & serviceEnable <= 0 {
+		tcp.statusLock.Unlock()
 		return false
 	}
+	tcp.statusLock.Unlock()
 	log.Debugf("tcp SendAll: %s, %+v", table, string(data))
 	// pack data
 	packData := pack(CMD_EVENT, data)
@@ -59,9 +63,12 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 // send raw bytes data to all connects client
 // msg is the pack frame form func: pack
 func (tcp *TcpService) sendRaw(msg []byte) bool {
+	tcp.statusLock.Lock()
 	if tcp.status & serviceEnable <= 0 {
+		tcp.statusLock.Unlock()
 		return false
 	}
+	tcp.statusLock.Unlock()
 	log.Debugf("tcp sendRaw: %+v", msg)
 	tcp.agents.asyncSend(msg)
 	for _, group := range tcp.groups {
@@ -260,9 +267,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 }
 
 func (tcp *TcpService) Start() {
+	tcp.statusLock.Lock()
 	if tcp.status & serviceEnable <= 0 {
+		tcp.statusLock.Unlock()
 		return
 	}
+	tcp.statusLock.Unlock()
 	go func() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
 		listen, err := net.Listen("tcp", dns)
@@ -307,12 +317,14 @@ func (tcp *TcpService) Close() {
 func (tcp *TcpService) Reload() {
 	tcp.ctx.ReloadTcpConfig()
 	log.Debugf("tcp service reload with new config：%+v", tcp.ctx.TcpConfig)
+	tcp.statusLock.Lock()
 	if tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable <= 0 {
 		tcp.status |= serviceEnable
 	}
 	if !tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable > 0 {
 		tcp.status ^= serviceEnable
 	}
+	tcp.statusLock.Unlock()
 	// flag to mark if need restart
 	restart := false
 	// check if is need restart
