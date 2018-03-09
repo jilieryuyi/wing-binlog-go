@@ -18,8 +18,8 @@ func (tcp *TcpService) agentKeepalive() {
 			default:
 		}
 		if tcp.conn == nil ||
-			tcp.status & agentStatusDisconnect > 0 ||
-			tcp.status & agentStatusOffline > 0 {
+			tcp.status & agentStatusConnect <= 0 ||
+			tcp.status & agentStatusOnline <= 0 {
 			time.Sleep(3 * time.Second)
 			continue
 		}
@@ -68,8 +68,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			tcp.lock.Unlock()
 			return
 		}
-		if tcp.status & agentStatusOffline > 0 {
-			tcp.status ^= agentStatusOffline
+		if tcp.status & agentStatusOnline <= 0 {
 			tcp.status |= agentStatusOnline
 		}
 		tcp.lock.Unlock()
@@ -82,7 +81,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			}
 
 			tcp.lock.Lock()
-			if tcp.status & agentStatusOffline > 0 {
+			if tcp.status & agentStatusOnline <= 0 {
 				tcp.lock.Unlock()
 				log.Warnf("agentStatusOffline return")
 				return
@@ -96,8 +95,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 			}
 
 			tcp.lock.Lock()
-			if tcp.status & agentStatusDisconnect > 0 {
-				tcp.status ^= agentStatusDisconnect
+			if tcp.status & agentStatusConnect <= 0 {
 				tcp.status |= agentStatusConnect
 			}
 			tcp.lock.Unlock()
@@ -117,9 +115,9 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 				log.Debugf("====agent is running====")
 
 				tcp.lock.Lock()
-				if tcp.status & agentStatusOffline > 0 {
+				if tcp.status & agentStatusOnline <= 0 {
 					tcp.lock.Unlock()
-					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status&agentStatusOffline)
+					log.Warnf("agentStatusOffline return - 2===%d:%d", tcp.status, tcp.status & agentStatusOnline)
 					return
 				}
 				tcp.lock.Unlock()
@@ -196,7 +194,7 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 }
 
 func (tcp *TcpService) disconnect() {
-	if tcp.conn == nil || tcp.status & agentStatusDisconnect > 0 {
+	if tcp.conn == nil || tcp.status & agentStatusConnect <= 0 {
 		log.Debugf("agent is in disconnect status")
 		return
 	}
@@ -206,13 +204,12 @@ func (tcp *TcpService) disconnect() {
 	tcp.lock.Lock()
 	if tcp.status & agentStatusConnect > 0 {
 		tcp.status ^= agentStatusConnect
-		tcp.status |= agentStatusDisconnect
 	}
 	tcp.lock.Unlock()
 }
 
 func (tcp *TcpService) AgentStop() {
-	if tcp.status & agentStatusOffline > 0 {
+	if tcp.status & agentStatusOnline <= 0 {
 		return
 	}
 	log.Warnf("====================agent close====================")
@@ -221,7 +218,6 @@ func (tcp *TcpService) AgentStop() {
 	tcp.lock.Lock()
 	if tcp.status & agentStatusOnline > 0 {
 		tcp.status ^= agentStatusOnline
-		tcp.status |= agentStatusOffline
 	}
 	tcp.lock.Unlock()
 }

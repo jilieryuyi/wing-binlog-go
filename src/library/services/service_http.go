@@ -9,11 +9,10 @@ import (
 )
 
 func NewHttpService(ctx *app.Context) *HttpService {
-	//config, _ := getHttpConfig()
 	log.Debugf("start http service with config: %+v", ctx.HttpConfig)
 	if !ctx.HttpConfig.Enable {
 		return &HttpService{
-			status: serviceDisable,
+			status: 0,
 		}
 	}
 	gc := len(ctx.HttpConfig.Groups)
@@ -46,7 +45,7 @@ func NewHttpService(ctx *app.Context) *HttpService {
 
 // 开始服务
 func (client *HttpService) Start() {
-	if client.status & serviceDisable > 0 {
+	if client.status & serviceEnable <= 0 {
 		return
 	}
 	cpu := runtime.NumCPU() + 2
@@ -88,7 +87,7 @@ func (client *HttpService) clientSendService(node *httpNode) {
 }
 
 func (client *HttpService) SendAll(table string, data []byte) bool {
-	if client.status & serviceDisable > 0 {
+	if client.status & serviceEnable <= 0 {
 		return false
 	}
 	for _, cgroup := range client.groups {
@@ -133,7 +132,7 @@ func (client *HttpService) Close() {
 func (client *HttpService) Reload() {
 	client.ctx.ReloadHttpConfig()
 	log.Debug("http service reloading...")
-	client.status = serviceDisable
+	client.status = 0
 	if client.ctx.HttpConfig.Enable {
 		client.status = serviceEnable
 	}

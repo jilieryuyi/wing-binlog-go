@@ -53,12 +53,11 @@ func (node *tcpClientNode) changNodeType(nodeType int) {
 func (node *tcpClientNode) close() {
 	node.lock.Lock()
 	defer node.lock.Unlock()
-	if node.status & tcpNodeOffline > 0 {
+	if node.status & tcpNodeOnline <= 0 {
 		return
 	}
 	if node.status & tcpNodeOnline > 0{
 		node.status ^= tcpNodeOnline
-		node.status |= tcpNodeOffline
 		(*node.conn).Close()
 		close(node.sendQueue)
 	}
@@ -72,7 +71,7 @@ func (node *tcpClientNode) send(data []byte) (int, error) {
 func (node *tcpClientNode) asyncSend(data []byte) {
 	node.lock.Lock()
 	defer node.lock.Unlock()
-	if node.status & tcpNodeOffline > 0 {
+	if node.status & tcpNodeOnline <= 0 {
 		return
 	}
 	for {

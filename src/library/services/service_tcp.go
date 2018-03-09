@@ -13,7 +13,7 @@ import (
 
 func NewTcpService(ctx *app.Context) *TcpService {
 	if !ctx.TcpConfig.Enable{
-		return &TcpService{status: serviceDisable}
+		return &TcpService{status: 0}
 	}
 	tcp := &TcpService{
 		Ip:               ctx.TcpConfig.Listen,
@@ -25,7 +25,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		ctx:              ctx,
 		ServiceIp:        ctx.TcpConfig.ServiceIp,
 		agents:           nil,
-		status:           serviceEnable | agentStatusOffline | agentStatusDisconnect,
+		status:           serviceEnable,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
 	for _, group := range ctx.TcpConfig.Groups{
@@ -38,7 +38,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 
 // send event data to all connects client
 func (tcp *TcpService) SendAll(table string, data []byte) bool {
-	if tcp.status & serviceDisable > 0 {
+	if tcp.status & serviceEnable <= 0 {
 		return false
 	}
 	log.Debugf("tcp SendAll: %s, %+v", table, string(data))
@@ -59,7 +59,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 // send raw bytes data to all connects client
 // msg is the pack frame form func: pack
 func (tcp *TcpService) sendRaw(msg []byte) bool {
-	if tcp.status & serviceDisable > 0 {
+	if tcp.status & serviceEnable <= 0 {
 		return false
 	}
 	log.Debugf("tcp sendRaw: %+v", msg)
@@ -167,7 +167,7 @@ func (tcp *TcpService) asyncSendService(node *tcpClientNode) {
 	tcp.wg.Add(1)
 	defer tcp.wg.Done()
 	for {
-		if node.status & tcpNodeOffline > 0 {
+		if node.status & tcpNodeOnline <= 0 {
 			log.Info("tcp node is closed, clientSendService exit.")
 			return
 		}
@@ -260,7 +260,7 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 }
 
 func (tcp *TcpService) Start() {
-	if tcp.status & serviceDisable > 0 {
+	if tcp.status & serviceEnable <= 0 {
 		return
 	}
 	go func() {
@@ -307,13 +307,11 @@ func (tcp *TcpService) Close() {
 func (tcp *TcpService) Reload() {
 	tcp.ctx.ReloadTcpConfig()
 	log.Debugf("tcp service reload with new config：%+v", tcp.ctx.TcpConfig)
-	if tcp.ctx.TcpConfig.Enable && tcp.status & serviceDisable > 0 {
-		tcp.status ^= serviceDisable
+	if tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable <= 0 {
 		tcp.status |= serviceEnable
 	}
 	if !tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable > 0 {
 		tcp.status ^= serviceEnable
-		tcp.status |= serviceDisable
 	}
 	// flag to mark if need restart
 	restart := false

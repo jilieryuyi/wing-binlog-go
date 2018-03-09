@@ -45,11 +45,8 @@ const (
 
 const (
 	serviceEnable = 1 << iota
-	serviceDisable
-	agentStatusOffline
 	agentStatusOnline
 	agentStatusConnect
-	agentStatusDisconnect
 )
 
 type httpGroup struct {
@@ -76,7 +73,6 @@ type httpNode struct {
 
 const (
 	tcpNodeOnline = 1 << iota
-	tcpNodeOffline
 	tcpNodeIsNormal
 	tcpNodeIsAgent
 	tcpNodeIsControl
