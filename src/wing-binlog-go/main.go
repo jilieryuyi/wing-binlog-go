@@ -29,12 +29,7 @@ var (
 	configPath     = flag.String("config-path", "", "-config-path set config path, default is ./config")
 )
 
-func hasCmd() bool {
-	// 显示版本信息
-	return *version || *stop || *serviceReload != "" || *help || *members
-}
-
-func Cmd(ctx *app.Context) bool {
+func runCmd(ctx *app.Context) bool {
 	// 显示版本信息
 	if *version {
 		fmt.Println(app.VERSION)
@@ -71,7 +66,7 @@ func main() {
 			log.Errorf("%+v", err)
 		}
 	}()
-	isCmd := hasCmd()
+	isCmd := *version || *stop || *serviceReload != "" || *help || *members
 	// app init
 	app.DEBUG = *debug
 	app.Init(isCmd, *configPath)
@@ -82,7 +77,7 @@ func main() {
 
 	// if use cmd params
 	if isCmd {
-		Cmd(appContext)
+		runCmd(appContext)
 		return
 	}
 	// return true is parent process
@@ -94,8 +89,8 @@ func main() {
 	tcpService  := services.NewTcpService(appContext)
 
 	blog := binlog.NewBinlog(appContext)
-	blog.RegisterService("tcp", tcpService)
-	blog.RegisterService("http", httpService)
+	blog.RegisterService(binlog.ServiceNameTcp, tcpService)
+	blog.RegisterService(binlog.ServiceNameHttp, httpService)
 	blog.Start()
 
 	// wait exit

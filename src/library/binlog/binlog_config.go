@@ -84,8 +84,8 @@ const (
 	prefixKeepalive = "wing/binlog/keepalive/"
 	statusOnline    = "online"
 	statusOffline   = "offline"
-	serviceNameTcp  = "tcp"
-	serviceNameHttp = "http"
+	ServiceNameTcp  = "tcp"
+	ServiceNameHttp = "http"
 	serviceNameAll  = "all"
 	posChanLen      = 10000
 )
