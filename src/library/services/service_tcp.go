@@ -351,13 +351,13 @@ func (tcp *TcpService) Reload() {
 				tcp.groups[name].filter = groupConfig.Filter
 			}
 		}
-		for _, ngroup := range tcp.ctx.TcpConfig.Groups { // new group
-			if tcp.groups.hasName(ngroup.Name) {
+		for _, group := range tcp.ctx.TcpConfig.Groups { // new group
+			if tcp.groups.hasName(group.Name) {
 				continue
 			}
 			// add it if new group found
-			log.Debugf("new group: %s", ngroup.Name)
-			tcp.groups.add(newTcpGroup(ngroup))
+			log.Debugf("new group: %s", group.Name)
+			tcp.groups.add(newTcpGroup(group))
 		}
 	}
 	// if need restart, restart it
