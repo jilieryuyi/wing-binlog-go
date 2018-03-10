@@ -52,12 +52,15 @@ const (
 type httpGroup struct {
 	name   string
 	filter []string
-	nodes  []*httpNode
+	nodes  httpNodes//[]*httpNode
 }
+
+type httpNodes []*httpNode
+type httpGroups map[string]*httpGroup
 
 type HttpService struct {
 	Service                                //
-	groups           map[string]*httpGroup //
+	groups           httpGroups//map[string]*httpGroup //
 	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
 	timeTick         time.Duration         // 故障检测的时间间隔
 	ctx              *app.Context
@@ -69,6 +72,8 @@ type httpNode struct {
 	url              string      // url
 	sendQueue        chan string // 发送channel
 	lock             *sync.Mutex // 互斥锁，修改资源时锁定
+	ctx              *app.Context
+	wg               *sync.WaitGroup
 }
 
 const (
