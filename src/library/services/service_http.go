@@ -19,7 +19,6 @@ func NewHttpService(ctx *app.Context) *HttpService {
 		groups:           make(httpGroups, gc),
 		status:           serviceEnable,
 		timeTick:         ctx.HttpConfig.TimeTick,
-		wg:               new(sync.WaitGroup),
 		ctx:              ctx,
 	}
 	for _, groupConfig := range ctx.HttpConfig.Groups {

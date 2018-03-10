@@ -64,7 +64,6 @@ type HttpService struct {
 	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
 	timeTick         time.Duration         // 故障检测的时间间隔
 	ctx              *app.Context
-	wg               *sync.WaitGroup
 	status           int
 }
 
