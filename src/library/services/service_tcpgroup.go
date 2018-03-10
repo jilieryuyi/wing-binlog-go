@@ -83,3 +83,33 @@ func (g *tcpGroup) asyncSend(data []byte) {
 		node.asyncSend(data)
 	}
 }
+
+func (groups *tcpGroups) add(group *tcpGroup) {
+	(*groups)[group.name] = group
+}
+
+func (groups *tcpGroups) delete(group *tcpGroup) {
+	delete((*groups), group.name)
+}
+
+func (groups *tcpGroups) hasName(hname string) bool {
+	for name := range *groups {
+		if name == hname {
+			return true
+			break
+		}
+	}
+	return false
+}
+
+func (groups *tcpGroups) asyncSend(data []byte) {
+	for _, group := range *groups {
+		group.asyncSend(data)
+	}
+}
+
+func (groups *tcpGroups) close() {
+	for _, group := range *groups {
+		group.close()
+	}
+}

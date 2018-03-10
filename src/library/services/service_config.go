@@ -96,6 +96,7 @@ type tcpClientNode struct {
 }
 
 type tcpClients []*tcpClientNode
+type tcpGroups map[string]*tcpGroup
 
 type tcpGroup struct {
 	name   string
@@ -110,7 +111,7 @@ type TcpService struct {
 	Port             int                  // 监听端口
 	lock             *sync.Mutex
 	statusLock       *sync.Mutex
-	groups           map[string]*tcpGroup
+	groups           tcpGroups//map[string]*tcpGroup
 	ctx              *app.Context
 	listener         *net.Listener
 	wg               *sync.WaitGroup

@@ -30,7 +30,7 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
 	for _, group := range ctx.TcpConfig.Groups{
-		tcp.groups[group.Name] = newTcpGroup(group)
+		tcp.groups.add(newTcpGroup(group))
 	}
 	go tcp.agentKeepalive()
 	go tcp.keepalive()
@@ -71,9 +71,7 @@ func (tcp *TcpService) sendRaw(msg []byte) bool {
 	tcp.statusLock.Unlock()
 	log.Debugf("tcp sendRaw: %+v", msg)
 	tcp.agents.asyncSend(msg)
-	for _, group := range tcp.groups {
-		group.asyncSend(msg)
-	}
+	tcp.groups.asyncSend(msg)
 	return true
 }
 
@@ -305,12 +303,8 @@ func (tcp *TcpService) Close() {
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	for _, group := range tcp.groups {
-		group.close()
-	}
-	for _, agent := range tcp.agents {
-		agent.close()
-	}
+	tcp.groups.close()
+	tcp.agents.close()
 	log.Debugf("tcp service closed.")
 }
 
@@ -337,70 +331,33 @@ func (tcp *TcpService) Reload() {
 		tcp.Port = tcp.ctx.TcpConfig.Port
 		// close all connected nodes
 		// remove all groups
-		for name, group := range tcp.groups {
-			for _, node := range group.nodes {
-				log.Debugf("closing service：%s", (*node.conn).RemoteAddr().String())
-				node.close()
-			}
-			log.Debugf("removing groups：%s", name)
-			delete(tcp.groups, name)
+		for _, group := range tcp.groups {
+			group.nodes.close()
+			tcp.groups.delete(group)
 		}
 		// reset tcp config form new config
 		for _, group := range tcp.ctx.TcpConfig.Groups { // new group
-			tcp.groups[group.Name] = &tcpGroup{
-				name: group.Name,
-				filter: group.Filter,
-				nodes: nil,
-			}
+			tcp.groups.add(newTcpGroup(group))
 		}
 	} else {
 		// if listen ip or/and port does not change
 		// 2-direction group comparision
 		for name, group := range tcp.groups { // current group
-			found := false
-			// check the current group if exists in the new config group
-			for _, ngroup := range tcp.ctx.TcpConfig.Groups { // new group
-				if name == ngroup.Name {
-					found = true
-					break
-				}
-			}
-			// if a group does not in the new config group, remove it
-			if !found {
-				log.Debugf("group removed: %s", name)
-				for _, node := range group.nodes {
-					log.Debugf("closing connection: %s", (*node.conn).RemoteAddr().String())
-					node.close()
-				}
-				delete(tcp.groups, name)
+			if !tcp.ctx.TcpConfig.Groups.HasName(name) {
+				group.nodes.close()
+				tcp.groups.delete(group)
 			} else {
-				// if exists, reset with the new config
-				// replace group filters
-				group, _ := tcp.ctx.TcpConfig.Groups[name]
-				//flen := len(group.Filter)
-				tcp.groups[name].filter = nil//make([]string, flen)
-				tcp.groups[name].filter = append(tcp.groups[name].filter, group.Filter...)
+				groupConfig := tcp.ctx.TcpConfig.Groups[name]
+				tcp.groups[name].filter = groupConfig.Filter
 			}
 		}
-		// check new group
 		for _, ngroup := range tcp.ctx.TcpConfig.Groups { // new group
-			found := false
-			for name := range tcp.groups {
-				if name == ngroup.Name {
-					found = true
-					break
-				}
-			}
-			if found {
+			if tcp.groups.hasName(ngroup.Name) {
 				continue
 			}
 			// add it if new group found
 			log.Debugf("new group: %s", ngroup.Name)
-			tcp.groups[ngroup.Name] = &tcpGroup{
-				name: ngroup.Name,
-				nodes:nil,
-				filter:ngroup.Filter,
-			}
+			tcp.groups.add(newTcpGroup(ngroup))
 		}
 	}
 	// if need restart, restart it
@@ -424,9 +381,7 @@ func (tcp *TcpService) keepalive() {
 		default:
 		}
 		tcp.agents.asyncSend(packDataTickOk)
-		for _, group := range tcp.groups {
-			group.asyncSend(packDataTickOk)
-		}
+		tcp.groups.asyncSend(packDataTickOk)
 		time.Sleep(time.Second * 3)
 	}
 }

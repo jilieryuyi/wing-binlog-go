@@ -347,12 +347,23 @@ func getHttpConfig() (*HttpConfig, error) {
 	return &config, nil
 }
 
+type TcpGroupConfigs map[string]TcpGroupConfig
+func (cs *TcpGroupConfigs) HasName(name string) bool {
+	for _, ngroup := range *cs { // new group
+		if name == ngroup.Name {
+			return true
+			break
+		}
+	}
+	return false
+}
+
 type TcpConfig struct {
 	Listen string `toml:"listen"`
 	Port   int    `toml:"port"`
 	Enable bool   `toml:"enable"`
 	ServiceIp string `toml:"service_ip"`
-	Groups map[string]TcpGroupConfig
+	Groups TcpGroupConfigs//map[string]TcpGroupConfig
 }
 
 type TcpGroupConfig struct {
