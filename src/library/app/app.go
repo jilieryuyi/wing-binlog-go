@@ -42,7 +42,7 @@ type Config struct {
 	PidFile string     `toml:"pid_file"`
 }
 
-type httpNodeConfig struct {
+type HttpNodeConfig struct {
 	Name   string
 	Nodes  []string
 	Filter []string
@@ -51,7 +51,7 @@ type httpNodeConfig struct {
 type HttpConfig struct {
 	Enable   bool
 	TimeTick time.Duration //故障检测的时间间隔，单位为秒
-	Groups   map[string]httpNodeConfig
+	Groups   map[string]HttpNodeConfig
 }
 
 // context

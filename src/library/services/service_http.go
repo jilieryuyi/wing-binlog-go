@@ -24,21 +24,8 @@ func NewHttpService(ctx *app.Context) *HttpService {
 		wg:               new(sync.WaitGroup),
 		ctx:              ctx,
 	}
-	for _, cgroup := range ctx.HttpConfig.Groups {
-		group := &httpGroup{
-			name: cgroup.Name,
-			filter: cgroup.Filter,
-		}
-		gl := len(cgroup.Nodes)
-		group.nodes = make([]*httpNode, gl)
-		for i := 0; i < gl; i++ {
-			group.nodes[i] = &httpNode{
-				url:              cgroup.Nodes[i],
-				sendQueue:        make(chan string, httpMaxSendQueue),
-				lock:             new(sync.Mutex),
-			}
-		}
-		client.groups[cgroup.Name] = group
+	for _, groupConfig := range ctx.HttpConfig.Groups {
+		client.groups[groupConfig.Name] = newHttpGroup(groupConfig)
 	}
 	return client
 }
@@ -49,12 +36,12 @@ func (client *HttpService) Start() {
 		return
 	}
 	cpu := runtime.NumCPU() + 2
-	for _, cgroup := range client.groups {
-		for _, cnode := range cgroup.nodes {
+	for _, group := range client.groups {
+		for _, node := range group.nodes {
 			// 启用cpu数量的服务协程
 			for i := 0; i < cpu; i++ {
 				client.wg.Add(1)
-				go client.clientSendService(cnode)
+				go client.clientSendService(node)
 			}
 		}
 	}
