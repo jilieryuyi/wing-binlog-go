@@ -22,7 +22,10 @@ func NewHttpService(ctx *app.Context) *HttpService {
 		ctx:              ctx,
 	}
 	for _, groupConfig := range ctx.HttpConfig.Groups {
-		client.groups.add(newHttpGroup(ctx, groupConfig))
+		httpGroup := newHttpGroup(ctx, groupConfig)
+		client.lock.Lock()
+		client.groups.add(httpGroup)
+		client.lock.Unlock()
 	}
 	return client
 }
@@ -60,7 +63,10 @@ func (client *HttpService) Reload() {
 		client.groups.delete(group)
 	}
 	for _, groupConfig := range client.ctx.HttpConfig.Groups {
-		client.groups.add(newHttpGroup(client.ctx, groupConfig))
+		httpGroup := newHttpGroup(client.ctx, groupConfig)
+		client.lock.Lock()
+		client.groups.add(httpGroup)
+		client.lock.Unlock()
 	}
 	log.Debug("http service reloaded.")
 }

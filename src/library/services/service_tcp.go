@@ -30,7 +30,10 @@ func NewTcpService(ctx *app.Context) *TcpService {
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
 	for _, group := range ctx.TcpConfig.Groups{
-		tcp.groups.add(newTcpGroup(group))
+		tcpGroup := newTcpGroup(group)
+		tcp.lock.Lock()
+		tcp.groups.add(tcpGroup)
+		tcp.lock.Unlock()
 	}
 	go tcp.agentKeepalive()
 	go tcp.keepalive()
@@ -52,10 +55,10 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	tcp.agents.asyncSend(packData)
 	// send to all groups
 	for _, group := range tcp.groups {
-		if !group.match(table) {
-			continue
+		// check if match
+		if group.match(table) {
+			group.asyncSend(packData)
 		}
-		group.asyncSend(packData)
 	}
 	return true
 }
@@ -79,18 +82,15 @@ func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
 	node.close()
-	for {
-		if node.status & tcpNodeIsAgent > 0 {
-			tcp.agents.remove(node)
-			break
+	if node.status & tcpNodeIsAgent > 0 {
+		tcp.agents.remove(node)
+		return
+	}
+	if node.status & tcpNodeIsNormal > 0 {
+		if group, found := tcp.groups[node.group]; found {
+			group.remove(node)
 		}
-		if node.status & tcpNodeIsNormal > 0 {
-			if group, found := tcp.groups[node.group]; found {
-				group.remove(node)
-			}
-			break
-		}
-		break
+		return
 	}
 }
 
@@ -333,11 +333,16 @@ func (tcp *TcpService) Reload() {
 		// remove all groups
 		for _, group := range tcp.groups {
 			group.nodes.close()
+			tcp.lock.Lock()
 			tcp.groups.delete(group)
+			tcp.lock.Unlock()
 		}
 		// reset tcp config form new config
 		for _, group := range tcp.ctx.TcpConfig.Groups { // new group
-			tcp.groups.add(newTcpGroup(group))
+			tcpGroup := newTcpGroup(group)
+			tcp.lock.Lock()
+			tcp.groups.add(tcpGroup)
+			tcp.lock.Unlock()
 		}
 	} else {
 		// if listen ip or/and port does not change
@@ -345,7 +350,9 @@ func (tcp *TcpService) Reload() {
 		for name, group := range tcp.groups { // current group
 			if !tcp.ctx.TcpConfig.Groups.HasName(name) {
 				group.nodes.close()
+				tcp.lock.Lock()
 				tcp.groups.delete(group)
+				tcp.lock.Unlock()
 			} else {
 				groupConfig := tcp.ctx.TcpConfig.Groups[name]
 				tcp.groups[name].filter = groupConfig.Filter
@@ -357,7 +364,10 @@ func (tcp *TcpService) Reload() {
 			}
 			// add it if new group found
 			log.Debugf("new group: %s", group.Name)
-			tcp.groups.add(newTcpGroup(group))
+			tcpGroup := newTcpGroup(group)
+			tcp.lock.Lock()
+			tcp.groups.add(tcpGroup)
+			tcp.lock.Unlock()
 		}
 	}
 	// if need restart, restart it

@@ -68,7 +68,3 @@ func (groups *httpGroups) add(group *httpGroup) {
 func (groups *httpGroups) delete(group *httpGroup) {
 	delete((*groups), group.name)
 }
-
-func (groups *httpGroups) del(group *httpGroup) {
-	groups.delete(group)
-}
