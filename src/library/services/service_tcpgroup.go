@@ -92,9 +92,9 @@ func (groups *tcpGroups) delete(group *tcpGroup) {
 	delete((*groups), group.name)
 }
 
-func (groups *tcpGroups) hasName(hname string) bool {
+func (groups *tcpGroups) hasName(findName string) bool {
 	for name := range *groups {
-		if name == hname {
+		if name == findName {
 			return true
 			break
 		}
