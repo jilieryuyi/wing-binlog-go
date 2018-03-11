@@ -38,14 +38,7 @@ func (group *httpGroup) wait() {
 }
 
 func (group *httpGroup) sendService() {
-	//cpu := runtime.NumCPU() + 2
 	group.nodes.sendService()
-	//for _, node := range group.nodes {
-	//	// 启用cpu数量的服务协程
-	//	for i := 0; i < cpu; i++ {
-	//		go node.clientSendService()
-	//	}
-	//}
 }
 
 func (groups *httpGroups) wait() {

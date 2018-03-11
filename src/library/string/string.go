@@ -152,11 +152,9 @@ func (str *WString) ToFloat32() float32 {
 				}
 			}
 		}
-
 		if res == "" {
 			res = "0"
 		}
-
 		d1, _ := strconv.ParseFloat(res, 32)
 		return float32(d1)
 	case []uint8:

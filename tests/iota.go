@@ -13,5 +13,7 @@ const (
 )
 
 func main() {
-	fmt.Println(_binlogIsRunning)
+	a := _binlogIsRunning|_binlogIsExit
+	a = a^_binlogIsExit
+	fmt.Println(a)
 }

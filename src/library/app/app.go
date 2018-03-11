@@ -75,11 +75,6 @@ func Init(hasCmd bool, configPath string) {
 	appConfig, _ := getAppConfig()
 	log.SetLevel(log.Level(appConfig.LogLevel)) //log.DebugLevel)
 
-	log.Debugf("current path: %s", path.CurrentPath)
-	log.Debugf("default cache path: %s", CachePath)
-	log.Debugf("default pid file: %s", Pid)
-	log.Debugf("default log path: %s", LogPath)
-
 	Pid = appConfig.PidFile
 	CachePath = appConfig.CachePath
 	LogPath   = appConfig.LogPath
@@ -119,10 +114,6 @@ func Init(hasCmd bool, configPath string) {
 	// set cpu num
 	cpu := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpu) //指定cpu为多核运行 旧版本兼容
-
-	log.Debugf("cache path: %s", CachePath)
-	log.Debugf("log path: %s", LogPath)
-	log.Debugf("pid file: %s", Pid)
 	log.Debugf("app config: %+v", *appConfig)
 }
 
