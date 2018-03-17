@@ -9,10 +9,10 @@ func newHttpGroup(ctx *app.Context, groupConfig app.HttpNodeConfig) *httpGroup {
 	group := &httpGroup{
 		name: groupConfig.Name,
 		filter: groupConfig.Filter,
-		nodes: nil,
+		nodes: make(httpNodes, len(groupConfig.Nodes)),
 	}
-	for _, url := range groupConfig.Nodes {
-		group.nodes = append(group.nodes, newHttpNode(ctx, url))
+	for i, url := range groupConfig.Nodes {
+		group.nodes[i] = newHttpNode(ctx, url)
 	}
 	return group
 }
