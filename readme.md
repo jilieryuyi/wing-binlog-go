@@ -69,3 +69,4 @@ Contributors
 Help:
 
 QQ group: 535218312
+[document](http://www.itdfy.com/details/1213)
