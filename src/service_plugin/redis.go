@@ -15,6 +15,8 @@ type Redis struct {
 	config *redisConfig
 }
 
+var _ services.Service = &Redis{}
+
 
 type redisConfig struct{
 	Enable bool `toml:"enable"`
@@ -38,7 +40,6 @@ func getRedisConfig() (*redisConfig, error) {
 	}
 	return &config, nil
 }
-
 
 func NewRedis() services.Service {
 	config, err := getRedisConfig()
