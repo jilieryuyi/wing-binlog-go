@@ -1,5 +1,4 @@
 enable = true              ## 是否启用http服务
-time_tick = 1              ## 故障检测的时间间隔，单位为秒
 [groups]
     [groups.1]
      name   = "group1"

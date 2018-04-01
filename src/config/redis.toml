@@ -1,0 +1,7 @@
+address = "localhost:6379"
+password = ""
+enable = true
+filter = []
+db = 0
+##rpush
+queue = "wing-binlog-go-mysql-event"

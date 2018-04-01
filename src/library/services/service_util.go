@@ -41,7 +41,7 @@ func hasCmd(cmd int) bool {
 		//cmd == CMD_PING
 }
 
-func matchFilters(filters []string, table string) bool {
+func MatchFilters(filters []string, table string) bool {
 	if filters == nil || len(filters) <= 0 {
 		return true
 	}

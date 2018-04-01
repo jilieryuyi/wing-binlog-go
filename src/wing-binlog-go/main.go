@@ -8,6 +8,7 @@ import (
 	"library/services"
 	_ "github.com/go-sql-driver/mysql"
 	log "github.com/sirupsen/logrus"
+	"service_plugin"
 )
 
 var (
@@ -91,6 +92,7 @@ func main() {
 	blog := binlog.NewBinlog(appContext)
 	blog.RegisterService(binlog.ServiceNameTcp, tcpService)
 	blog.RegisterService(binlog.ServiceNameHttp, httpService)
+	blog.RegisterService("redis", service_plugin.NewRedis())
 	blog.Start()
 
 	// wait exit
