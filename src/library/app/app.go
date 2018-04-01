@@ -33,6 +33,7 @@ const (
 type Config struct {
 	LogLevel int       `toml:"log_level"`
 	PprofListen string `toml:"pprof_listen"`
+	ControlListen string `toml:"control_listen"`// = "0.0.0:6061"
 	TimeZone string    `toml:"time_zone"`
 	CachePath string   `toml:"cache_path"`
 	LogPath string     `toml:"log_path"`

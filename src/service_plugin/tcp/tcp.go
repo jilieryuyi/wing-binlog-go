@@ -9,9 +9,10 @@ import (
 	"library/app"
 	"io"
 	"sync/atomic"
+	"library/services"
 )
 
-func NewTcpService(ctx *app.Context) *TcpService {
+func NewTcpService(ctx *app.Context) services.Service {
 	if !ctx.TcpConfig.Enable{
 		return &TcpService{status: 0}
 	}

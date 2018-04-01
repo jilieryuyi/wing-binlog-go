@@ -6,10 +6,10 @@ import (
 	"library/app"
 	"library/binlog"
 	_ "github.com/go-sql-driver/mysql"
-	//log "github.com/sirupsen/logrus"
 	"service_plugin/redis"
 	"service_plugin/http"
 	"service_plugin/tcp"
+	"library/control"
 )
 
 var (
@@ -37,16 +37,16 @@ func runCmd(ctx *app.Context) bool {
 		fmt.Println(app.VERSION)
 		return true
 	}
-	control := tcp.NewControl(ctx)
-	defer control.Close()
+	cli := control.NewClient(ctx)
+	defer cli.Close()
 	// 停止服务
 	if *stop {
-		control.Stop()
+		cli.Stop()
 		return true
 	}
 	// 重新加载服务
 	if *serviceReload != "" {
-		control.Reload(*serviceReload)
+		cli.Reload(*serviceReload)
 		return true
 	}
 	// 帮助
@@ -55,7 +55,7 @@ func runCmd(ctx *app.Context) bool {
 		return true
 	}
 	if *members {
-		control.ShowMembers()
+		cli.ShowMembers()
 		return true
 	}
 	return false
@@ -96,6 +96,15 @@ func main() {
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
 	blog.Start()
+
+
+	ctl := control.NewControl(appContext,
+		control.ShowMember(blog.ShowMembers),
+		control.Reload(blog.Reload),
+		control.Stop(appContext.Stop),
+	)
+	ctl.Start()
+	defer ctl.Close()
 
 	// wait exit
 	select {

@@ -24,6 +24,7 @@ type Context struct {
 	TcpConfig *TcpConfig
 	MysqlConfig *MysqlConfig
 	ClusterConfig *ClusterConfig
+	AppConfig *Config
 }
 
 // new app context
@@ -32,6 +33,7 @@ func NewContext() *Context {
 	tcpConfig, _ := getTcpConfig()
 	mysqlConfig, _:= getMysqlConfig()
 	clusterConfig, _ := getClusterConfig()
+	appConfig, _ := getAppConfig()
 	ctx := &Context{
 		cancelChan:make(chan struct{}),
 		reloadChan:make(chan string, 100),
@@ -42,6 +44,7 @@ func NewContext() *Context {
 		TcpConfig: tcpConfig,
 		MysqlConfig: mysqlConfig,
 		ClusterConfig: clusterConfig,
+		AppConfig:appConfig,
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())
 	go ctx.signalHandler()

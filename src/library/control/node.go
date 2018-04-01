@@ -1,4 +1,4 @@
-package tcp
+package control
 
 import (
 	"time"
@@ -8,11 +8,10 @@ import (
 	"sync"
 )
 
-func newNode(ctx *app.Context, conn *net.Conn) *tcpClientNode {
-	node := &tcpClientNode{
+func newNode(ctx *app.Context, conn *net.Conn) *TcpClientNode {
+	node := &TcpClientNode{
+		sendQueue:        make(chan []byte, 32),
 		conn:             conn,
-		sendQueue:        make(chan []byte, tcpMaxSendQueue),
-		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		recvBuf:          make([]byte, 0),
 		status:           tcpNodeOnline | tcpNodeIsNormal,
@@ -23,11 +22,11 @@ func newNode(ctx *app.Context, conn *net.Conn) *tcpClientNode {
 	return node
 }
 
-func (node *tcpClientNode) setGroup(group string) {
+func (node *TcpClientNode) setGroup(group string) {
 	node.group = group
 }
 
-func (node *tcpClientNode) changNodeType(nodeType int) {
+func (node *TcpClientNode) changNodeType(nodeType int) {
 	if node.status & nodeType > 0 {
 		return
 	}
@@ -50,7 +49,7 @@ func (node *tcpClientNode) changNodeType(nodeType int) {
 	}
 }
 
-func (node *tcpClientNode) close() {
+func (node *TcpClientNode) close() {
 	node.lock.Lock()
 	defer node.lock.Unlock()
 	if node.status & tcpNodeOnline <= 0 {
@@ -63,12 +62,12 @@ func (node *tcpClientNode) close() {
 	}
 }
 
-func (node *tcpClientNode) send(data []byte) (int, error) {
+func (node *TcpClientNode) send(data []byte) (int, error) {
 	(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 3))
 	return (*node.conn).Write(data)
 }
 
-func (node *tcpClientNode) asyncSend(data []byte) {
+func (node *TcpClientNode) asyncSend(data []byte) {
 	node.lock.Lock()
 	if node.status & tcpNodeOnline <= 0 {
 		node.lock.Unlock()
@@ -79,12 +78,12 @@ func (node *tcpClientNode) asyncSend(data []byte) {
 		if len(node.sendQueue) < cap(node.sendQueue) {
 			break
 		}
-		log.Warnf("cache full, try wait, %v, %v", len(node.sendQueue) , cap(node.sendQueue))
+		log.Warnf("cache full, try wait")
 	}
 	node.sendQueue <- data
 }
 
-func (node *tcpClientNode) setReadDeadline(t time.Time) {
+func (node *TcpClientNode) setReadDeadline(t time.Time) {
 	(*node.conn).SetReadDeadline(t)
 }
 
