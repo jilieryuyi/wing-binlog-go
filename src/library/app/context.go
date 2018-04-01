@@ -20,7 +20,7 @@ type Context struct {
 	ShowMembersChan chan struct{}
 	ShowMembersRes chan string
 	PosChan chan string
-	HttpConfig *HttpConfig
+	//HttpConfig *HttpConfig
 	TcpConfig *TcpConfig
 	MysqlConfig *MysqlConfig
 	ClusterConfig *ClusterConfig
@@ -28,7 +28,7 @@ type Context struct {
 
 // new app context
 func NewContext() *Context {
-	httpConfig, _ := getHttpConfig()
+	//httpConfig, _ := getHttpConfig()
 	tcpConfig, _ := getTcpConfig()
 	mysqlConfig, _:= getMysqlConfig()
 	clusterConfig, _ := getClusterConfig()
@@ -38,7 +38,7 @@ func NewContext() *Context {
 		ShowMembersChan:make(chan struct{}, 100),
 		ShowMembersRes:make(chan string, 12),
 		PosChan:make(chan string, 10000),
-		HttpConfig: httpConfig,
+		//HttpConfig: httpConfig,
 		TcpConfig: tcpConfig,
 		MysqlConfig: mysqlConfig,
 		ClusterConfig: clusterConfig,
@@ -65,14 +65,14 @@ func (ctx *Context) ReloadDone() <-chan string {
 	return ctx.reloadChan
 }
 
-func (ctx *Context) ReloadHttpConfig() {
-	httpConfig, err := getHttpConfig()
-	if err != nil {
-		log.Errorf("get http config error: %v", err)
-		return
-	}
-	ctx.HttpConfig = httpConfig
-}
+//func (ctx *Context) ReloadHttpConfig() {
+//	httpConfig, err := getHttpConfig()
+//	if err != nil {
+//		log.Errorf("get http config error: %v", err)
+//		return
+//	}
+//	ctx.HttpConfig = httpConfig
+//}
 
 func (ctx *Context) ReloadTcpConfig() {
 	tcpConfig, err := getTcpConfig()

@@ -7,21 +7,25 @@ import (
 )
 
 func NewHttpService(ctx *app.Context) *HttpService {
-	log.Debugf("start http service with config: %+v", ctx.HttpConfig)
-	if !ctx.HttpConfig.Enable {
+	config, err := getHttpConfig()
+	if err != nil {
+		log.Panicf("%v", err)
+	}
+	log.Debugf("start http service with config: %+v", config)
+	if !config.Enable {
 		return &HttpService{
 			status: 0,
 		}
 	}
-	gc := len(ctx.HttpConfig.Groups)
+	gc := len(config.Groups)
 	client := &HttpService{
 		lock:             new(sync.Mutex),
 		groups:           make(httpGroups, gc),
 		status:           serviceEnable,
-		timeTick:         ctx.HttpConfig.TimeTick,
+		timeTick:         config.TimeTick,
 		ctx:              ctx,
 	}
-	for _, groupConfig := range ctx.HttpConfig.Groups {
+	for _, groupConfig := range config.Groups {
 		httpGroup := newHttpGroup(ctx, groupConfig)
 		client.lock.Lock()
 		client.groups.add(httpGroup)
@@ -53,16 +57,19 @@ func (client *HttpService) Close() {
 }
 
 func (client *HttpService) Reload() {
-	client.ctx.ReloadHttpConfig()
+	config, err := getHttpConfig()
+	if err != nil {
+		return
+	}
 	log.Debug("http service reloading...")
 	client.status = 0
-	if client.ctx.HttpConfig.Enable {
+	if config.Enable {
 		client.status = serviceEnable
 	}
 	for _, group := range client.groups {
 		client.groups.delete(group)
 	}
-	for _, groupConfig := range client.ctx.HttpConfig.Groups {
+	for _, groupConfig := range config.Groups {
 		httpGroup := newHttpGroup(client.ctx, groupConfig)
 		client.lock.Lock()
 		client.groups.add(httpGroup)

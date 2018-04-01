@@ -5,6 +5,9 @@ import (
 	"library/app"
 	"time"
 	"library/services"
+	"github.com/BurntSushi/toml"
+	"library/file"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -45,4 +48,33 @@ var (
 	_ services.Service = &HttpService{}
 )
 
+
+type HttpNodeConfig struct {
+	Name   string
+	Nodes  []string
+	Filter []string
+}
+
+type HttpConfig struct {
+	Enable   bool
+	TimeTick time.Duration //故障检测的时间间隔，单位为秒
+	Groups   map[string]HttpNodeConfig
+}
+
+func getHttpConfig() (*HttpConfig, error) {
+	var config HttpConfig
+	configFile := app.ConfigPath + "/http.toml"
+	if !file.Exists(configFile) {
+		log.Warnf("config file %s does not exists", configFile)
+		return nil, app.ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		log.Println(err)
+		return nil, app.ErrorFileParse
+	}
+	if config.TimeTick <= 0 {
+		config.TimeTick = 1
+	}
+	return &config, nil
+}
 

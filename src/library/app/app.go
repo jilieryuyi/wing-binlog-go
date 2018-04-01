@@ -39,17 +39,17 @@ type Config struct {
 	PidFile string     `toml:"pid_file"`
 }
 
-type HttpNodeConfig struct {
-	Name   string
-	Nodes  []string
-	Filter []string
-}
+//type HttpNodeConfig struct {
+//	Name   string
+//	Nodes  []string
+//	Filter []string
+//}
 
-type HttpConfig struct {
-	Enable   bool
-	TimeTick time.Duration //故障检测的时间间隔，单位为秒
-	Groups   map[string]HttpNodeConfig
-}
+//type HttpConfig struct {
+//	Enable   bool
+//	TimeTick time.Duration //故障检测的时间间隔，单位为秒
+//	Groups   map[string]HttpNodeConfig
+//}
 
 // app init
 // config path parse
@@ -228,22 +228,22 @@ func getAppConfig() (*Config, error) {
 	return &appConfig, nil
 }
 
-func getHttpConfig() (*HttpConfig, error) {
-	var config HttpConfig
-	configFile := ConfigPath + "/http.toml"
-	if !file.Exists(configFile) {
-		log.Warnf("config file %s does not exists", configFile)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	if config.TimeTick <= 0 {
-		config.TimeTick = 1
-	}
-	return &config, nil
-}
+//func getHttpConfig() (*HttpConfig, error) {
+//	var config HttpConfig
+//	configFile := ConfigPath + "/http.toml"
+//	if !file.Exists(configFile) {
+//		log.Warnf("config file %s does not exists", configFile)
+//		return nil, ErrorFileNotFound
+//	}
+//	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+//		log.Println(err)
+//		return nil, ErrorFileParse
+//	}
+//	if config.TimeTick <= 0 {
+//		config.TimeTick = 1
+//	}
+//	return &config, nil
+//}
 
 type TcpGroupConfigs map[string]TcpGroupConfig
 func (cs *TcpGroupConfigs) HasName(name string) bool {

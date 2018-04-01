@@ -6,7 +6,7 @@ import (
 	"library/services"
 )
 
-func newHttpGroup(ctx *app.Context, groupConfig app.HttpNodeConfig) *httpGroup {
+func newHttpGroup(ctx *app.Context, groupConfig HttpNodeConfig) *httpGroup {
 	group := &httpGroup{
 		name: groupConfig.Name,
 		filter: groupConfig.Filter,
