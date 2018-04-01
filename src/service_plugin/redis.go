@@ -44,7 +44,7 @@ func NewRedis() services.Service {
 	config, err := getRedisConfig()
 	if err != nil {
 		log.Errorf("get redis config error")
-		return &Redis{}
+		return &Redis{client:nil}
 	}
 	log.Debugf("redis service with: %+v", config)
 	client := redis.NewClient(&redis.Options{
@@ -58,7 +58,7 @@ func NewRedis() services.Service {
 	}
 }
 func (r *Redis) SendAll(table string, data []byte) bool {
-	if !r.config.Enable {
+	if !r.config.Enable || r.client == nil {
 		return true
 	}
 	//if match
@@ -72,7 +72,26 @@ func (r *Redis) SendAll(table string, data []byte) bool {
 }
 func (r *Redis) SendPos(data []byte) {}
 func (r *Redis) Start() {}
-func (r *Redis) Close() {}
-func (r *Redis) Reload() {}
+func (r *Redis) Close() {
+	if r.client == nil {
+		return
+	}
+	r.client.Close()
+}
+func (r *Redis) Reload() {
+	r.Close()
+	var err error
+	r.config, err = getRedisConfig()
+	if err != nil {
+		r.client = nil
+		log.Errorf("redis reload with error: %v", err)
+		return
+	}
+	r.client = redis.NewClient(&redis.Options{
+		Addr:     r.config.Address,//"localhost:6379",
+		Password: r.config.Password, // no password set
+		DB:       r.config.Db,  // use default DB
+	})
+}
 func (r *Redis) AgentStart(serviceIp string, port int) {}
 func (r *Redis) AgentStop() {}
