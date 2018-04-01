@@ -70,8 +70,7 @@ func (r *Redis) SendAll(table string, data []byte) bool {
 	}
 	return true
 }
-func (r *Redis) SendPos(data []byte) {
-}
+func (r *Redis) SendPos(data []byte) {}
 func (r *Redis) Start() {}
 func (r *Redis) Close() {}
 func (r *Redis) Reload() {}
