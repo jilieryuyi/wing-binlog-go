@@ -17,7 +17,6 @@ type Redis struct {
 
 var _ services.Service = &Redis{}
 
-
 type redisConfig struct{
 	Enable bool `toml:"enable"`
 	Address string `toml:"address"`
