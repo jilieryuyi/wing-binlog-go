@@ -48,13 +48,13 @@ func NewRedis() services.Service {
 	}
 	log.Debugf("redis service with: %+v", config)
 	client := redis.NewClient(&redis.Options{
-		Addr:     config.Address,//"localhost:6379",
-		Password: config.Password, // no password set
-		DB:       config.Db,  // use default DB
+		Addr:     config.Address,  //"localhost:6379",
+		Password: config.Password,
+		DB:       config.Db,
 	})
 	return &Redis{
 		client:client,
-		config:config,//.Queue,
+		config:config,
 	}
 }
 func (r *Redis) SendAll(table string, data []byte) bool {
@@ -88,9 +88,9 @@ func (r *Redis) Reload() {
 		return
 	}
 	r.client = redis.NewClient(&redis.Options{
-		Addr:     r.config.Address,//"localhost:6379",
-		Password: r.config.Password, // no password set
-		DB:       r.config.Db,  // use default DB
+		Addr:     r.config.Address,
+		Password: r.config.Password,
+		DB:       r.config.Db,
 	})
 }
 func (r *Redis) AgentStart(serviceIp string, port int) {}
