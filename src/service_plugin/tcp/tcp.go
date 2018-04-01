@@ -109,18 +109,18 @@ func (tcp *TcpService) onSetPro(node *tcpClientNode, groupName string) {
 	go tcp.asyncSendService(node)
 }
 
-func (tcp *TcpService) onControl(node *tcpClientNode, token string) {
-	if tcp.token != token {
-		node.send(packDataTokenError)
-		node.close()
-		log.Warnf("token error")
-		return
-	}
-	node.setReadDeadline(time.Time{})
-	node.send(packDataSetPro)
-	node.changNodeType(tcpNodeIsControl)
-	go tcp.asyncSendService(node)
-}
+//func (tcp *TcpService) onControl(node *tcpClientNode, token string) {
+//	if tcp.token != token {
+//		node.send(packDataTokenError)
+//		node.close()
+//		log.Warnf("token error")
+//		return
+//	}
+//	node.setReadDeadline(time.Time{})
+//	node.send(packDataSetPro)
+//	node.changNodeType(tcpNodeIsControl)
+//	go tcp.asyncSendService(node)
+//}
 
 func (tcp *TcpService) onAgent(node *tcpClientNode) {
 	node.setReadDeadline(time.Time{})
@@ -146,8 +146,8 @@ func (tcp *TcpService) onSetProEvent(node *tcpClientNode, data []byte) {
 	switch flag {
 	case FlagSetPro:
 		tcp.onSetPro(node, content)
-	case FlagControl:
-		tcp.onControl(node, content)
+	//case FlagControl:
+	//	tcp.onControl(node, content)
 	case FlagAgent:
 		tcp.onAgent(node)
 	case FlagPing:
@@ -250,12 +250,12 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 			tcp.onSetProEvent(node, content)
 		case CMD_TICK:
 			node.asyncSend(packDataTickOk)
-		case CMD_STOP:
-			tcp.ctx.Stop()
-		case CMD_RELOAD:
-			tcp.ctx.Reload(string(content))
-		case CMD_SHOW_MEMBERS:
-			tcp.onShowMembersEvent(node)
+		//case CMD_STOP:
+		//	tcp.ctx.Stop()
+		//case CMD_RELOAD:
+		//	tcp.ctx.Reload(string(content))
+		//case CMD_SHOW_MEMBERS:
+		//	tcp.onShowMembersEvent(node)
 		default:
 			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)

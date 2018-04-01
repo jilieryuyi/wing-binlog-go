@@ -97,8 +97,9 @@ func main() {
 	blog.RegisterService(redisService)
 	blog.Start()
 
-
-	ctl := control.NewControl(appContext,
+	// stop、reload、members ... support
+	ctl := control.NewControl(
+		appContext,
 		control.ShowMember(blog.ShowMembers),
 		control.Reload(blog.Reload),
 		control.Stop(appContext.Stop),

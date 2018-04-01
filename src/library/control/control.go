@@ -25,7 +25,6 @@ func NewControl(ctx *app.Context, opts ...ControlOption) *TcpService {
 	return tcp
 }
 
-
 func ShowMember(f ShowMemberFunc) ControlOption {
 	return func(tcp *TcpService){
 		tcp.showmember = f
@@ -96,17 +95,19 @@ func (tcp *TcpService) onMessage(node *TcpClientNode, msg []byte) {
 		content := node.recvBuf[6 : clen + 4]
 		switch cmd {
 		case CMD_TICK:
-			node.asyncSend(packDataTickOk)
+			node.send(packDataTickOk)
 		case CMD_STOP:
 			log.Debugf("receive stop cmd")
 			tcp.stop()
+			node.send(pack(CMD_STOP, []byte("ok")))
 		case CMD_RELOAD:
 			tcp.reload(string(content))
+			node.send(pack(CMD_RELOAD, []byte("ok")))
 		case CMD_SHOW_MEMBERS:
 			members := tcp.showmember()
 			node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
 		default:
-			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+			node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}
