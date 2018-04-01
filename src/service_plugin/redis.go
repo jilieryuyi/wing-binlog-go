@@ -58,6 +58,9 @@ func NewRedis() services.Service {
 	}
 }
 func (r *Redis) SendAll(table string, data []byte) bool {
+	if !r.config.Enable {
+		return true
+	}
 	//if match
 	if services.MatchFilters(r.config.Filter, table) {
 		err := r.client.RPush(r.config.Queue, string(data)).Err()
