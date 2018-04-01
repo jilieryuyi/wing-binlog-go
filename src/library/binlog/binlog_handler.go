@@ -100,9 +100,9 @@ func (h *Binlog) setHandler()  {
 	h.handler.SetEventHandler(h)
 }
 
-func (h *Binlog) RegisterService(name string, s services.Service) {
+func (h *Binlog) RegisterService(s services.Service) {
 	h.lock.Lock()
-	h.services[name] = s
+	h.services[s.Name()] = s
 	h.lock.Unlock()
 }
 

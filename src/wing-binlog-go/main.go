@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"library/app"
 	"library/binlog"
-	"library/services"
 	_ "github.com/go-sql-driver/mysql"
-	log "github.com/sirupsen/logrus"
-	"service_plugin"
+	//log "github.com/sirupsen/logrus"
+	"service_plugin/redis"
+	"service_plugin/http"
+	"service_plugin/tcp"
 )
 
 var (
@@ -36,7 +37,7 @@ func runCmd(ctx *app.Context) bool {
 		fmt.Println(app.VERSION)
 		return true
 	}
-	control := services.NewControl(ctx)
+	control := tcp.NewControl(ctx)
 	defer control.Close()
 	// 停止服务
 	if *stop {
@@ -62,11 +63,11 @@ func runCmd(ctx *app.Context) bool {
 
 func main() {
 	flag.Parse()
-	defer func() {
-		if err := recover(); err != nil {
-			log.Errorf("%+v", err)
-		}
-	}()
+	//defer func() {
+	//	if err := recover(); err != nil {
+	//		log.Errorf("%+v", err)
+	//	}
+	//}()
 	isCmd := *version || *stop || *serviceReload != "" || *help || *members
 	// app init
 	app.DEBUG = *debug
@@ -86,13 +87,14 @@ func main() {
 		return
 	}
 
-	httpService := services.NewHttpService(appContext)
-	tcpService  := services.NewTcpService(appContext)
+	httpService  := http.NewHttpService(appContext)
+	tcpService   := tcp.NewTcpService(appContext)
+	redisService := redis.NewRedis()
 
 	blog := binlog.NewBinlog(appContext)
-	blog.RegisterService(binlog.ServiceNameTcp, tcpService)
-	blog.RegisterService(binlog.ServiceNameHttp, httpService)
-	blog.RegisterService("redis", service_plugin.NewRedis())
+	blog.RegisterService(tcpService)
+	blog.RegisterService(httpService)
+	blog.RegisterService(redisService)
 	blog.Start()
 
 	// wait exit

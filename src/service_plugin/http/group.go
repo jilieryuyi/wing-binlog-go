@@ -1,8 +1,9 @@
-package services
+package http
 
 import (
 	"library/app"
 	log "github.com/sirupsen/logrus"
+	"library/services"
 )
 
 func newHttpGroup(ctx *app.Context, groupConfig app.HttpNodeConfig) *httpGroup {
@@ -18,7 +19,7 @@ func newHttpGroup(ctx *app.Context, groupConfig app.HttpNodeConfig) *httpGroup {
 }
 
 func (group *httpGroup) match(table string) bool {
-	if len(group.nodes) <= 0 || !MatchFilters(group.filter, table) {
+	if len(group.nodes) <= 0 || !services.MatchFilters(group.filter, table) {
 		return false
 	}
 	return true

@@ -1,4 +1,4 @@
-package service_plugin
+package redis
 
 import (
 	"library/services"
@@ -95,3 +95,6 @@ func (r *Redis) Reload() {
 }
 func (r *Redis) AgentStart(serviceIp string, port int) {}
 func (r *Redis) AgentStop() {}
+func (r *Redis) Name() string {
+	return "redis"
+}

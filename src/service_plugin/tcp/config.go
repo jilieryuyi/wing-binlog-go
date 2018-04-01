@@ -1,21 +1,11 @@
-package services
+package tcp
 
 import (
 	"sync"
 	"library/app"
-	"time"
 	"net"
+	"library/services"
 )
-
-type Service interface {
-	SendAll(table string, data []byte) bool
-	SendPos(data []byte)
-	Start()
-	Close()
-	Reload()
-	AgentStart(serviceIp string, port int)
-	AgentStop()
-}
 
 const (
 	CMD_SET_PRO = iota // 注册客户端操作，加入到指定分组
@@ -32,7 +22,6 @@ const (
 
 const (
 	tcpMaxSendQueue               = 10000
-	httpMaxSendQueue              = 10000
 	tcpDefaultReadBufferSize      = 1024
 )
 
@@ -48,32 +37,6 @@ const (
 	agentStatusOnline
 	agentStatusConnect
 )
-
-type httpGroup struct {
-	name   string
-	filter []string
-	nodes  httpNodes//[]*httpNode
-}
-
-type httpNodes []*httpNode
-type httpGroups map[string]*httpGroup
-
-type HttpService struct {
-	Service                                //
-	groups           httpGroups//map[string]*httpGroup //
-	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
-	timeTick         time.Duration         // 故障检测的时间间隔
-	ctx              *app.Context
-	status           int
-}
-
-type httpNode struct {
-	url              string      // url
-	sendQueue        chan string // 发送channel
-	lock             *sync.Mutex // 互斥锁，修改资源时锁定
-	ctx              *app.Context
-	wg               *sync.WaitGroup
-}
 
 const (
 	tcpNodeOnline = 1 << iota
@@ -106,7 +69,7 @@ type tcpGroup struct {
 }
 
 type TcpService struct {
-	Service
+	services.Service
 	Ip               string               // 监听ip
 	Port             int                  // 监听端口
 	lock             *sync.Mutex
@@ -124,9 +87,7 @@ type TcpService struct {
 }
 
 var (
-	_ Service = &TcpService{}
-	_ Service = &HttpService{}
-
+	_ services.Service = &TcpService{}
 	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
 	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))

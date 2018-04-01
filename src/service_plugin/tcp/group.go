@@ -1,9 +1,9 @@
-package services
+package tcp
 
 import (
-	"regexp"
 	"library/app"
 	"sync"
+	"library/services"
 )
 
 func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
@@ -17,16 +17,17 @@ func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
 }
 
 func (g *tcpGroup) match(table string) bool {
-	if len(g.filter) <= 0 {
-		return true
-	}
-	for _, f := range g.filter {
-		match, err := regexp.MatchString(f, table)
-		if match && err == nil {
-			return true
-		}
-	}
-	return false
+	return services.MatchFilters(g.filter, table)
+	//if len(g.filter) <= 0 {
+	//	return true
+	//}
+	//for _, f := range g.filter {
+	//	match, err := regexp.MatchString(f, table)
+	//	if match && err == nil {
+	//		return true
+	//	}
+	//}
+	//return false
 }
 
 func (g *tcpGroup) append(node *tcpClientNode) {

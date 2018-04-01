@@ -1,8 +1,4 @@
-package services
-
-import (
-	"regexp"
-)
+package tcp
 
 func pack(cmd int, msg []byte) []byte {
 	//m  := []byte(msg)
@@ -39,19 +35,6 @@ func hasCmd(cmd int) bool {
 		cmd == CMD_SHOW_MEMBERS||
 		cmd == CMD_POS //||
 		//cmd == CMD_PING
-}
-
-func MatchFilters(filters []string, table string) bool {
-	if filters == nil || len(filters) <= 0 {
-		return true
-	}
-	for _, f := range filters {
-		match, err := regexp.MatchString(f, table)
-		if match && err == nil {
-			return true
-		}
-	}
-	return false
 }
 
 func PackPro(flag int, content []byte) []byte {

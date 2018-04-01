@@ -8,11 +8,12 @@ import (
 	"github.com/hashicorp/consul/api"
 	"library/app"
 	"errors"
+	"service_plugin/tcp"
 )
 
 var (
 	sessionEmpty = errors.New("session empty")
-	pingData = services.PackPro(services.FlagPing, []byte("ping"))
+	pingData = tcp.PackPro(tcp.FlagPing, []byte("ping"))
 )
 
 type Binlog struct {

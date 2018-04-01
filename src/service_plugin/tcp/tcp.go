@@ -1,4 +1,4 @@
-package services
+package tcp
 
 import (
 	"fmt"
@@ -394,4 +394,8 @@ func (tcp *TcpService) keepalive() {
 		tcp.groups.asyncSend(packDataTickOk)
 		time.Sleep(time.Second * 3)
 	}
+}
+
+func (tcp *TcpService) Name() string {
+	return "tcp"
 }
