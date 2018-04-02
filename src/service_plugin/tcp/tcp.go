@@ -36,7 +36,7 @@ func NewTcpService(ctx *app.Context) services.Service {
 		tcp.groups.add(tcpGroup)
 		tcp.lock.Unlock()
 	}
-	go tcp.agentKeepalive()
+	//go tcp.agentKeepalive()
 	go tcp.keepalive()
 	return tcp
 }
@@ -66,7 +66,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 
 // send raw bytes data to all connects client
 // msg is the pack frame form func: pack
-func (tcp *TcpService) sendRaw(msg []byte) bool {
+func (tcp *TcpService) SendRaw(msg []byte) bool {
 	tcp.statusLock.Lock()
 	if tcp.status & serviceEnable <= 0 {
 		tcp.statusLock.Unlock()
@@ -157,17 +157,17 @@ func (tcp *TcpService) onSetProEvent(node *tcpClientNode, data []byte) {
 	}
 }
 
-func (tcp *TcpService) onShowMembersEvent(node *tcpClientNode) {
-	tcp.ctx.ShowMembersChan <- struct{}{}
-	select {
-	case members, ok := <- tcp.ctx.ShowMembersRes:
-		if ok && members != "" {
-			node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
-		}
-	case <-time.After(time.Second * 30):
-		node.send([]byte("get members timeout"))
-	}
-}
+//func (tcp *TcpService) onShowMembersEvent(node *tcpClientNode) {
+//	tcp.ctx.ShowMembersChan <- struct{}{}
+//	select {
+//	case members, ok := <- tcp.ctx.ShowMembersRes:
+//		if ok && members != "" {
+//			node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
+//		}
+//	case <-time.After(time.Second * 30):
+//		node.send([]byte("get members timeout"))
+//	}
+//}
 
 func (tcp *TcpService) asyncSendService(node *tcpClientNode) {
 	tcp.wg.Add(1)

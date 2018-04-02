@@ -65,7 +65,15 @@ type Binlog struct {
 	posChan chan []byte
 	// binlog status
 	status int
+
+	//pos change 回调函数
+	onPosChanges []PosChangeFunc
+	onEvent []OnEventFunc
 }
+
+type BinlogOption func(h *Binlog)
+type PosChangeFunc func(r []byte)
+type OnEventFunc func(table string, data []byte)
 
 const (
 	//start stop

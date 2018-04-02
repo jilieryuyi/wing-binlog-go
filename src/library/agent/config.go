@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"net"
-	"library/services"
+	//"library/services"
 )
 
 const (
@@ -36,6 +36,10 @@ const (
 	serviceEnable = 1 << iota
 	agentStatusOnline
 	agentStatusConnect
+)
+
+const (
+	serviceIsLeader = 1 << iota
 )
 
 const (
@@ -72,20 +76,21 @@ type TcpService struct {
 	Address          string               // 监听ip
 	lock             *sync.Mutex
 	statusLock       *sync.Mutex
-	groups           tcpGroups//map[string]*tcpGroup
 	ctx              *app.Context
 	listener         *net.Listener
 	wg               *sync.WaitGroup
-	ServiceIp        string
 	agents           tcpClients
 	status           int
-	token            string
 	conn             *net.TCPConn
 	buffer           []byte
+	service *Service
+	client *AgentClient
+	watch *ConsulWatcher
 }
-
+type OnPosFunc func(r []byte)
+type AgentServerOption func(s *TcpService)
 var (
-	_ services.Service = &TcpService{}
+	//_ services.Service = &TcpService{}
 	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
 	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))

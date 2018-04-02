@@ -10,6 +10,7 @@ import (
 	"service_plugin/http"
 	"service_plugin/tcp"
 	"library/control"
+	"library/agent"
 )
 
 var (
@@ -91,13 +92,32 @@ func main() {
 	tcpService   := tcp.NewTcpService(appContext)
 	redisService := redis.NewRedis()
 
-	blog := binlog.NewBinlog(appContext)
+	agentServer := agent.NewAgentServer(
+		appContext,
+		agent.OnEvent(tcpService.SendAll),
+		agent.OnRaw(tcpService.SendRaw),
+	)
+	agentServer.Start()
+	defer agentServer.Close()
+
+	blog := binlog.NewBinlog(
+		appContext,
+		binlog.PosChange(agentServer.SendPos),
+		binlog.OnEvent(agentServer.SendEvent),
+	)
 	blog.RegisterService(tcpService)
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
 	blog.Start()
 
+	// set agent receive pos callback
+	// 延迟依赖绑定
+	// agent与binlog相互依赖
+	agent.OnPos(blog.SaveBinlogPositionCache)(agentServer)
+	agent.OnLeader(blog.OnLeader)(agentServer)
+
 	// stop、reload、members ... support
+	// 本地控制命令支持
 	ctl := control.NewControl(
 		appContext,
 		control.ShowMember(blog.ShowMembers),

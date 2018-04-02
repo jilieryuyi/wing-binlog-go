@@ -16,9 +16,9 @@ type Context struct {
 	// pid file path
 	PidFile string
 	cancelChan chan struct{}
-	reloadChan chan string
-	ShowMembersChan chan struct{}
-	ShowMembersRes chan string
+	//reloadChan chan string
+	//ShowMembersChan chan struct{}
+	//ShowMembersRes chan string
 	PosChan chan string
 	//HttpConfig *HttpConfig
 	TcpConfig *TcpConfig
@@ -36,10 +36,10 @@ func NewContext() *Context {
 	appConfig, _ := getAppConfig()
 	ctx := &Context{
 		cancelChan:make(chan struct{}),
-		reloadChan:make(chan string, 100),
-		ShowMembersChan:make(chan struct{}, 100),
-		ShowMembersRes:make(chan string, 12),
-		PosChan:make(chan string, 10000),
+		//reloadChan:make(chan string, 100),
+		//ShowMembersChan:make(chan struct{}, 100),
+		//ShowMembersRes:make(chan string, 12),
+		//PosChan:make(chan string, 10000),
 		//HttpConfig: httpConfig,
 		TcpConfig: tcpConfig,
 		MysqlConfig: mysqlConfig,
@@ -60,13 +60,13 @@ func (ctx *Context) Done() <-chan struct{} {
 	return ctx.cancelChan
 }
 
-func (ctx *Context) Reload(serviceName string) {
-	ctx.reloadChan <- serviceName
-}
+//func (ctx *Context) Reload(serviceName string) {
+//	ctx.reloadChan <- serviceName
+//}
 
-func (ctx *Context) ReloadDone() <-chan string {
-	return ctx.reloadChan
-}
+//func (ctx *Context) ReloadDone() <-chan string {
+//	return ctx.reloadChan
+//}
 
 //func (ctx *Context) ReloadHttpConfig() {
 //	httpConfig, err := getHttpConfig()

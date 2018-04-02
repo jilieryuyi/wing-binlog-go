@@ -1,4 +1,4 @@
-package tcp
+package agent
 
 import (
 	"net"
@@ -6,9 +6,45 @@ import (
 	log "github.com/sirupsen/logrus"
 	"time"
 	"encoding/json"
+	"library/app"
+	"sync"
 )
 
-func (tcp *TcpService) agentKeepalive() {
+// 如果当前agent为leader
+// agent client则断开
+// 如果为leader，agent client则连接
+// 连接后，server端的pos change事件就会通知到 client 端
+
+type AgentClient struct {
+	ctx *app.Context
+	onPos []OnPosFunc
+	buffer           []byte
+	onEvent []OnEventFunc
+	onRaw []OnRawFunc
+	conn             *net.TCPConn
+	statusLock       *sync.Mutex
+	status int
+	leader bool
+}
+
+type OnEventFunc func(table string, data []byte) bool
+type OnRawFunc func(msg []byte) bool
+type AgentClientOption func(tcp *AgentClient)
+
+func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
+	c := &AgentClient{
+		ctx: ctx,
+		buffer: make([]byte, 0),
+		onEvent: make([]OnEventFunc, 0),
+		conn: nil,
+		statusLock:       new(sync.Mutex),
+		status:           0,
+		leader:false,
+	}
+	return c
+}
+
+func (tcp *AgentClient) keepalive() {
 	data := pack(CMD_TICK, []byte(""))
 	dl := len(data)
 	for {
@@ -37,7 +73,16 @@ func (tcp *TcpService) agentKeepalive() {
 	}
 }
 
-func (tcp *TcpService) connect(ip string, port int) {
+func (tcp *AgentClient) OnLeader(leader bool) {
+	if leader {
+		// 断开client到 agent server的连接
+	} else {
+		// 查询leader的 服务
+		// 连接到agent server (leader)
+	}
+}
+
+func (tcp *AgentClient) connect(ip string, port int) {
 	if tcp.conn != nil {
 		tcp.disconnect()
 	}
@@ -56,7 +101,7 @@ func (tcp *TcpService) connect(ip string, port int) {
 	tcp.conn = conn
 }
 
-func (tcp *TcpService) AgentStart(serviceIp string, port int) {
+func (tcp *AgentClient) AgentStart(serviceIp string, port int) {
 	agentH := PackPro(FlagAgent, []byte(""))
 	hl := len(agentH)
 	var readBuffer [tcpDefaultReadBufferSize]byte
@@ -133,7 +178,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 					break
 				}
 				//log.Debugf("agent receive %d bytes: %+v, %s", size, readBuffer[:size], string(readBuffer[:size]))
-				tcp.onAgentMessage(readBuffer[:size])
+				tcp.onMessage(readBuffer[:size])
 				select {
 				case <-tcp.ctx.Ctx.Done():
 					return
@@ -144,7 +189,7 @@ func (tcp *TcpService) AgentStart(serviceIp string, port int) {
 	}()
 }
 
-func (tcp *TcpService) onAgentMessage(msg []byte) {
+func (tcp *AgentClient) onMessage(msg []byte) {
 	tcp.buffer = append(tcp.buffer, msg...)
 	for {
 		bufferLen := len(tcp.buffer)
@@ -170,7 +215,10 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 			err := json.Unmarshal(dataB, &data)
 			if err == nil {
 				log.Debugf("agent receive event: %+v", data)
-				tcp.SendAll(data["table"].(string), dataB)
+				//tcp.SendAll(data["table"].(string), dataB)
+				for _, f := range tcp.onEvent {
+					f(data["table"].(string), dataB)
+				}
 			} else {
 				log.Errorf("json Unmarshal error: %+v, %s, %+v", dataB, string(dataB), err)
 			}
@@ -178,15 +226,24 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 			//log.Debugf("keepalive: %s", string(dataB))
 		case CMD_POS:
 			log.Debugf("receive pos: %v", dataB)
-			for {
-				if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
-					break
+			//for {
+			//	if len(tcp.ctx.PosChan) < cap(tcp.ctx.PosChan) {
+			//		break
+			//	}
+			//	log.Warnf("cache full, try wait")
+			//}
+			//tcp.ctx.PosChan <- string(dataB)
+			if len(tcp.onPos) > 0 {
+				for _, f := range tcp.onPos {
+					f(dataB)
 				}
-				log.Warnf("cache full, try wait")
 			}
-			tcp.ctx.PosChan <- string(dataB)
 		default:
-			tcp.sendRaw(pack(cmd, msg))
+			//tcp.sendRaw(pack(cmd, msg))
+			//log.Debugf("does not support")
+			for _, f := range tcp.onRaw {
+				f(pack(cmd, msg))
+			}
 		}
 		if len(tcp.buffer) <= 0 {
 			log.Errorf("tcp.buffer is empty")
@@ -196,7 +253,7 @@ func (tcp *TcpService) onAgentMessage(msg []byte) {
 	}
 }
 
-func (tcp *TcpService) disconnect() {
+func (tcp *AgentClient) disconnect() {
 	tcp.statusLock.Lock()
 	if tcp.conn == nil || tcp.status & agentStatusConnect <= 0 {
 		tcp.statusLock.Unlock()
@@ -214,7 +271,7 @@ func (tcp *TcpService) disconnect() {
 	tcp.statusLock.Unlock()
 }
 
-func (tcp *TcpService) AgentStop() {
+func (tcp *AgentClient) AgentStop() {
 	tcp.statusLock.Lock()
 	if tcp.status & agentStatusOnline <= 0 {
 		tcp.statusLock.Unlock()
@@ -230,4 +287,6 @@ func (tcp *TcpService) AgentStop() {
 	}
 	tcp.statusLock.Unlock()
 }
+
+
 

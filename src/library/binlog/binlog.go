@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func NewBinlog(ctx *app.Context) *Binlog {
+func NewBinlog(ctx *app.Context, opts ...BinlogOption) *Binlog {
 	binlog := &Binlog{
 		Config     : ctx.MysqlConfig,
 		wg         : new(sync.WaitGroup),
@@ -23,43 +23,29 @@ func NewBinlog(ctx *app.Context) *Binlog {
 		startServiceChan : make(chan struct{}, 100),
 		stopServiceChan  : make(chan bool, 100),
 		status           : 0,
+		onPosChanges     : make([]PosChangeFunc, 0),
+	}
+	if len(opts) > 0 {
+		for _, f := range opts {
+			f(binlog)
+		}
 	}
 	binlog.consulInit()
 	binlog.handlerInit()
 	binlog.lookService()
-	go binlog.reloadService()
-	go binlog.showMembersService()
 	return binlog
 }
 
-func (h *Binlog) showMembersService() {
-	for {
-		select {
-		case _, ok := <- h.ctx.ShowMembersChan:
-			if !ok {
-				return
-			}
-			if len(h.ctx.ShowMembersRes) < cap(h.ctx.ShowMembersRes) {
-				members := h.ShowMembers()
-				h.ctx.ShowMembersRes <- members
-			}
-		case <-h.ctx.Ctx.Done():
-			return
-		}
+// set pos change callback
+func PosChange(f PosChangeFunc) BinlogOption {
+	return func(h *Binlog) {
+		h.onPosChanges = append(h.onPosChanges, f)
 	}
 }
 
-func (h *Binlog) reloadService() {
-	for {
-		select {
-		case service, ok := <-h.ctx.ReloadDone():
-			if !ok {
-				return
-			}
-			h.Reload(service)
-			case <-h.ctx.Ctx.Done():
-				return
-		}
+func OnEvent(f OnEventFunc) BinlogOption {
+	return func(h *Binlog) {
+		h.onEvent = append(h.onEvent, f)
 	}
 }
 
@@ -214,27 +200,37 @@ func (h *Binlog) Start() {
 		return
 	}
 	h.statusLock.Unlock()
-	go func() {
-		for {
-			h.statusLock.Lock()
-			if h.status & _binlogIsExit > 0 {
-				h.statusLock.Unlock()
-				return
-			}
-			h.statusLock.Unlock()
-			lock, err := h.Lock()
-			if err != nil {
-				time.Sleep(time.Second * 3)
-				continue
-			}
-			if lock {
-				h.StartService()
-			} else {
-				h.StopService(false)
-			}
-			time.Sleep(time.Second * 3)
-		}
-	}()
+	//go func() {
+	//	for {
+	//		h.statusLock.Lock()
+	//		if h.status & _binlogIsExit > 0 {
+	//			h.statusLock.Unlock()
+	//			return
+	//		}
+	//		h.statusLock.Unlock()
+	//		lock, err := h.Lock()
+	//		if err != nil {
+	//			time.Sleep(time.Second * 3)
+	//			continue
+	//		}
+	//		if lock {
+	//			h.StartService()
+	//		} else {
+	//			h.StopService(false)
+	//		}
+	//		time.Sleep(time.Second * 3)
+	//	}
+	//}()
+}
+
+func (h *Binlog) OnLeader(isLeader bool) {
+	if isLeader {
+		// leader start service
+		h.StartService()
+	} else {
+		// if not leader, stop service
+		h.StopService(false)
+	}
 }
 
 // start tcp service agent

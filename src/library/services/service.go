@@ -9,4 +9,5 @@ type Service interface {
 	AgentStart(serviceIp string, port int)
 	AgentStop()
 	Name() string
+	SendRaw(data []byte) bool
 }
