@@ -68,7 +68,6 @@ func (tcp *TcpService) SendRaw(msg []byte) bool {
 	}
 	tcp.statusLock.Unlock()
 	log.Debugf("tcp sendRaw: %+v", msg)
-	//tcp.agents.asyncSend(msg)
 	tcp.groups.asyncSend(msg)
 	return true
 }
@@ -76,11 +75,6 @@ func (tcp *TcpService) SendRaw(msg []byte) bool {
 func (tcp *TcpService) onClose(node *tcpClientNode) {
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
-	node.close()
-	//if node.status & tcpNodeIsAgent > 0 {
-	//	tcp.agents.remove(node)
-	//	return
-	//}
 	if node.status & tcpNodeIsNormal > 0 {
 		if group, found := tcp.groups[node.group]; found {
 			group.remove(node)
