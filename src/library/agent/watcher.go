@@ -22,9 +22,11 @@ type ConsulWatcher struct {
 	addrs []*consul.ServiceEntry//[]string
 	target string
 	health *consul.Health
+	// leader change callback
 	onChange []onchangeFunc
 	serviceIp string
 	port int
+	// unlock api, come form service.go(Unlock)
 	unlock unlockFunc
 }
 
@@ -62,8 +64,7 @@ func unlock(f unlockFunc) watchOption {
 	}
 }
 
-//
-//// Next to return the updates
+// watch service delete and change
 func (cw *ConsulWatcher) process() {
 	// Nil cw.addrs means it is initial called
 	// If get addrs, return to balancer
@@ -207,12 +208,11 @@ func (cw *ConsulWatcher) process() {
 			}
 			cw.addrs = addrs
 			cw.li = li
-			//time.Sleep(3 * time.Second)
 		}
 	}
 }
-//
-//// queryConsul is helper function to query consul
+
+// queryConsul is helper function to query consul
 func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceEntry, uint64, error) {
 	// query consul
 	cs, meta, err := cw.health.Service(cw.target, "", false, q)
@@ -221,27 +221,6 @@ func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceE
 	}
 	return cs, meta.LastIndex, nil
 }
-
-
-// check update and delete
-//func genUpdates(a, b []*consul.ServiceEntry) []*consul.ServiceEntry {
-//	updates := make([]*consul.ServiceEntry, 0)
-//	deleted := diff(a, b)
-//	for _, addr := range deleted {
-//		//update := &naming.Update{Op: naming.Delete, Addr: addr}
-//		log.Debugf("delete or status change service: %s\n", addr)
-//		updates = append(updates, addr)
-//	}
-//
-//	added := diff(b, a)
-//	for _, addr := range added {
-//		log.Debugf("new or status change service: %s\n", addr)
-//		//update := &naming.Update{Op: naming.Add, Addr: addr}
-//		updates = append(updates, addr)
-//	}
-//
-//	return updates
-//}
 
 // diff(a, b) = a - a(n)b
 func getDelete(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {

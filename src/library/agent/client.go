@@ -25,11 +25,19 @@ type AgentClient struct {
 	statusLock       *sync.Mutex
 	status int
 	leader bool
+	getLeader getLeaferFunc
 }
 
+type getLeaferFunc func()(string, int)
 type OnEventFunc func(table string, data []byte) bool
 type OnRawFunc func(msg []byte) bool
 type AgentClientOption func(tcp *AgentClient)
+
+func GetLeader(f getLeaferFunc) AgentClientOption{
+	return func(tcp *AgentClient) {
+		tcp.getLeader = f
+	}
+}
 
 func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
 	c := &AgentClient{
@@ -79,11 +87,19 @@ func (tcp *AgentClient) keepalive() {
 }
 
 func (tcp *AgentClient) OnLeader(leader bool) {
+	log.Debugf("==============AgentClient OnLeader %v===============", leader)
+	ip, port := tcp.getLeader()
+	if ip == "" || port <= 0 {
+		log.Errorf("ip or port empty: %v, %v", ip, port)
+		return
+	}
 	if leader {
 		// 断开client到 agent server的连接
+		tcp.disconnect()
 	} else {
 		// 查询leader的 服务
 		// 连接到agent server (leader)
+		tcp.connect(ip, port)
 	}
 }
 

@@ -208,14 +208,14 @@ func (sev *Service) selectLeader() {
 	}
 	log.Debugf("select leader: %+v", leader)
 	sev.leader = leader
+	//register for set tags isleader:true
+	sev.Register()
 	if len(sev.onleader) > 0 {
 		log.Debugf("leader on select fired")
 		for _, f := range sev.onleader {
 			f(leader)
 		}
 	}
-	//register for set tags isleader:true
-	sev.Register()
 }
 
 func (sev *Service) createSession(/*timeOut int64*/) string {
@@ -279,14 +279,15 @@ func (sev *Service) Delete() error {
 	return err
 }
 
-func (sev *Service) ShowMembers() string {
+func (sev *Service) getMembers() []*clusterMember {
 	members, _, err := sev.health.Service(ServiceName, "", false, nil)
 	if err != nil || members == nil {
 		log.Errorf("get service list error: %+v", err)
-		return ""
+		return nil
 	}
 	data := make([]*clusterMember, 0)
 	for _, v := range members {
+		log.Debugf("getMembers： %+v", *v.Service)
 		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
 		if len(v.Service.Tags) < 3 {
 			continue
@@ -307,6 +308,28 @@ func (sev *Service) ShowMembers() string {
 		m.ServiceIp = v.Service.Address
 		m.Port      = v.Service.Port
 		data = append(data, m)
+	}
+	return data
+}
+
+func (sev *Service) getLeader() (string, int) {
+	members := sev.getMembers()
+	if members == nil {
+		return "", 0
+	}
+	for _, v := range members {
+		log.Debugf("getLeader: %+v", *v)
+		if v.IsLeader {
+			return v.ServiceIp, v.Port
+		}
+	}
+	return "", 0
+}
+
+func (sev *Service) ShowMembers() string {
+	data := sev.getMembers()
+	if data == nil {
+		return ""
 	}
 	hostname, err := os.Hostname()
 	if err != nil {

@@ -21,6 +21,9 @@ import (
 //如果pos改变，广播到所有的非leader节点上
 //非leader节点保存pos信息
 
+// todo 这里还需要一个异常检测机制
+// 定期检测是否有leader在运行，如果没有，尝试强制解锁，然后选出新的leader
+
 const ServiceName = "wing-binlog-go-agent"
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
@@ -64,6 +67,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		}
 	}
 	OnLeader(tcp.client.OnLeader)(tcp)
+	GetLeader(tcp.service.getLeader)(tcp.client)
 	tcp.watch = newWatch(c, ServiceName, c.Health(), ip,
 		int(port),onWatch(tcp.service.selectLeader),
 		unlock(tcp.service.Unlock),
