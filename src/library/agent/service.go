@@ -232,6 +232,9 @@ func (sev *Service) selectLeader() {
 			sev.Register()
 		}
 	} else {
+		// 如果选leader成功
+		// 但是这个时候leader仍然不存在，可以认为网络问题造成注册服务失败
+		// 这里尝试等待并重新注册
 		for {
 			_, _, err := sev.getLeader()
 			if err == leaderNotFound {
@@ -245,7 +248,7 @@ func (sev *Service) selectLeader() {
 	}
 
 	log.Debugf("select leader: %+v", leader)
-
+	// 触发选leader成功相关事件回调
 	if len(sev.onleader) > 0 {
 		log.Debugf("leader on select fired")
 		for _, f := range sev.onleader {
