@@ -132,14 +132,14 @@ func (sev *Service) Deregister() error {
 func (sev *Service) updateTtl() {
 	for {
 		if sev.lastSession != "" {
-			log.Debugf("session renew")
+			//log.Debugf("session renew")
 			sev.handler.Renew(sev.lastSession, nil)
 		}
 		if sev.status & Registered <= 0 {
 			time.Sleep(sev.Interval)
 			continue
 		}
-		log.Debugf("update ttl")
+		//log.Debugf("update ttl")
 		err := sev.agent.UpdateTTL(sev.ServiceID, fmt.Sprintf("isleader:%v", sev.leader), "passing")
 		if err != nil {
 			log.Println("update ttl of service error: ", err.Error())

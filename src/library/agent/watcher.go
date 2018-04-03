@@ -126,7 +126,7 @@ func (cw *ConsulWatcher) process() {
 						// if not leader
 						// 发生改变的不是leader，无须理会，只有leader发生改变才需要执行重选leader
 						if u.Service.Tags[0] != "isleader:true" {
-							log.Errorf("is not leader")
+							//log.Errorf("is not leader")
 							break
 						}
 						// if leader runs ok
@@ -138,11 +138,11 @@ func (cw *ConsulWatcher) process() {
 						// check is self
 						// 如果是当前节点，也无需处理
 						if u.Service.Address == cw.serviceIp && u.Service.Port == cw.port {
-							log.Warnf("is current node")
+							//log.Warnf("is current node")
 							break
 						}
 						// try to unlock
-						for i:=0;i<3;i++ {
+						for i := 0; i < 3; i++ {
 							s, err := cw.unlock()
 							if s {
 								break
@@ -166,30 +166,30 @@ func (cw *ConsulWatcher) process() {
 						//u.Checks.AggregatedStatus()
 						// error data
 						if len(u.Service.Tags) <= 0 {
-							log.Errorf("tag is error")
+							//log.Errorf("tag is error")
 							break
 						}
 						// if not leader
 						// 发生改变的不是leader，无须理会，只有leader发生改变才需要执行重选leader
 						if u.Service.Tags[0] != "isleader:true" {
-							log.Errorf("is not leader")
+							//log.Errorf("is not leader")
 							break
 						}
 						// if leader runs ok
 						// 如果是leader，并且leader正常运行，也无需例会
 						if u.Service.Tags[0] == "isleader:true" && u.Checks.AggregatedStatus() == "passing" {
-							log.Errorf("leader is running")
+							//log.Errorf("leader is running")
 							break
 						}
 						// check is self
 						// 如果是当前节点，也无需处理
 						if u.Service.Address == cw.serviceIp && u.Service.Port == cw.port {
-							log.Warnf("is current node")
+							//log.Warnf("is current node")
 							break
 						}
 						log.Debugf("============>fired cw.onChange<====")
 						// try to unlock
-						for i:=0;i<3;i++ {
+						for i := 0; i < 3; i++ {
 							s, err := cw.unlock()
 							if s {
 								break
