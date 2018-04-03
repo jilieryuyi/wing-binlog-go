@@ -202,6 +202,7 @@ func (sev *Service) Close() {
 }
 
 func (sev *Service) selectLeader() {
+	log.Debugf("====start select leader====")
 	leader, err := sev.Lock()
 	if err != nil {
 		log.Errorf("select leader with error: %v", err)
@@ -226,6 +227,20 @@ func (sev *Service) selectLeader() {
 				log.Errorf("select leader with error: %v", err)
 				return
 			}
+			sev.leader = leader
+			//register for set tags isleader:true
+			sev.Register()
+		}
+	} else {
+		for {
+			_, _, err := sev.getLeader()
+			if err == leaderNotFound {
+				log.Warnf("leader not fund, try register")
+				sev.Register()
+				time.Sleep(time.Second)
+				continue
+			}
+			break
 		}
 	}
 
