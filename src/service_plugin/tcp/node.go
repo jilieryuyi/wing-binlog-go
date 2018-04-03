@@ -9,6 +9,7 @@ import (
 	"io"
 	"fmt"
 	"sync/atomic"
+	"library/services"
 )
 
 func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNode {
@@ -163,7 +164,7 @@ func (node *tcpClientNode) onMessage(msg []byte) {
 			//case CMD_SHOW_MEMBERS:
 			//	tcp.onShowMembersEvent(node)
 		default:
-			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+			node.asyncSend(services.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}
@@ -203,7 +204,7 @@ func (node *tcpClientNode) onSetPro(groupName string) {
 	//	f(node)
 	//}
 	if !node.onpro(node, groupName) {
-		node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", groupName))))
+		node.send(services.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service, group does not exists: %s", groupName))))
 		node.close()
 		return
 	}

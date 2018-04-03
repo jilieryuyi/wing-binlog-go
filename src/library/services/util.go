@@ -1,6 +1,9 @@
 package services
 
-import "regexp"
+import (
+	"regexp"
+	"errors"
+)
 
 func MatchFilters(filters []string, table string) bool {
 	if filters == nil || len(filters) <= 0 {
@@ -29,4 +32,16 @@ func Pack(cmd int, msg []byte) []byte {
 	r[5] = byte(cmd >> 8)
 	copy(r[6:], msg)
 	return r
+}
+
+var DataLenError = errors.New("data len error")
+func Unpack(data []byte) (int, []byte, error) {
+	clen := int(data[0]) | int(data[1]) << 8 |
+		int(data[2]) << 16 | int(data[3]) << 24
+	if len(data) < 	clen + 4 {
+		return 0, nil, DataLenError
+	}
+	cmd  := int(data[4]) | int(data[5]) << 8
+	content := data[6 : clen + 4]
+	return cmd, content, nil
 }

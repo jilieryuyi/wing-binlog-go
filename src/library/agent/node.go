@@ -8,6 +8,7 @@ import (
 	"sync"
 	"fmt"
 	"io"
+	"library/services"
 )
 
 func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNode {
@@ -170,7 +171,7 @@ func (node *tcpClientNode) onMessage(msg []byte) {
 			//		f(content)
 			//	}
 		default:
-			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+			node.asyncSend(services.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}

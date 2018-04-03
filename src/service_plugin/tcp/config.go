@@ -92,8 +92,8 @@ type TcpService struct {
 
 var (
 	_ services.Service = &TcpService{}
-	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
-	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
+	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
+	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
 

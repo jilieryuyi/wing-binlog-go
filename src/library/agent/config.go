@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"net"
-	//"library/services"
+	"library/services"
 )
 
 const (
@@ -95,10 +95,8 @@ type TcpService struct {
 type OnPosFunc func(r []byte)
 type AgentServerOption func(s *TcpService)
 var (
-	//_ services.Service = &TcpService{}
-	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
-	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
-	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
+	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
+	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
 

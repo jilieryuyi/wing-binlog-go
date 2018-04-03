@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"library/app"
 	"sync"
+	"library/services"
 )
 
 // 如果当前agent为leader
@@ -28,7 +29,7 @@ type AgentClient struct {
 	getLeader getLeaferFunc
 }
 
-type getLeaferFunc func()(string, int)
+type getLeaferFunc func()(string, int, error)
 type OnEventFunc func(table string, data []byte) bool
 type OnRawFunc func(msg []byte) bool
 type AgentClientOption func(tcp *AgentClient)
@@ -58,7 +59,7 @@ func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
 }
 
 func (tcp *AgentClient) keepalive() {
-	data := pack(CMD_TICK, []byte(""))
+	data := services.Pack(CMD_TICK, []byte(""))
 	dl := len(data)
 	for {
 		select {
@@ -88,7 +89,7 @@ func (tcp *AgentClient) keepalive() {
 
 func (tcp *AgentClient) OnLeader(leader bool) {
 	log.Debugf("==============AgentClient OnLeader %v===============", leader)
-	ip, port := tcp.getLeader()
+	ip, port, _ := tcp.getLeader()
 	if ip == "" || port <= 0 {
 		log.Errorf("ip or port empty: %v, %v", ip, port)
 		return
@@ -263,7 +264,7 @@ func (tcp *AgentClient) onMessage(msg []byte) {
 			//tcp.sendRaw(pack(cmd, msg))
 			//log.Debugf("does not support")
 			for _, f := range tcp.onRaw {
-				f(pack(cmd, msg))
+				f(services.Pack(cmd, msg))
 			}
 		}
 		if len(tcp.buffer) <= 0 {

@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"io"
 	log "github.com/sirupsen/logrus"
+	"library/services"
 )
-type nodeOption func(node *TcpClientNode)
+
 
 func newNode(ctx *app.Context, conn *net.Conn, opts ...nodeOption) *TcpClientNode {
 	node := &TcpClientNode{
@@ -98,15 +99,15 @@ func (node *TcpClientNode) onMessage(msg []byte) {
 		case CMD_STOP:
 			log.Debugf("receive stop cmd")
 			node.stop()
-			node.send(pack(CMD_STOP, []byte("ok")))
+			node.send(services.Pack(CMD_STOP, []byte("ok")))
 		case CMD_RELOAD:
 			node.reload(string(content))
-			node.send(pack(CMD_RELOAD, []byte("ok")))
+			node.send(services.Pack(CMD_RELOAD, []byte("ok")))
 		case CMD_SHOW_MEMBERS:
 			members := node.showmember()
-			node.send(pack(CMD_SHOW_MEMBERS, []byte(members)))
+			node.send(services.Pack(CMD_SHOW_MEMBERS, []byte(members)))
 		default:
-			node.send(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+			node.send(services.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}

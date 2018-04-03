@@ -9,6 +9,7 @@ import (
 	"strings"
 	"strconv"
 	consul "github.com/hashicorp/consul/api"
+	"library/services"
 )
 
 //agent 所需要做的事情
@@ -146,14 +147,14 @@ func (tcp *TcpService) SendPos(data []byte) {
 	if !tcp.service.leader {
 		return
 	}
-	packData := pack(CMD_POS, data)
+	packData := services.Pack(CMD_POS, data)
 	tcp.agents.asyncSend(packData)
 }
 
 func (tcp *TcpService) SendEvent(table string, data []byte) {
 	// 广播给agent client
 	// agent client 再发送给连接到当前service_plugin/tcp的客户端
-	packData := pack(CMD_EVENT, data)
+	packData := services.Pack(CMD_EVENT, data)
 	tcp.agents.asyncSend(packData)
 }
 

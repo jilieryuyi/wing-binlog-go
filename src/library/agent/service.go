@@ -8,6 +8,7 @@ import (
 	"sync"
 	"strings"
 	"os"
+	"errors"
 )
 
 // 服务注册
@@ -206,10 +207,30 @@ func (sev *Service) selectLeader() {
 		log.Errorf("select leader with error: %v", err)
 		return
 	}
-	log.Debugf("select leader: %+v", leader)
 	sev.leader = leader
 	//register for set tags isleader:true
 	sev.Register()
+
+	// 如果不是leader，然后检测当前的leader是否存在，如果不存在
+	// 可以认为某些情况下发生了死锁，可以尝试强制解锁
+	if !leader {
+		_, _, err := sev.getLeader()
+		//如果没有leader
+		if err == leaderNotFound {
+			log.Warnf("deadlock found, try to unlock")
+			sev.Unlock()
+			sev.Delete()
+			log.Infof("select leader again")
+			leader, err = sev.Lock()
+			if err != nil {
+				log.Errorf("select leader with error: %v", err)
+				return
+			}
+		}
+	}
+
+	log.Debugf("select leader: %+v", leader)
+
 	if len(sev.onleader) > 0 {
 		log.Debugf("leader on select fired")
 		for _, f := range sev.onleader {
@@ -311,19 +332,20 @@ func (sev *Service) getMembers() []*clusterMember {
 	}
 	return data
 }
-
-func (sev *Service) getLeader() (string, int) {
+var membersEmpty = errors.New("members is empty")
+var leaderNotFound = errors.New("leader not found")
+func (sev *Service) getLeader() (string, int, error) {
 	members := sev.getMembers()
 	if members == nil {
-		return "", 0
+		return "", 0, membersEmpty
 	}
 	for _, v := range members {
 		log.Debugf("getLeader: %+v", *v)
 		if v.IsLeader {
-			return v.ServiceIp, v.Port
+			return v.ServiceIp, v.Port, nil
 		}
 	}
-	return "", 0
+	return "", 0, leaderNotFound
 }
 
 func (sev *Service) ShowMembers() string {

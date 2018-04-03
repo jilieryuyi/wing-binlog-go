@@ -47,7 +47,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	tcp.statusLock.Unlock()
 	log.Debugf("tcp SendAll: %s, %+v", table, string(data))
 	// pack data
-	packData := pack(CMD_EVENT, data)
+	packData := services.Pack(CMD_EVENT, data)
 	// send to all groups
 	for _, group := range tcp.groups {
 		// check if match
