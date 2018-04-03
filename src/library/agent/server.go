@@ -153,6 +153,8 @@ func (tcp *TcpService) SendPos(data []byte) {
 func (tcp *TcpService) SendEvent(table string, data []byte) {
 	// 广播给agent client
 	// agent client 再发送给连接到当前service_plugin/tcp的客户端
+	packData := pack(CMD_EVENT, data)
+	tcp.agents.asyncSend(packData)
 }
 
 // 心跳
