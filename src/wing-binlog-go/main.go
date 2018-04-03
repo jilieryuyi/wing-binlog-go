@@ -18,6 +18,7 @@ var (
 	//if debug is true, print stack log
 	debug   = flag.Bool("debug", false, "enable debug, default disable")
 	version = flag.Bool("version", false, "wing binlog go version")
+	v = flag.Bool("v", false, "wing binlog go version")
 	stop    = flag.Bool("stop", false, "stop service")
 	//-service-reload http
 	//-service-reload tcp
@@ -35,7 +36,7 @@ var (
 
 func runCmd(ctx *app.Context) bool {
 	// 显示版本信息
-	if *version {
+	if *version || *v {
 		fmt.Println(app.VERSION)
 		return true
 	}
@@ -70,7 +71,7 @@ func main() {
 	//		log.Errorf("%+v", err)
 	//	}
 	//}()
-	isCmd := *version || *stop || *serviceReload != "" || *help || *members
+	isCmd := *version || *stop || *serviceReload != "" || *help || *members || *v
 	// app init
 	app.DEBUG = *debug
 	app.Init(isCmd, *configPath)
