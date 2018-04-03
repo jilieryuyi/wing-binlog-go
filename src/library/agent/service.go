@@ -297,10 +297,11 @@ func (sev *Service) ShowMembers() string {
 		m := &clusterMember{}
 		if v.Checks.AggregatedStatus() == "passing" {
 			m.Status = statusOnline
+			m.IsLeader  = v.Service.Tags[0] == "isleader:true"
 		} else {
 			m.Status = statusOffline
+			m.IsLeader  = false//v.Service.Tags[0] == "isleader:true"
 		}
-		m.IsLeader  = v.Service.Tags[0] == "isleader:true"
 		m.Hostname  = v.Service.Tags[2]
 		m.SessionId = v.Service.ID//Tags[1]
 		m.ServiceIp = v.Service.Address
