@@ -41,6 +41,11 @@ func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
 		status:           0,
 		leader:false,
 	}
+	if len(opts) > 0 {
+		for _, f := range opts {
+			f(c)
+		}
+	}
 	return c
 }
 
