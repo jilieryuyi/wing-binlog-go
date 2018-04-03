@@ -78,9 +78,9 @@ func (client *HttpService) Reload() {
 	log.Debug("http service reloaded.")
 }
 
-func (client *HttpService) AgentStart(serviceIp string, port int) {}
-func (client *HttpService) AgentStop() {}
-func (client *HttpService) SendPos(data []byte) {}
+func (client *HttpService) SendRaw(data []byte) bool {
+	return true
+}
 func (client *HttpService) Name() string{
 	return "http"
 }

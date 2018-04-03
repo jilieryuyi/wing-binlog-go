@@ -13,6 +13,7 @@ type Redis struct {
 	services.Service
 	client *redis.Client
 	config *redisConfig
+
 }
 
 var _ services.Service = &Redis{}
@@ -57,6 +58,7 @@ func NewRedis() services.Service {
 		config:config,
 	}
 }
+
 func (r *Redis) SendAll(table string, data []byte) bool {
 	if !r.config.Enable || r.client == nil {
 		return true
@@ -70,7 +72,6 @@ func (r *Redis) SendAll(table string, data []byte) bool {
 	}
 	return true
 }
-func (r *Redis) SendPos(data []byte) {}
 func (r *Redis) Start() {}
 func (r *Redis) Close() {
 	if r.client == nil {
@@ -93,8 +94,7 @@ func (r *Redis) Reload() {
 		DB:       r.config.Db,
 	})
 }
-func (r *Redis) AgentStart(serviceIp string, port int) {}
-func (r *Redis) AgentStop() {}
 func (r *Redis) Name() string {
 	return "redis"
 }
+func (r *Redis) SendRaw(data []byte) bool { return true }
