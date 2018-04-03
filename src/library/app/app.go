@@ -145,6 +145,7 @@ func Usage() {
 	fmt.Println("wing-binlog-go -stop                               --stop service")
 	fmt.Println("wing-binlog-go -reload  http                       --reload http service")
 	fmt.Println("wing-binlog-go -reload  tcp                        --reload tcp service")
+	fmt.Println("wing-binlog-go -reload  redis                      --reload redis service")
 	fmt.Println("wing-binlog-go -reload  all                        --reload all service")
 	fmt.Println("wing-binlog-go -members                            --show cluster members")
 	fmt.Println("wing-binlog-go -d|-daemon                          --run as daemon process")

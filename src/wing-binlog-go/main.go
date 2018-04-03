@@ -22,7 +22,7 @@ var (
 	//-service-reload http
 	//-service-reload tcp
 	//-service-reload all ##重新加载全部服务
-	serviceReload  = flag.String("reload", "", "reload service config, usage: -reload  all|http|tcp")
+	serviceReload  = flag.String("reload", "", "reload service config, usage: -reload  all|http|tcp|redis")
 	// show help info
 	help           = flag.Bool("help", false, "help")
 	// show members
@@ -125,11 +125,11 @@ func main() {
 			httpService.Reload()
 		} else {
 			switch name {
-			case "http":
+			case httpService.Name():
 				httpService.Reload()
-			case "tcp":
+			case tcpService.Name():
 				tcpService.Reload()
-			case "redis":
+			case redisService.Name():
 				redisService.Reload()
 			default:
 				log.Errorf("unknown service: %v", name)
