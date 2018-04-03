@@ -6,12 +6,27 @@ import (
 	"time"
 	consul "github.com/hashicorp/consul/api"
 	"sync"
+	"strings"
+	"os"
 )
 
 // 服务注册
 const (
 	Registered = 1 << iota
 )
+const (
+	statusOnline    = "online"
+	statusOffline   = "offline"
+)
+// cluster node(member)
+type clusterMember struct {
+	Hostname string
+	IsLeader bool
+	SessionId string
+	Status string
+	ServiceIp string
+	Port int
+}
 type Service struct {
 	ServiceName string //service name, like: service.add
 	ServiceHost string //service host, like: 0.0.0.0, 127.0.0.1
@@ -31,6 +46,7 @@ type Service struct {
 	Kv *consul.KV
 	lastSession string
 	onleader []OnLeaderFunc
+	health *consul.Health
 }
 
 type OnLeaderFunc func(bool)
@@ -95,6 +111,8 @@ func NewService(key string, name string, host string, port int,
 	}
 	sev.ServiceID = fmt.Sprintf("%s-%s-%d", name, ip, port)
 	sev.agent = sev.client.Agent()
+	go sev.updateTtl()
+	sev.health = sev.client.Health()
 	return sev
 }
 
@@ -111,40 +129,47 @@ func (sev *Service) Deregister() error {
 	return err
 }
 
+func (sev *Service) updateTtl() {
+	for {
+		if sev.lastSession != "" {
+			sev.handler.Renew(sev.lastSession, nil)
+		}
+		if sev.status & Registered <= 0 {
+			time.Sleep(sev.Interval)
+			continue
+		}
+		err := sev.agent.UpdateTTL(sev.ServiceID, fmt.Sprintf("isleader:%v", sev.leader), "passing")
+		if err != nil {
+			log.Println("update ttl of service error: ", err.Error())
+		}
+		time.Sleep(sev.Interval)
+	}
+}
+
 func (sev *Service) Register() error {
-	//de-register if meet signhup
 	sev.lock.Lock()
 	if sev.status & Registered <= 0 {
 		sev.status |= Registered
-	} else {
-		sev.lock.Unlock()
-		return nil
 	}
 	sev.lock.Unlock()
-	// routine to update ttl
-	go func() {
-		ticker := time.NewTicker(sev.Interval)
-		for {
-			<-ticker.C
-			sev.selectLeader()
-			err := sev.agent.UpdateTTL(sev.ServiceID, fmt.Sprintf("isleader:%v", sev.leader), "passing")
-			if err != nil {
-				log.Println("update ttl of service error: ", err.Error())
-			}
-		}
-	}()
+	//de-register if meet signhup
 	// initial register service
 	ip := sev.ServiceHost
 	if ip == "0.0.0.0" {
 		ip = sev.ServiceIp
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
 	}
 	regis := &consul.AgentServiceRegistration{
 		ID:      sev.ServiceID,
 		Name:    sev.ServiceName,
 		Address: ip,
 		Port:    sev.ServicePort,
+		Tags:    []string{fmt.Sprintf("isleader:%v", sev.leader), sev.lockKey, hostname},
 	}
-	err := sev.agent.ServiceRegister(regis)
+	err = sev.agent.ServiceRegister(regis)
 	if err != nil {
 		return fmt.Errorf("initial register service '%s' host to consul error: %s", sev.ServiceName, err.Error())
 	}
@@ -174,7 +199,7 @@ func (sev *Service) Close() {
 func (sev *Service) selectLeader() {
 	leader, err := sev.Lock()
 	if err != nil {
-		log.Errorf("%v", err)
+		log.Errorf("select leader with error: %v", err)
 		return
 	}
 	log.Debugf("select leader: %+v", leader)
@@ -184,15 +209,20 @@ func (sev *Service) selectLeader() {
 			f(leader)
 		}
 	}
+	//register for set tags isleader:true
+	sev.Register()
 }
 
-func (sev *Service) createSession(timeOut int64) string {
-	if timeOut < 10 {
-		timeOut = 10
-	}
+func (sev *Service) createSession(/*timeOut int64*/) string {
+	//if timeOut < 10 {
+	//	timeOut = 10
+	//}
+	// 每个sev.Interval周期，session就会被刷新
+	// 将session的ttl设置为这个周期的6倍
+	// 一般情况下这个session永远不会被过期
 	se := &consul.SessionEntry{
 		Behavior : consul.SessionBehaviorDelete,
-		TTL: fmt.Sprintf("%ds", timeOut),
+		TTL: fmt.Sprintf("%ds", sev.Interval.Seconds() * 6),
 	}
 	ID, _, err := sev.handler.Create(se, nil)
 	if err != nil {
@@ -202,14 +232,21 @@ func (sev *Service) createSession(timeOut int64) string {
 	return ID
 }
 
-// lock if success, the current will be a leader
+// lock if success, the current agent will be leader
 func (sev *Service) Lock() (bool, error) {
-	sev.lastSession = sev.createSession(int64(sev.Ttl*3))
+	if sev.lastSession == "" {
+		sev.lastSession = sev.createSession()
+	}
 	p := &consul.KVPair{Key: sev.lockKey, Value: nil, Session: sev.lastSession}
 	success, _, err := sev.Kv.Acquire(p, nil)
 	if err != nil {
 		// try to create a new session
 		log.Errorf("lock error: %+v", err)
+		if strings.Contains(strings.ToLower(err.Error()), "session") {
+			log.Errorf("try to create a new session")
+			// session错误时，尝试重建session
+			sev.lastSession = sev.createSession()
+		}
 		return false, err
 	}
 	return success, nil
@@ -221,6 +258,11 @@ func (sev *Service) Unlock() (bool, error) {
 	success, _, err := sev.Kv.Release(p, nil)
 	if err != nil {
 		log.Errorf("unlock error: %+v", err)
+		if strings.Contains(strings.ToLower(err.Error()), "session") {
+			log.Errorf("try to create a new session")
+			// session错误时，尝试重建session
+			sev.lastSession = sev.createSession()
+		}
 		return false, err
 	}
 	return success, nil
@@ -230,4 +272,52 @@ func (sev *Service) Unlock() (bool, error) {
 func (sev *Service) Delete() error {
 	_, err := sev.Kv.Delete(sev.lockKey, nil)
 	return err
+}
+
+func (sev *Service) ShowMembers() string {
+	members, _, err := sev.health.Service(ServiceName, "", false, nil)
+	if err != nil || members == nil {
+		log.Errorf("get service list error: %+v", err)
+		return ""
+	}
+	data := make([]*clusterMember, 0)
+	for _, v := range members {
+		// 这里的两个过滤，为了避免与其他服务冲突，只获取相同lockkey的服务，即 当前集群
+		if len(v.Service.Tags) < 3 {
+			continue
+		}
+		if v.Service.Tags[1] != sev.lockKey {
+			continue
+		}
+		m := &clusterMember{}
+		if v.Checks.AggregatedStatus() == "passing" {
+			m.Status = statusOnline
+		} else {
+			m.Status = statusOffline
+		}
+		m.IsLeader  = v.Service.Tags[0] == "isleader:true"
+		m.Hostname  = v.Service.Tags[2]
+		m.SessionId = v.Service.ID//Tags[1]
+		m.ServiceIp = v.Service.Address
+		m.Port      = v.Service.Port
+		data = append(data, m)
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+	}
+	res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, sev.ServiceIp, sev.ServicePort)
+	res += fmt.Sprintf("cluster size: %d node(s)\r\n", len(data))
+	res += fmt.Sprintf("======+=============================================+==========+===============\r\n")
+	res += fmt.Sprintf("%-6s| %-43s | %-8s | %s\r\n", "index", "node", "role", "status")
+	res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+	for i, member := range data {
+		role := "follower"
+		if member.IsLeader {
+			role = "leader"
+		}
+		res += fmt.Sprintf("%-6d| %-43s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", member.Hostname, member.ServiceIp, member.Port), role, member.Status)
+	}
+	res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+	return res
 }

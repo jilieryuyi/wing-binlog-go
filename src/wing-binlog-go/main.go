@@ -11,6 +11,7 @@ import (
 	"service_plugin/tcp"
 	"library/control"
 	"library/agent"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -120,8 +121,25 @@ func main() {
 	// 本地控制命令支持
 	ctl := control.NewControl(
 		appContext,
-		control.ShowMember(blog.ShowMembers),
-		control.Reload(blog.Reload),
+		control.ShowMember(agentServer.ShowMembers),
+		control.Reload(func(name string) {
+			if name == "all" {
+				tcpService.Reload()
+				redisService.Reload()
+				httpService.Reload()
+			} else {
+				switch name {
+				case "http":
+					httpService.Reload()
+				case "tcp":
+					tcpService.Reload()
+				case "redis":
+					redisService.Reload()
+				default:
+					log.Errorf("unknown service: %v", name)
+				}
+			}
+		}),
 		control.Stop(appContext.Stop),
 	)
 	ctl.Start()

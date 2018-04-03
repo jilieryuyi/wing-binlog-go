@@ -58,15 +58,15 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		c,
 	)
 	tcp.service.Register()
-
 	if len(opts) > 0 {
 		for _, f := range opts {
 			f(tcp)
 		}
 	}
 	OnLeader(tcp.client.OnLeader)(tcp)
-	//tcp.watch = newWatch(c, ServiceName, c.Health())
-	//go tcp.watch.process()
+	tcp.watch = newWatch(c, ServiceName, c.Health(), ip,
+		int(port),onWatch(tcp.service.selectLeader))
+	go tcp.watch.process()
 	return tcp
 }
 
@@ -221,4 +221,8 @@ func (tcp *TcpService) keepalive() {
 		tcp.agents.asyncSend(packDataTickOk)
 		time.Sleep(time.Second * 3)
 	}
+}
+
+func (tcp *TcpService) ShowMembers() string {
+	return tcp.service.ShowMembers()
 }

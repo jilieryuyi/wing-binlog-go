@@ -43,23 +43,23 @@ type Binlog struct {
 	lastBinFile   string
 
 	// consul lock key
-	LockKey string
-	// consul address
-	Address string
-	// tcp service ip
-	ServiceIp string
-	// tcp service port
-	ServicePort int
-	// consul session client
-	Session *Session
-	// unique session id
-	sessionId string
-	// consul client api
-	Client *api.Client
-	// consul kv service
-	Kv *api.KV
-	// consul agent, use for register service
-	agent *api.Agent
+	//LockKey string
+	//// consul address
+	//Address string
+	//// tcp service ip
+	//ServiceIp string
+	//// tcp service port
+	//ServicePort int
+	//// consul session client
+	//Session *Session
+	//// unique session id
+	//sessionId string
+	//// consul client api
+	//Client *api.Client
+	//// consul kv service
+	//Kv *api.KV
+	//// consul agent, use for register service
+	//agent *api.Agent
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
 	posChan chan []byte
