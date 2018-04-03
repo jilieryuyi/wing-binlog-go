@@ -78,11 +78,11 @@ func (h *Binlog) asyncSavePosition() {
 				log.Warnf("handler is closed")
 			}
 			//只有leader才发送
-			if h.status & _consulIsLeader > 0 {
-				for _, f := range h.onPosChanges {
-					f(r)
-				}
+			//if h.status & _consulIsLeader > 0 {
+			for _, f := range h.onPosChanges {
+				f(r)
 			}
+			//}
 		case <- h.ctx.Ctx.Done():
 			if len(h.posChan) <= 0 {
 				return
@@ -268,12 +268,21 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	pos        := int64(p.Pos)
 	data       := packPos(p.Name, pos, eventIndex)
 	h.SaveBinlogPositionCache(data)
-	for _, service := range h.services {
-		service.SendPos(data)
-	}
+	//for _, service := range h.services {
+	//	service.SendPos(data)
+	//}
 	h.lastBinFile = p.Name
 	h.lastPos     = p.Pos
 	return nil
+}
+
+// use for agent sync pos callback
+func (h *Binlog) SaveBinlogPosition(r []byte) {
+	file, pos, index := unpackPos(r)
+	h.lastBinFile = file//p.Name
+	h.lastPos     = uint32(pos)//p.Pos
+	atomic.StoreInt64(&h.EventIndex, index)
+	h.SaveBinlogPositionCache(r)
 }
 
 // agent 接收到pos改变的时候也会回调到这里

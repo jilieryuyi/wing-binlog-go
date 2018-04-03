@@ -95,11 +95,11 @@ func (tcp *AgentClient) OnLeader(leader bool) {
 	}
 	if leader {
 		// 断开client到 agent server的连接
-		tcp.disconnect()
+		tcp.AgentStop()
 	} else {
 		// 查询leader的 服务
 		// 连接到agent server (leader)
-		tcp.connect(ip, port)
+		tcp.AgentStart(ip, port)
 	}
 }
 

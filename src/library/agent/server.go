@@ -1,13 +1,11 @@
 package agent
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
 	"time"
 	"library/app"
-	"io"
 	"strings"
 	"strconv"
 	consul "github.com/hashicorp/consul/api"
@@ -44,15 +42,12 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	strs    := strings.Split(ctx.AppConfig.AgentfListen, ":")
 	ip      := strs[0]
 	port, _ := strconv.ParseInt(strs[1], 10, 32)
-
-
 	conf := &consul.Config{Scheme: "http", Address: ctx.ClusterConfig.Consul.Address}
 	c, err := consul.NewClient(conf)
 	if err != nil {
 		log.Panicf("%v", err)
 		return nil
 	}
-
 	tcp.service = NewService(
 		ctx.ClusterConfig.Lock,
 		ServiceName,
@@ -105,71 +100,8 @@ func OnRaw(f OnRawFunc) AgentServerOption {
 	}
 }
 
-// 收到新的连接
-func (tcp *TcpService) onConnect(conn *net.Conn) {
-	node := newNode(tcp.ctx, conn)
-	node.setReadDeadline(time.Now().Add(time.Second * 3))
-	var readBuffer [tcpDefaultReadBufferSize]byte
-	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	for {
-		size, err := (*conn).Read(readBuffer[0:])
-		if err != nil {
-			if err != io.EOF {
-				log.Warnf("tcp node %s disconnect with error: %v", (*conn).RemoteAddr().String(), err)
-			} else {
-				log.Debugf("tcp node %s disconnect with error: %v", (*conn).RemoteAddr().String(), err)
-			}
-			node.close()
-			tcp.agents.remove(node)
-			return
-		}
-		tcp.onMessage(node, readBuffer[:size])
-	}
-}
-
-// receive a new message
-// 收到信的消息
-func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
-	node.recvBuf = append(node.recvBuf, msg...)
-	for {
-		size := len(node.recvBuf)
-		if size < 6 {
-			return
-		}
-		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
-			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
-		if len(node.recvBuf) < 	clen + 4 {
-			return
-		}
-		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
-		if !hasCmd(cmd) {
-			log.Errorf("cmd %d does not exists, data: %v", cmd, node.recvBuf)
-			node.recvBuf = make([]byte, 0)
-			return
-		}
-		content := node.recvBuf[6 : clen + 4]
-		log.Debugf("%+v", content)
-		switch cmd {
-		case CMD_TICK:
-			node.asyncSend(packDataTickOk)
-		//case CMD_POS:
-		//	// 如果是pos事件通知，执行回调函数
-		//	for _, f:= range tcp.onPos {
-		//		f(content)
-		//	}
-		default:
-			node.asyncSend(pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
-			node.recvBuf = make([]byte, 0)
-			return
-		}
-		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
-	}
-}
-
 func (tcp *TcpService) Start() {
 	go tcp.watch.process()
-
-	log.Debugf("tcp.service.onleader==>%+v", tcp.service.onleader)
 	go func() {
 		listen, err := net.Listen("tcp", tcp.Address)
 		if err != nil {
@@ -189,7 +121,8 @@ func (tcp *TcpService) Start() {
 				log.Warnf("tcp service accept with error: %+v", err)
 				continue
 			}
-			go tcp.onConnect(&conn)
+			node := newNode(tcp.ctx, &conn, NodeClose(tcp.agents.remove), NodePro(tcp.agents.append))
+			go node.readMessage()
 		}
 	}()
 }
@@ -210,6 +143,9 @@ func (tcp *TcpService) Close() {
 // r为压缩过的二进制数据
 // 可以直接写到pos cache缓存文件
 func (tcp *TcpService) SendPos(data []byte) {
+	if !tcp.service.leader {
+		return
+	}
 	packData := pack(CMD_POS, data)
 	tcp.agents.asyncSend(packData)
 }

@@ -112,7 +112,7 @@ func main() {
 	// set agent receive pos callback
 	// 延迟依赖绑定
 	// agent与binlog相互依赖
-	agent.OnPos(blog.SaveBinlogPositionCache)(agentServer)
+	agent.OnPos(blog.SaveBinlogPosition)(agentServer)
 	agent.OnLeader(blog.OnLeader)(agentServer)
 
 	agentServer.Start()
