@@ -181,6 +181,7 @@ func (h *Binlog) StopService(exit bool) {
 }
 
 func (h *Binlog) StartService() {
+	log.Debugf("===========binlog service start===========")
 	h.startServiceChan <- struct{}{}
 	//for _, s := range h.services {
 	//	//s.AgentStop()
@@ -188,18 +189,17 @@ func (h *Binlog) StartService() {
 }
 
 func (h *Binlog) Start() {
-	log.Debugf("===========binlog service start===========")
 	for _, service := range h.services {
 		service.Start()
 	}
-	h.statusLock.Lock()
-	if h.status & _enableConsul <= 0 {
-		h.statusLock.Unlock()
-		log.Debugf("is not enable consul")
-		h.StartService()
+	//h.statusLock.Lock()
+	//if h.status & _enableConsul <= 0 {
+		//h.statusLock.Unlock()
+		//log.Debugf("is not enable consul")
+		//h.StartService()
 		return
-	}
-	h.statusLock.Unlock()
+	//}
+	//h.statusLock.Unlock()
 	//go func() {
 	//	for {
 	//		h.statusLock.Lock()
@@ -224,6 +224,7 @@ func (h *Binlog) Start() {
 }
 
 func (h *Binlog) OnLeader(isLeader bool) {
+	log.Debugf("========OnLeader call")
 	if isLeader {
 		// leader start service
 		h.StartService()

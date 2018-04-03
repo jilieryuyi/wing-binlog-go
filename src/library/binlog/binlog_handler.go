@@ -129,8 +129,10 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 }
 
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
+	log.Debugf("OnRow")
 	h.statusLock.Lock()
 	if h.status & _binlogIsExit > 0 {
+		log.Debugf("is exit")
 		h.statusLock.Unlock()
 		return nil
 	}

@@ -98,8 +98,6 @@ func main() {
 		agent.OnEvent(tcpService.SendAll),
 		agent.OnRaw(tcpService.SendRaw),
 	)
-	agentServer.Start()
-	defer agentServer.Close()
 
 	blog := binlog.NewBinlog(
 		appContext,
@@ -116,6 +114,9 @@ func main() {
 	// agent与binlog相互依赖
 	agent.OnPos(blog.SaveBinlogPositionCache)(agentServer)
 	agent.OnLeader(blog.OnLeader)(agentServer)
+
+	agentServer.Start()
+	defer agentServer.Close()
 
 	var reload = func(name string) {
 		if name == "all" {

@@ -66,7 +66,6 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	OnLeader(tcp.client.OnLeader)(tcp)
 	tcp.watch = newWatch(c, ServiceName, c.Health(), ip,
 		int(port),onWatch(tcp.service.selectLeader))
-	go tcp.watch.process()
 	return tcp
 }
 
@@ -162,6 +161,8 @@ func (tcp *TcpService) onMessage(node *tcpClientNode, msg []byte) {
 }
 
 func (tcp *TcpService) Start() {
+	go tcp.watch.process()
+	log.Debugf("tcp.service.onleader==>%+v", tcp.service.onleader)
 	go func() {
 		listen, err := net.Listen("tcp", tcp.Address)
 		if err != nil {

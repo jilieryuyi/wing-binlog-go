@@ -1,0 +1,18 @@
+enable = true              ## 是否启用http服务
+time_tick = 1              ## 故障检测的时间间隔，单位为秒
+[groups]
+    [groups.1]
+     name = "group1"
+     filter = [] ##如只关注 test库的变化可以配置为 filter = ["test.*"]
+     nodes  = [
+            "http://test.com/test1.php",
+            #"http://test.com/test2.php",
+     ]
+
+#     [groups.2]
+#      name = "group2"
+#      filter = []
+#      nodes = [
+#            "http://test.com/test3.php",
+#            "http://test.com/test4.php",
+#      ]

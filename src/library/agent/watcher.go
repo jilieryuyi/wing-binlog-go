@@ -125,7 +125,7 @@ func (cw *ConsulWatcher) process() {
 //// queryConsul is helper function to query consul
 func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceEntry, uint64, error) {
 	// query consul
-	cs, meta, err := cw.health.Service(cw.target, "", true, q)
+	cs, meta, err := cw.health.Service(cw.target, "", false, q)
 	if err != nil {
 		return nil, 0, err
 	}
