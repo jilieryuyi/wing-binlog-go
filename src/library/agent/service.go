@@ -132,14 +132,14 @@ func (sev *Service) Deregister() error {
 func (sev *Service) updateTtl() {
 	for {
 		if sev.lastSession != "" {
-			//log.Debugf("session renew")
+			log.Debugf("session renew")
 			sev.handler.Renew(sev.lastSession, nil)
 		}
 		if sev.status & Registered <= 0 {
 			time.Sleep(sev.Interval)
 			continue
 		}
-		//log.Debugf("update ttl")
+		log.Debugf("update ttl")
 		err := sev.agent.UpdateTTL(sev.ServiceID, fmt.Sprintf("isleader:%v", sev.leader), "passing")
 		if err != nil {
 			log.Println("update ttl of service error: ", err.Error())
@@ -171,6 +171,7 @@ func (sev *Service) Register() error {
 		Port:    sev.ServicePort,
 		Tags:    []string{fmt.Sprintf("isleader:%v", sev.leader), sev.lockKey, hostname},
 	}
+	log.Debugf("service register")
 	err = sev.agent.ServiceRegister(regis)
 	if err != nil {
 		return fmt.Errorf("initial register service '%s' host to consul error: %s", sev.ServiceName, err.Error())
@@ -192,6 +193,7 @@ func (sev *Service) Register() error {
 func (sev *Service) Close() {
 	sev.Deregister()
 	if sev.leader {
+		log.Debugf("=========>current is leader, try unlock")
 		sev.Unlock()
 		sev.Delete()
 		sev.leader = false
