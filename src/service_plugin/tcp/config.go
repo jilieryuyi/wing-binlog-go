@@ -34,8 +34,6 @@ const (
 
 const (
 	serviceEnable = 1 << iota
-	agentStatusOnline
-	agentStatusConnect
 )
 
 const (
@@ -56,7 +54,13 @@ type tcpClientNode struct {
 	wg               *sync.WaitGroup
 	ctx              *app.Context
 	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	onclose []NodeFunc
+	onpro SetProFunc
 }
+
+type NodeFunc func(n *tcpClientNode)
+type SetProFunc func(n *tcpClientNode, groupName string) bool
+type NodeOption func(n *tcpClientNode)
 
 type tcpClients []*tcpClientNode
 type tcpGroups map[string]*tcpGroup
@@ -79,7 +83,7 @@ type TcpService struct {
 	listener         *net.Listener
 	wg               *sync.WaitGroup
 	ServiceIp        string
-	agents           tcpClients
+	//agents           tcpClients
 	status           int
 	token            string
 	conn             *net.TCPConn
@@ -88,7 +92,6 @@ type TcpService struct {
 
 var (
 	_ services.Service = &TcpService{}
-	packDataTokenError = pack(CMD_AUTH, []byte("token error"))
 	packDataTickOk     = pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = pack(CMD_SET_PRO, []byte("ok"))
 )

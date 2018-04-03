@@ -5,15 +5,7 @@ import (
 	"sync"
 	"library/services"
 	"github.com/siddontang/go-mysql/canal"
-	"github.com/hashicorp/consul/api"
 	"library/app"
-	"errors"
-	"service_plugin/tcp"
-)
-
-var (
-	sessionEmpty = errors.New("session empty")
-	pingData = tcp.PackPro(tcp.FlagPing, []byte("ping"))
 )
 
 type Binlog struct {
@@ -42,24 +34,6 @@ type Binlog struct {
 	// the last read binlog file
 	lastBinFile   string
 
-	// consul lock key
-	//LockKey string
-	//// consul address
-	//Address string
-	//// tcp service ip
-	//ServiceIp string
-	//// tcp service port
-	//ServicePort int
-	//// consul session client
-	//Session *Session
-	//// unique session id
-	//sessionId string
-	//// consul client api
-	//Client *api.Client
-	//// consul kv service
-	//Kv *api.KV
-	//// consul agent, use for register service
-	//agent *api.Agent
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
 	posChan chan []byte
@@ -81,44 +55,8 @@ const (
 	// binlog is in exit status, will exit later
 	_binlogIsExit
 	_cacheHandlerIsOpened
-	_consulIsLeader
-	_enableConsul
 )
 
 const (
-	serviceKeepaliveTimeout  = 6  // timeout, unit is second
-	checkAliveInterval       = 1  // interval for checkalive
-	keepaliveInterval        = 1  // interval for keepalive
-
-	prefixKeepalive = "wing/binlog/keepalive/"
-	statusOnline    = "online"
-	statusOffline   = "offline"
-	ServiceNameTcp  = "tcp"
-	ServiceNameHttp = "http"
-	serviceNameAll  = "all"
 	posChanLen      = 10000
 )
-
-// cluster interface
-type Cluster interface{
-	Close()
-	Lock() bool
-	Write(data []byte) bool
-	GetMembers() []*ClusterMember
-	ClearOfflineMembers()
-	GetServices() map[string]*api.AgentService
-	GetLeader() (string, int)
-}
-
-// cluster node(member)
-type ClusterMember struct {
-	Hostname string
-	IsLeader bool
-	SessionId string
-	Status string
-	ServiceIp string
-	Port int
-}
-
-
-

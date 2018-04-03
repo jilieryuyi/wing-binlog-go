@@ -18,16 +18,6 @@ func newTcpGroup(group app.TcpGroupConfig) *tcpGroup {
 
 func (g *tcpGroup) match(table string) bool {
 	return services.MatchFilters(g.filter, table)
-	//if len(g.filter) <= 0 {
-	//	return true
-	//}
-	//for _, f := range g.filter {
-	//	match, err := regexp.MatchString(f, table)
-	//	if match && err == nil {
-	//		return true
-	//	}
-	//}
-	//return false
 }
 
 func (g *tcpGroup) append(node *tcpClientNode) {

@@ -69,7 +69,6 @@ type NodeFunc func(n *tcpClientNode)
 type NodeOption func(n *tcpClientNode)
 
 type tcpClients []*tcpClientNode
-type tcpGroups map[string]*tcpGroup
 
 type tcpGroup struct {
 	name   string

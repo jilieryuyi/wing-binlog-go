@@ -22,19 +22,8 @@ func NewClient(ctx *app.Context) *control {
 	if err != nil {
 		log.Panicf("start control with error: %+v", err)
 	}
-	//con.auth()
 	return con
 }
-
-//func (con *control) auth() {
-//	token := app.GetKey(app.CachePath + "/token")
-//	log.Debugf("token(%d): %s", len(token), token)
-//	data := PackPro(FlagControl, []byte(token))//pack(CMD_AUTH, []byte(token))
-//	con.conn.Write(data)
-//	var buf = make([]byte, 1024)
-//	con.conn.SetReadDeadline(time.Now().Add(time.Second*3))
-//	con.conn.Read(buf)
-//}
 
 func (con *control) Close() {
 	con.conn.Close()
@@ -53,19 +42,14 @@ func (con *control) Stop() {
 //-service-reload http
 //-service-reload tcp
 //-service-reload all ##重新加载全部服务
-//cmd: http、tcp、all
-func (con *control) Reload(cmd string) {
-	data := pack(CMD_RELOAD, []byte(cmd))
+//cmd: http、tcp、all、redis
+func (con *control) Reload(serviceName string) {
+	data := pack(CMD_RELOAD, []byte(serviceName))
 	con.conn.Write(data)
-}
-
-func (con *control) Restart() {
-
 }
 
 // -members
 func (con *control) ShowMembers() {
-	log.Debugf("show members")
 	data := pack(CMD_SHOW_MEMBERS, []byte(""))
 	con.conn.Write(data)
 	var buf = make([]byte, 40960)

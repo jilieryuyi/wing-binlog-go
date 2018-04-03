@@ -30,7 +30,7 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 		t.Errorf("binlog open cache file error: %+v", err)
 	}
 	r := packPos(binfile, pos, eventIndex)
-	h.SaveBinlogPositionCache(r)
+	h.saveBinlogPositionCache(r)
 	s, p, e := h.getBinlogPositionCache()
 	fmt.Printf("%v, %v, %v\n", s, p, e)
 	if s != binfile {
@@ -46,7 +46,7 @@ func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	pos = int64(12345)
 	eventIndex = int64(2)
 	r = packPos(binfile, pos, eventIndex)
-	h.SaveBinlogPositionCache(r)
+	h.saveBinlogPositionCache(r)
 	s, p, e = h.getBinlogPositionCache()
 	fmt.Printf("%v, %v, %v\n", s, p, e)
 	if s != binfile {

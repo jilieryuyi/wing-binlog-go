@@ -31,6 +31,9 @@ type TcpClientNode struct {
 	wg               *sync.WaitGroup
 	ctx              *app.Context
 	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	stop StopFunc
+	reload ReloadFunc
+	showmember ShowMemberFunc
 }
 
 type TcpService struct {
