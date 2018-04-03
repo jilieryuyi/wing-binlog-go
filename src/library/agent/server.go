@@ -195,6 +195,7 @@ func (tcp *TcpService) Close() {
 	}
 	tcp.agents.close()
 	log.Debugf("tcp service closed.")
+	tcp.service.Close()
 }
 
 // binlog的pos发生改变会通知到这里

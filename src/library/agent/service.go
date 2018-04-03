@@ -132,12 +132,14 @@ func (sev *Service) Deregister() error {
 func (sev *Service) updateTtl() {
 	for {
 		if sev.lastSession != "" {
+			//log.Debugf("session renew")
 			sev.handler.Renew(sev.lastSession, nil)
 		}
 		if sev.status & Registered <= 0 {
 			time.Sleep(sev.Interval)
 			continue
 		}
+		//log.Debugf("update ttl")
 		err := sev.agent.UpdateTTL(sev.ServiceID, fmt.Sprintf("isleader:%v", sev.leader), "passing")
 		if err != nil {
 			log.Println("update ttl of service error: ", err.Error())
@@ -205,6 +207,7 @@ func (sev *Service) selectLeader() {
 	log.Debugf("select leader: %+v", leader)
 	sev.leader = leader
 	if len(sev.onleader) > 0 {
+		log.Debugf("leader on select fired")
 		for _, f := range sev.onleader {
 			f(leader)
 		}
@@ -222,7 +225,7 @@ func (sev *Service) createSession(/*timeOut int64*/) string {
 	// 一般情况下这个session永远不会被过期
 	se := &consul.SessionEntry{
 		Behavior : consul.SessionBehaviorDelete,
-		TTL: fmt.Sprintf("%ds", sev.Interval.Seconds() * 6),
+		TTL: fmt.Sprintf("%vs", int64(sev.Interval.Seconds() * 6)),
 	}
 	ID, _, err := sev.handler.Create(se, nil)
 	if err != nil {

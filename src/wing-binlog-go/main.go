@@ -117,29 +117,30 @@ func main() {
 	agent.OnPos(blog.SaveBinlogPositionCache)(agentServer)
 	agent.OnLeader(blog.OnLeader)(agentServer)
 
+	var reload = func(name string) {
+		if name == "all" {
+			tcpService.Reload()
+			redisService.Reload()
+			httpService.Reload()
+		} else {
+			switch name {
+			case "http":
+				httpService.Reload()
+			case "tcp":
+				tcpService.Reload()
+			case "redis":
+				redisService.Reload()
+			default:
+				log.Errorf("unknown service: %v", name)
+			}
+		}
+	}
 	// stop、reload、members ... support
 	// 本地控制命令支持
 	ctl := control.NewControl(
 		appContext,
 		control.ShowMember(agentServer.ShowMembers),
-		control.Reload(func(name string) {
-			if name == "all" {
-				tcpService.Reload()
-				redisService.Reload()
-				httpService.Reload()
-			} else {
-				switch name {
-				case "http":
-					httpService.Reload()
-				case "tcp":
-					tcpService.Reload()
-				case "redis":
-					redisService.Reload()
-				default:
-					log.Errorf("unknown service: %v", name)
-				}
-			}
-		}),
+		control.Reload(reload),
 		control.Stop(appContext.Stop),
 	)
 	ctl.Start()
