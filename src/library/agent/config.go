@@ -94,6 +94,7 @@ type TcpService struct {
 	service *Service
 	client *AgentClient
 	watch *ConsulWatcher
+	enable bool
 }
 type OnPosFunc func(r []byte)
 type AgentServerOption func(s *TcpService)

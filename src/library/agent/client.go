@@ -29,9 +29,9 @@ type AgentClient struct {
 	getLeader getLeaferFunc
 }
 
-type getLeaferFunc func()(string, int, error)
-type OnEventFunc func(table string, data []byte) bool
-type OnRawFunc func(msg []byte) bool
+type getLeaferFunc     func()(string, int, error)
+type OnEventFunc       func(table string, data []byte) bool
+type OnRawFunc         func(msg []byte) bool
 type AgentClientOption func(tcp *AgentClient)
 
 func GetLeader(f getLeaferFunc) AgentClientOption{
@@ -42,13 +42,13 @@ func GetLeader(f getLeaferFunc) AgentClientOption{
 
 func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
 	c := &AgentClient{
-		ctx: ctx,
-		buffer: make([]byte, 0),
-		onEvent: make([]OnEventFunc, 0),
-		conn: nil,
-		statusLock:       new(sync.Mutex),
-		status:           0,
-		leader:false,
+		ctx:        ctx,
+		buffer:     make([]byte, 0),
+		onEvent:    make([]OnEventFunc, 0),
+		conn:       nil,
+		statusLock: new(sync.Mutex),
+		status:     0,
+		leader:     false,
 	}
 	if len(opts) > 0 {
 		for _, f := range opts {
