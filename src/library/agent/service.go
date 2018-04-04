@@ -217,7 +217,7 @@ func (sev *Service) selectLeader() {
 	if !leader {
 		_, _, err := sev.getLeader()
 		if err == leaderNotFound{
-			log.Debugf("check deadlock......please wait")
+			log.Debugf("check deadlock......please wait\n\n")
 			time.Sleep(time.Second * 3)
 		}
 		_, _, err = sev.getLeader()
