@@ -236,7 +236,9 @@ func (sev *Service) selectLeader() {
 			//register for set tags isleader:true
 			sev.Register()
 		}
-	} else {
+	}
+
+	if leader {
 		// 如果选leader成功
 		// 但是这个时候leader仍然不存在，可以认为网络问题造成注册服务失败
 		// 这里尝试等待并重新注册
