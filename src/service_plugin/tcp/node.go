@@ -19,7 +19,7 @@ func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNod
 		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		recvBuf:          make([]byte, 0),
-		status:           tcpNodeOnline | tcpNodeIsNormal,
+		status:           tcpNodeOnline,
 		group:            "",
 		ctx:              ctx,
 		lock:             new(sync.Mutex),
@@ -47,29 +47,6 @@ func NodePro(f SetProFunc) NodeOption {
 
 func (node *tcpClientNode) setGroup(group string) {
 	node.group = group
-}
-
-func (node *tcpClientNode) changNodeType(nodeType int) {
-	if node.status & nodeType > 0 {
-		return
-	}
-	node.lock.Lock()
-	defer node.lock.Unlock()
-	if node.status & tcpNodeIsNormal > 0 {
-		node.status ^= tcpNodeIsNormal
-		node.status |= nodeType
-		return
-	}
-	if node.status & tcpNodeIsAgent > 0 {
-		node.status ^= tcpNodeIsAgent
-		node.status |= nodeType
-		return
-	}
-	if node.status & tcpNodeIsControl > 0 {
-		node.status ^= tcpNodeIsControl
-		node.status |= nodeType
-		return
-	}
 }
 
 func (node *tcpClientNode) close() {

@@ -19,7 +19,7 @@ func NewTcpService(ctx *app.Context) services.Service {
 		Port:             ctx.TcpConfig.Port,
 		lock:             new(sync.Mutex),
 		statusLock:       new(sync.Mutex),
-		groups:           make(map[string]*tcpGroup),
+		groups:           make(tcpGroups),
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
@@ -72,17 +72,6 @@ func (tcp *TcpService) SendRaw(msg []byte) bool {
 	return true
 }
 
-func (tcp *TcpService) onClose(node *tcpClientNode) {
-	tcp.lock.Lock()
-	defer tcp.lock.Unlock()
-	if node.status & tcpNodeIsNormal > 0 {
-		if group, found := tcp.groups[node.group]; found {
-			group.remove(node)
-		}
-		return
-	}
-}
-
 func (tcp *TcpService) Start() {
 	tcp.statusLock.Lock()
 	if tcp.status & serviceEnable <= 0 {
@@ -110,19 +99,10 @@ func (tcp *TcpService) Start() {
 				log.Warnf("tcp service accept with error: %+v", err)
 				continue
 			}
-			node := newNode(tcp.ctx, &conn, NodeClose(tcp.onClose), NodePro(tcp.setGroup))
+			node := newNode(tcp.ctx, &conn, NodeClose(tcp.groups.removeNode), NodePro(tcp.groups.addNode))
 			go node.onConnect()
 		}
 	}()
-}
-
-func (tcp *TcpService) setGroup(node *tcpClientNode, groupName string) bool {
-	group, found := tcp.groups[groupName]
-	if !found || groupName == "" {
-		return false
-	}
-	group.append(node)
-	return true
 }
 
 func (tcp *TcpService) Close() {

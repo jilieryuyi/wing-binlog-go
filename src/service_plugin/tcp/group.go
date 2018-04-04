@@ -104,3 +104,17 @@ func (groups *tcpGroups) close() {
 		group.close()
 	}
 }
+func (groups *tcpGroups) removeNode(node *tcpClientNode) {
+	if group, found := (*groups)[node.group]; found {
+		group.remove(node)
+	}
+}
+
+func (groups *tcpGroups) addNode(node *tcpClientNode, groupName string) bool {
+	group, found := (*groups)[groupName]
+	if !found || groupName == "" {
+		return false
+	}
+	group.append(node)
+	return true
+}

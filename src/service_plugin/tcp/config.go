@@ -28,8 +28,6 @@ const (
 const (
 	FlagSetPro = iota
 	FlagPing
-	FlagControl
-	FlagAgent
 )
 
 const (
@@ -38,9 +36,6 @@ const (
 
 const (
 	tcpNodeOnline = 1 << iota
-	tcpNodeIsNormal
-	tcpNodeIsAgent
-	tcpNodeIsControl
 )
 
 type tcpClientNode struct {
@@ -78,12 +73,11 @@ type TcpService struct {
 	Port             int                  // 监听端口
 	lock             *sync.Mutex
 	statusLock       *sync.Mutex
-	groups           tcpGroups//map[string]*tcpGroup
+	groups           tcpGroups
 	ctx              *app.Context
 	listener         *net.Listener
 	wg               *sync.WaitGroup
 	ServiceIp        string
-	//agents           tcpClients
 	status           int
 	token            string
 	conn             *net.TCPConn
