@@ -5,6 +5,9 @@ import (
 	"library/app"
 	"net"
 	"library/services"
+	"library/file"
+	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -99,4 +102,25 @@ var (
 	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
+type AgentConfig struct {
+	Enable bool `toml:"enable"`
+	Type string `toml:"type"`
+	Lock string `toml:"lock"`
+	AgentListen string `toml:"agent_listen"`
+	ConsulAddress string `toml:"consul_address"`
+}
+
+func getConfig() (*AgentConfig, error) {
+	var config AgentConfig
+	configFile := app.ConfigPath + "/agent.toml"
+	if !file.Exists(configFile) {
+		log.Errorf("config file not found: %s", configFile)
+		return nil, app.ErrorFileNotFound
+	}
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+		log.Println(err)
+		return nil, app.ErrorFileParse
+	}
+	return &config, nil
+}
 

@@ -26,8 +26,9 @@ import (
 const ServiceName = "wing-binlog-go-agent"
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
+	config, _ := getConfig()
 	tcp := &TcpService{
-		Address:          ctx.AppConfig.AgentfListen,
+		Address:          config.AgentListen,
 		lock:             new(sync.Mutex),
 		statusLock:       new(sync.Mutex),
 		wg:               new(sync.WaitGroup),
@@ -40,17 +41,17 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	go tcp.keepalive()
 	tcp.client = newAgentClient(ctx)
 	// 服务注册
-	strs    := strings.Split(ctx.AppConfig.AgentfListen, ":")
+	strs    := strings.Split(config.AgentListen, ":")
 	ip      := strs[0]
 	port, _ := strconv.ParseInt(strs[1], 10, 32)
-	conf := &consul.Config{Scheme: "http", Address: ctx.ClusterConfig.Consul.Address}
+	conf := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
 	c, err := consul.NewClient(conf)
 	if err != nil {
 		log.Panicf("%v", err)
 		return nil
 	}
 	tcp.service = NewService(
-		ctx.ClusterConfig.Lock,
+		config.Lock,
 		ServiceName,
 		ip,
 		int(port),

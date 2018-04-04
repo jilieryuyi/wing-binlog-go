@@ -10,7 +10,6 @@ log_level = 5
 ##pprof tool, if empty, it will not start
 pprof_listen = "0.0.0.0:6070"
 control_listen = "127.0.0.1:6071"
-agent_listen = "127.0.0.1:6072"
 time_zone = "Local"
 cache_path = "/Users/yuyi/Code/go/wing-binlog-go/bin/config2/cache" ##缓存目录，如果为空，使用默认设置，默认为当前目录下的cache目录
 log_path = "/Users/yuyi/Code/go/wing-binlog-go/bin/config2/logs" ##日志目录，空使用默认配置

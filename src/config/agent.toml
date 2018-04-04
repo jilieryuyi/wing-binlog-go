@@ -2,5 +2,5 @@
 enable = true ##是否启用集群功能，单机模式下可以选择关闭集群
 type = "consul" ##这里无需更改
 lock = "wing-binlog-go-lock1" ##同一个集群内的所有节点的lock key应该相同
-[consul]
-address = "127.0.0.1:8500"
+agent_listen   = "127.0.0.1:6062"
+consul_address = "127.0.0.1:8500"

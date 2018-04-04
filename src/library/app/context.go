@@ -23,7 +23,7 @@ type Context struct {
 	//HttpConfig *HttpConfig
 	TcpConfig *TcpConfig
 	MysqlConfig *MysqlConfig
-	ClusterConfig *ClusterConfig
+	//ClusterConfig *ClusterConfig
 	AppConfig *Config
 }
 
@@ -32,7 +32,7 @@ func NewContext() *Context {
 	//httpConfig, _ := getHttpConfig()
 	tcpConfig, _ := getTcpConfig()
 	mysqlConfig, _:= getMysqlConfig()
-	clusterConfig, _ := getClusterConfig()
+	//clusterConfig, _ := getClusterConfig()
 	appConfig, _ := getAppConfig()
 	ctx := &Context{
 		cancelChan:make(chan struct{}),
@@ -43,7 +43,7 @@ func NewContext() *Context {
 		//HttpConfig: httpConfig,
 		TcpConfig: tcpConfig,
 		MysqlConfig: mysqlConfig,
-		ClusterConfig: clusterConfig,
+		//ClusterConfig: clusterConfig,
 		AppConfig:appConfig,
 	}
 	ctx.Ctx, ctx.Cancel = context.WithCancel(context.Background())

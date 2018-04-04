@@ -34,7 +34,6 @@ type Config struct {
 	LogLevel int       `toml:"log_level"`
 	PprofListen string `toml:"pprof_listen"`
 	ControlListen string `toml:"control_listen"`
-	AgentfListen string `toml:"agent_listen"`
 	TimeZone string    `toml:"time_zone"`
 	CachePath string   `toml:"cache_path"`
 	LogPath string     `toml:"log_path"`
@@ -336,28 +335,28 @@ func getMysqlConfig() (*MysqlConfig, error) {
 	return &appConfig, nil
 }
 
-type ConsulConfig struct{
-	Address string `toml:"address"`
-}
+//type ConsulConfig struct{
+//	Address string `toml:"address"`
+//}
 
 // consul config
-type ClusterConfig struct {
-	Enable bool `toml:"enable"`
-	Type string `toml:"type"`
-	Lock string `toml:"lock"`
-	Consul *ConsulConfig
-}
+//type ClusterConfig struct {
+//	Enable bool `toml:"enable"`
+//	Type string `toml:"type"`
+//	Lock string `toml:"lock"`
+//	Consul *ConsulConfig
+//}
 
-func getClusterConfig() (*ClusterConfig, error) {
-	var config ClusterConfig
-	configFile := ConfigPath + "/cluster.toml"
-	if !file.Exists(configFile) {
-		log.Errorf("config file not found: %s", configFile)
-		return nil, ErrorFileNotFound
-	}
-	if _, err := toml.DecodeFile(configFile, &config); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	return &config, nil
-}
+//func getClusterConfig() (*ClusterConfig, error) {
+//	var config ClusterConfig
+//	configFile := ConfigPath + "/cluster.toml"
+//	if !file.Exists(configFile) {
+//		log.Errorf("config file not found: %s", configFile)
+//		return nil, ErrorFileNotFound
+//	}
+//	if _, err := toml.DecodeFile(configFile, &config); err != nil {
+//		log.Println(err)
+//		return nil, ErrorFileParse
+//	}
+//	return &config, nil
+//}
