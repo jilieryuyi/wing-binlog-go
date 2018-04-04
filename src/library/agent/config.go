@@ -40,31 +40,22 @@ const (
 	agentStatusOnline
 	agentStatusConnect
 )
-
-const (
-	serviceIsLeader = 1 << iota
-)
-
 const (
 	tcpNodeOnline = 1 << iota
-	tcpNodeIsNormal
-	tcpNodeIsAgent
-	tcpNodeIsControl
 )
 
 type tcpClientNode struct {
-	conn             *net.Conn   // 客户端连接进来的资源句柄
-	sendQueue        chan []byte // 发送channel
+	conn *net.Conn   // 客户端连接进来的资源句柄
+	sendQueue chan []byte // 发送channel
 	sendFailureTimes int64       // 发送失败次数
-	//group            string      // 所属分组
-	recvBuf          []byte      // 读缓冲区
-	connectTime      int64       // 连接成功的时间戳
-	status           int
-	wg               *sync.WaitGroup
-	ctx              *app.Context
-	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	recvBuf []byte      // 读缓冲区
+	connectTime int64       // 连接成功的时间戳
+	status int
+	wg *sync.WaitGroup
+	ctx *app.Context
+	lock *sync.Mutex          // 互斥锁，修改资源时锁定
 	onclose []NodeFunc
-	agents           tcpClients
+	agents tcpClients
 	onpro []NodeFunc
 }
 
@@ -73,24 +64,17 @@ type NodeOption func(n *tcpClientNode)
 
 type tcpClients []*tcpClientNode
 
-type tcpGroup struct {
-	name   string
-	filter []string
-	nodes  tcpClients
-	lock *sync.Mutex
-}
-
 type TcpService struct {
-	Address          string               // 监听ip
-	lock             *sync.Mutex
-	statusLock       *sync.Mutex
-	ctx              *app.Context
-	listener         *net.Listener
-	wg               *sync.WaitGroup
-	agents           tcpClients
-	status           int
-	conn             *net.TCPConn
-	buffer           []byte
+	Address string               // 监听ip
+	lock *sync.Mutex
+	statusLock *sync.Mutex
+	ctx *app.Context
+	listener *net.Listener
+	wg *sync.WaitGroup
+	agents tcpClients
+	status int
+	conn *net.TCPConn
+	buffer []byte
 	service *Service
 	client *AgentClient
 	watch *ConsulWatcher

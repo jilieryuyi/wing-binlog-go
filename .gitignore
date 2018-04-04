@@ -28,3 +28,5 @@
 /bin/wing-binlog-go.exe
 /vendor/bin/*
 /bin/config2/*
+/bin/config3/*
+/bin/config3/*
