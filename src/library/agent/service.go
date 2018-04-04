@@ -215,9 +215,12 @@ func (sev *Service) selectLeader() {
 	// 如果不是leader，然后检测当前的leader是否存在，如果不存在
 	// 可以认为某些情况下发生了死锁，可以尝试强制解锁
 	if !leader {
-		log.Debugf("check deadlock......please wait")
-		time.Sleep(time.Second * 3)
 		_, _, err := sev.getLeader()
+		if err == leaderNotFound{
+			log.Debugf("check deadlock......please wait")
+			time.Sleep(time.Second * 3)
+		}
+		_, _, err = sev.getLeader()
 		//如果没有leader
 		if err == leaderNotFound {
 			log.Warnf("deadlock found, try to unlock")
