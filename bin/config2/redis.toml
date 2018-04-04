@@ -1,6 +1,0 @@
-address = "localhost:6379"
-password = ""
-enable = true
-filter = []
-db = 0
-queue = "wing-binlog-go-mysql-event"
