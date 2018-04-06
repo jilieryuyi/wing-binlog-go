@@ -50,45 +50,8 @@ func (h *Binlog) handlerInit() {
 	}
 	h.lastBinFile = h.Config.BinFile
 	h.lastPos     = uint32(h.Config.BinPos)
-	//h.posChan     = make(chan []byte, posChanLen)
 	log.Debugf("current pos: (%+v, %+v)", h.lastBinFile, h.lastPos)
-	//go h.asyncSavePosition()
 }
-
-//func (h *Binlog) asyncSavePosition() {
-//	h.wg.Add(1)
-//	defer h.wg.Done()
-//	for {
-//		select {
-//		case r, ok := <- h.posChan:
-//			if !ok {
-//				return
-//			}
-//			log.Debugf("write binlog pos cache: %+v", r)
-//			h.statusLock.Lock()
-//			if h.status & _cacheHandlerIsOpened > 0 {
-//				h.statusLock.Unlock()
-//				n, err := h.cacheHandler.WriteAt(r, 0)
-//				if err != nil || n <= 0 {
-//					log.Errorf("write binlog cache file with error: %+v", err)
-//				}
-//			} else {
-//				h.statusLock.Unlock()
-//				log.Warnf("handler is closed")
-//			}
-//			//只有leader才发送
-//			//if h.status & _consulIsLeader > 0 {
-//			for _, f := range h.onPosChanges {
-//				f(r)
-//			}
-//			//}
-//		case <- h.ctx.Ctx.Done():
-//			if len(h.posChan) <= 0 {
-//				return
-//			}
-//		}
-//	}
-//}
 
 func (h *Binlog) setHandler()  {
 	cfg, err := canal.NewConfigWithFile(app.ConfigPath + "/canal.toml")
@@ -252,13 +215,6 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 		return
 	}
 	h.statusLock.Unlock()
-	//for {
-	//	if len(h.posChan) < cap(h.posChan) {
-	//		break
-	//	}
-	//	log.Warnf("cache full, try wait")
-	//}
-	//h.posChan <- r
 
 	log.Debugf("write binlog pos cache: %+v", r)
 	h.statusLock.Lock()
@@ -271,12 +227,9 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 		log.Warnf("handler is closed")
 	}
 	h.statusLock.Unlock()
-	//只有leader才发送
-	//if h.status & _consulIsLeader > 0 {
 	for _, f := range h.onPosChanges {
 		f(r)
 	}
-
 }
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {

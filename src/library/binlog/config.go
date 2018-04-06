@@ -36,7 +36,6 @@ type Binlog struct {
 
 	startServiceChan chan struct{}
 	stopServiceChan chan bool
-	//posChan chan []byte
 	// binlog status
 	status int
 
