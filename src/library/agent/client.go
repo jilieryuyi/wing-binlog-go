@@ -71,17 +71,17 @@ func (tcp *AgentClient) keepalive() {
 		if tcp.conn == nil ||
 			tcp.status & agentStatusConnect <= 0 ||
 			tcp.status & agentStatusOnline <= 0 {
-				tcp.statusLock.Unlock()
+			tcp.statusLock.Unlock()
 			time.Sleep(3 * time.Second)
 			continue
 		}
 		tcp.statusLock.Unlock()
 		n, err := tcp.conn.Write(data)
 		if err != nil {
-			log.Errorf("agent keepalive error: %d, %v", n, err)
+			log.Errorf("[agent - client] agent keepalive error: %d, %v", n, err)
 			tcp.disconnect()
 		} else if n != dl {
-			log.Errorf("%s send not complete", tcp.conn.RemoteAddr().String())
+			log.Errorf("[agent - client] %s send not complete", tcp.conn.RemoteAddr().String())
 		}
 		time.Sleep(3 * time.Second)
 	}
