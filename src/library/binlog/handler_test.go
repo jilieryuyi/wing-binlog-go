@@ -23,7 +23,7 @@ func init() {
 func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	h := &Binlog{
 		statusLock:new(sync.Mutex),
-		status: _cacheHandlerIsOpened,
+		status: cacheHandlerIsOpened,
 	}
 	var err error
 	flag := os.O_RDWR | os.O_CREATE | os.O_SYNC

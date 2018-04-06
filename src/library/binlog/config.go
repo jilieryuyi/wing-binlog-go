@@ -44,18 +44,14 @@ type Binlog struct {
 	onEvent []OnEventFunc
 }
 
-type BinlogOption func(h *Binlog)
+type BinlogOption  func(h *Binlog)
 type PosChangeFunc func(r []byte)
-type OnEventFunc func(table string, data []byte)
+type OnEventFunc   func(table string, data []byte)
 
 const (
 	//start stop
-	_binlogIsRunning = 1 << iota
+	binlogIsRunning = 1 << iota
 	// binlog is in exit status, will exit later
-	_binlogIsExit
-	_cacheHandlerIsOpened
-)
-
-const (
-	posChanLen      = 10000
+	binlogIsExit
+	cacheHandlerIsOpened
 )

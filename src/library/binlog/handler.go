@@ -26,7 +26,7 @@ func (h *Binlog) handlerInit() {
 		log.Panicf("open cache file with error：%s, %+v", mysqlBinlogCacheFile, err)
 	}
 	h.statusLock.Lock()
-	h.status |= _cacheHandlerIsOpened
+	h.status |= cacheHandlerIsOpened
 	h.statusLock.Unlock()
 	f, p, index := h.getBinlogPositionCache()
 	atomic.StoreInt64(&h.EventIndex, index)
@@ -92,7 +92,7 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	h.statusLock.Lock()
-	if h.status & _binlogIsExit > 0 {
+	if h.status & binlogIsExit > 0 {
 		h.statusLock.Unlock()
 		return nil
 	}
@@ -210,7 +210,7 @@ func (h *Binlog) SaveBinlogPosition(r []byte) {
 // agent 接收到pos改变的时候也会回调到这里
 func (h *Binlog) saveBinlogPositionCache(r []byte) {
 	h.statusLock.Lock()
-	if h.status & _binlogIsExit > 0 {
+	if h.status & binlogIsExit > 0 {
 		h.statusLock.Unlock()
 		return
 	}
@@ -218,7 +218,7 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 
 	log.Debugf("write binlog pos cache: %+v", r)
 	h.statusLock.Lock()
-	if h.status & _cacheHandlerIsOpened > 0 {
+	if h.status & cacheHandlerIsOpened > 0 {
 		n, err := h.cacheHandler.WriteAt(r, 0)
 		if err != nil || n <= 0 {
 			log.Errorf("write binlog cache file with error: %+v", err)
@@ -234,7 +234,7 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	h.statusLock.Lock()
-	if h.status & _cacheHandlerIsOpened <= 0 {
+	if h.status & cacheHandlerIsOpened <= 0 {
 		h.statusLock.Unlock()
 		log.Warnf("handler is closed")
 		return "", 0, 0

@@ -50,11 +50,11 @@ func OnEvent(f OnEventFunc) BinlogOption {
 
 func (h *Binlog) Close() {
 	h.statusLock.Lock()
-	if h.status & _binlogIsExit > 0 {
+	if h.status & binlogIsExit > 0 {
 		h.statusLock.Unlock()
 		return
 	}
-	h.status |= _binlogIsExit
+	h.status |= binlogIsExit
 	h.statusLock.Unlock()
 	log.Warn("binlog service exit")
 	h.StopService(true)
@@ -78,11 +78,11 @@ func (h *Binlog) lookService() {
 				}
 				for {
 					h.statusLock.Lock()
-					if h.status & _binlogIsRunning > 0 {
+					if h.status & binlogIsRunning > 0 {
 						h.statusLock.Unlock()
 						break
 					}
-					h.status |= _binlogIsRunning
+					h.status |= binlogIsRunning
 					h.statusLock.Unlock()
 					log.Debug("binlog service start")
 					go func() {
@@ -114,7 +114,7 @@ func (h *Binlog) lookService() {
 						if err != nil {
 							log.Warnf("binlog service exit with error: %+v", err)
 							h.statusLock.Lock()
-							h.status ^= _binlogIsRunning
+							h.status ^= binlogIsRunning
 							h.statusLock.Unlock()
 							return
 						}
@@ -135,7 +135,7 @@ func (h *Binlog) lookService() {
 					return
 				}
 				h.statusLock.Lock()
-				if h.status & _binlogIsRunning > 0 && !exit {
+				if h.status & binlogIsRunning > 0 && !exit {
 					h.statusLock.Unlock()
 					log.Debug("binlog service stop")
 					h.handler.Close()
@@ -149,8 +149,8 @@ func (h *Binlog) lookService() {
 					r := packPos(h.lastBinFile, int64(h.lastPos), atomic.LoadInt64(&h.EventIndex))
 					h.saveBinlogPositionCache(r)
 					h.statusLock.Lock()
-					if h.status & _cacheHandlerIsOpened > 0 {
-						h.status ^= _cacheHandlerIsOpened
+					if h.status & cacheHandlerIsOpened > 0 {
+						h.status ^= cacheHandlerIsOpened
 						h.statusLock.Unlock()
 						h.cacheHandler.Close()
 					} else {
@@ -158,8 +158,8 @@ func (h *Binlog) lookService() {
 					}
 				}
 				h.statusLock.Lock()
-				if h.status & _binlogIsRunning > 0 {
-					h.status ^= _binlogIsRunning
+				if h.status & binlogIsRunning > 0 {
+					h.status ^= binlogIsRunning
 				}
 				h.statusLock.Unlock()
 			case <- h.ctx.Ctx.Done():
