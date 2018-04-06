@@ -214,19 +214,17 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 		h.statusLock.Unlock()
 		return
 	}
-	h.statusLock.Unlock()
-
 	log.Debugf("write binlog pos cache: %+v", r)
-	h.statusLock.Lock()
 	if h.status & cacheHandlerIsOpened > 0 {
+		h.statusLock.Unlock()
 		n, err := h.cacheHandler.WriteAt(r, 0)
 		if err != nil || n <= 0 {
 			log.Errorf("write binlog cache file with error: %+v", err)
 		}
 	} else {
+		h.statusLock.Unlock()
 		log.Warnf("handler is closed")
 	}
-	h.statusLock.Unlock()
 	for _, f := range h.onPosChanges {
 		f(r)
 	}
