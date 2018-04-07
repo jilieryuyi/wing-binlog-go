@@ -4,14 +4,13 @@ import (
 	"testing"
 	"os"
 	"strings"
-	"library/platform"
 )
 
 func TestExists(t *testing.T) {
-	if !Exists("/usr") {
+	if !Exists(CurrentPath) {
 		t.Error("path check exists error")
 	}
-	if Exists("/usr/9999999999999999999") {
+	if Exists(CurrentPath + "/usr/9999999999999999999") {
 		t.Error("path check exists error - 2")
 	}
 }
@@ -43,7 +42,7 @@ func TestGetParentPath(t *testing.T) {
 }
 
 func TestMkdir(t *testing.T) {
-	dir := "/tmp/1/2/3/4/5/6"
+	dir := CurrentPath + "/tmp/1/2/3/4/5/6"
 	Mkdir(dir)
 	if !Exists(dir) {
 		t.Error("mkdir error")
@@ -66,10 +65,10 @@ func TestGetPath(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	dir := "/tmp/1/2/3/4/5/6"
-	if platform.System(platform.IS_WINDOWS) {
-		dir = "C:/1/2/3/4/5/6"
-	}
+	dir := CurrentPath + "/tmp/1/2/3/4/5/6"
+	//if platform.System(platform.IS_WINDOWS) {
+	//	dir = "C:/1/2/3/4/5/6"
+	//}
 	if Exists(dir) {
 		t.Errorf("exists error")
 	}
