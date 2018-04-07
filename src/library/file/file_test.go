@@ -4,7 +4,7 @@ import (
 	"testing"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"library/platform"
+	"library/path"
 )
 
 func init() {
@@ -19,10 +19,11 @@ func init() {
 
 func TestWFile_Write(t *testing.T) {
 	fmt.Println("===============file Write test start===============")
-	file := "/tmp/wing-binlog-go.test"
-	if platform.System(platform.IS_WINDOWS) {
-		file = "C:/wing-binlog-go.test"
-	}
+	file := path.CurrentPath + "/wing-binlog-go.test"
+	defer Delete(file)
+	//if platform.System(platform.IS_WINDOWS) {
+	//	file = "C:/wing-binlog-go.test"
+	//}
 	data := "123456"
 	n := Write(file, data, false)
 	if n != len(data) {
