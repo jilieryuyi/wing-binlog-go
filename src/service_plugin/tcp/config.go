@@ -88,6 +88,7 @@ type TcpService struct {
 	onConnect []OnConnectFunc
 	onClose []CloseFunc
 	onKeepalive []KeepaliveFunc
+	reload []ReloadFunc
 }
 
 var (
@@ -102,5 +103,7 @@ type SendRawFunc func(msg []byte)
 type OnConnectFunc func(conn *net.Conn)
 type CloseFunc func()
 type KeepaliveFunc func(data []byte)
+type ReloadFunc func()
+
 
 

@@ -91,8 +91,11 @@ func main() {
 	}
 
 	httpService  := http.NewHttpService(appContext)
+	log.Debugf("NewHttpService")
 	tcpService   := tcp.NewTcpService(appContext)
+	log.Debugf("NewTcpService")
 	redisService := redis.NewRedis()
+	log.Debugf("NewRedis")
 
 	agentServer := agent.NewAgentServer(
 		appContext,

@@ -181,6 +181,7 @@ func (h *Binlog) StartService() {
 
 func (h *Binlog) Start() {
 	for _, service := range h.services {
+		log.Debugf("try start service: %v", service.Name())
 		service.Start()
 	}
 }

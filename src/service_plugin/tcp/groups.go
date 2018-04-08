@@ -20,11 +20,19 @@ func newGroups(ctx *app.Context) *tcpGroups {
 	}
 	for _, group := range ctx.TcpConfig.Groups{
 		tcpGroup := newTcpGroup(group)
-		g.lock.Lock()
 		g.add(tcpGroup)
-		g.lock.Unlock()
 	}
 	return g
+}
+
+func (groups *tcpGroups) reload() {
+	groups.close()
+	for _, group := range groups.ctx.TcpConfig.Groups{
+		tcpGroup := newTcpGroup(group)
+		groups.lock.Lock()
+		groups.add(tcpGroup)
+		groups.lock.Unlock()
+	}
 }
 
 func (groups *tcpGroups) add(group *tcpGroup) {
@@ -44,13 +52,6 @@ func (groups *tcpGroups) hasName(findName string) bool {
 	_, ok := groups.g[findName]
 	groups.lock.Unlock()
 	return ok
-	//for name := range groups.g {
-	//	if name == findName {
-	//		return true
-	//		break
-	//	}
-	//}
-	//return false
 }
 
 func (groups *tcpGroups) asyncSend(data []byte) {
@@ -60,8 +61,9 @@ func (groups *tcpGroups) asyncSend(data []byte) {
 }
 
 func (groups *tcpGroups) close() {
-	for _, group := range groups.g {
+	for key, group := range groups.g {
 		group.close()
+		delete(groups.g, key)
 	}
 }
 
@@ -98,8 +100,3 @@ func (groups *tcpGroups) onConnect(conn *net.Conn) {
 	node := newNode(groups.ctx, conn, NodeClose(groups.removeNode), NodePro(groups.addNode))
 	go node.onConnect()
 }
-
-//func (groups *tcpGroups) sendRaw(msg []byte) {
-//	groups.asyncSend(msg)
-//}
-
