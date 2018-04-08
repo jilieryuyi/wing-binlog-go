@@ -58,7 +58,7 @@ type SetProFunc func(n *tcpClientNode, groupName string) bool
 type NodeOption func(n *tcpClientNode)
 
 type tcpClients []*tcpClientNode
-type tcpGroups map[string]*tcpGroup
+//type tcpGroups map[string]*tcpGroup
 
 type tcpGroup struct {
 	name   string
@@ -73,7 +73,7 @@ type TcpService struct {
 	Port             int                  // 监听端口
 	lock             *sync.Mutex
 	statusLock       *sync.Mutex
-	groups           tcpGroups
+	//groups           tcpGroups
 	ctx              *app.Context
 	listener         *net.Listener
 	wg               *sync.WaitGroup
@@ -82,6 +82,12 @@ type TcpService struct {
 	token            string
 	conn             *net.TCPConn
 	buffer           []byte
+
+	sendAll []SendAllFunc
+	sendRaw []SendRawFunc
+	onConnect []OnConnectFunc
+	onClose []CloseFunc
+	onKeepalive []KeepaliveFunc
 }
 
 var (
@@ -89,5 +95,12 @@ var (
 	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
 	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
 )
+
+type TcpServiceOption func(service *TcpService)
+type SendAllFunc func(table string, data []byte) bool
+type SendRawFunc func(msg []byte)
+type OnConnectFunc func(conn *net.Conn)
+type CloseFunc func()
+type KeepaliveFunc func(data []byte)
 
 
