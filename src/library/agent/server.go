@@ -31,10 +31,8 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		s := &TcpService{
 			enable: config.Enable,
 		}
-		if len(opts) > 0 {
-			for _, f := range opts {
-				f(s)
-			}
+		for _, f := range opts {
+			f(s)
 		}
 		return s
 	}
@@ -70,10 +68,8 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		c,
 	)
 	tcp.service.Register()
-	if len(opts) > 0 {
-		for _, f := range opts {
-			f(tcp)
-		}
+	for _, f := range opts {
+		f(tcp)
 	}
 	//将tcp.client.OnLeader注册到server的选leader回调
 	OnLeader(tcp.client.OnLeader)(tcp)
