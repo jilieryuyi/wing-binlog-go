@@ -29,9 +29,7 @@ func (groups *tcpGroups) reload() {
 	groups.close()
 	for _, group := range groups.ctx.TcpConfig.Groups{
 		tcpGroup := newTcpGroup(group)
-		groups.lock.Lock()
 		groups.add(tcpGroup)
-		groups.lock.Unlock()
 	}
 }
 
