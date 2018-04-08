@@ -16,10 +16,8 @@ func NewControl(ctx *app.Context, opts ...ControlOption) *TcpService {
 		ctx:              ctx,
 		token:            app.GetKey(app.CachePath + "/token"),
 	}
-	if len(opts) > 0 {
-		for _, f := range opts {
-			f(tcp)
-		}
+	for _, f := range opts {
+		f(tcp)
 	}
 	return tcp
 }

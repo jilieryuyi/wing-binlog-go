@@ -16,7 +16,7 @@ func newNode(ctx *app.Context, conn *net.Conn, opts ...nodeOption) *TcpClientNod
 	node := &TcpClientNode{
 		conn:             conn,
 		recvBuf:          make([]byte, 0),
-		status:           tcpNodeOnline | tcpNodeIsControl,
+		status:           tcpNodeOnline,
 		ctx:              ctx,
 		lock:             new(sync.Mutex),
 	}
