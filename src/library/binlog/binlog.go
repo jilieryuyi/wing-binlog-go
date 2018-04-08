@@ -23,10 +23,8 @@ func NewBinlog(ctx *app.Context, opts ...BinlogOption) *Binlog {
 		status           : 0,
 		onPosChanges     : make([]PosChangeFunc, 0),
 	}
-	if len(opts) > 0 {
-		for _, f := range opts {
-			f(binlog)
-		}
+	for _, f := range opts {
+		f(binlog)
 	}
 	binlog.handlerInit()
 	go binlog.lookStartService()
