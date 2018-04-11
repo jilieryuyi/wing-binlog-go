@@ -42,9 +42,10 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 		Data:data,
 	}
 
-	if services.MatchFilters(r.filter, table) {
+	if !services.MatchFilters(r.filter, table) {
 		return false
 	}
+	log.Debugf("push to kafka: %v", data)
 	// We will use the client's IP address as key. This will cause
 	// all the access log entries of the same IP address to end up
 	// on the same partition.
