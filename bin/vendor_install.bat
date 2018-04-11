@@ -42,6 +42,11 @@ echo "installing... github.com/axgle/mahonia"
 call go get github.com/axgle/mahonia
 echo "installing... github.com/hashicorp/consul"
 call go get github.com/hashicorp/consul
+echo "installing... github.com/go-redis/redis"
 call go get github.com/go-redis/redis
+echo "installing... github.com/Shopify/sarama"
+call go get github.com/Shopify/sarama
+echo "installing... github.com/sirupsen/logrus"
+call go get github.com/sirupsen/logrus
 
 ::xcopy  %vendor_path%\src\*.* %vendor_path% /s /e /y /q

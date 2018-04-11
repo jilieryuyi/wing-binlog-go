@@ -31,7 +31,10 @@ echo "installing... github.com/sirupsen/logrus"
 go get github.com/sirupsen/logrus
 echo "installing... github.com/sevlyar/go-daemon"
 go get github.com/sevlyar/go-daemon
+echo "installing... github.com/go-redis/redis"
 go get github.com/go-redis/redis
+echo "installing... github.com/Shopify/sarama"
+go get github.com/Shopify/sarama
 
 find $vendor_path -name '*.git*' | xargs rm -rf
 ##cp -rf $vendor_path/src/* $vendor_path
