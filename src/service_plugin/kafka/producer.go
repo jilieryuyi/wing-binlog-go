@@ -67,6 +67,9 @@ func (r *Producer) Close() {
 }
 func (r *Producer) Reload() {
 	config, _ := getConfig()
+	if r.AccessLogProducer != nil {
+		r.AccessLogProducer.Close()
+	}
 	r.AccessLogProducer = newAccessLogProducer(config.Brokers)
 	r.enable = true
 	r.topic = config.Topic
