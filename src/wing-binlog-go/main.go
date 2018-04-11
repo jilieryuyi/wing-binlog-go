@@ -9,6 +9,7 @@ import (
 	"service_plugin/redis"
 	"service_plugin/http"
 	"service_plugin/tcp"
+	"service_plugin/kafka"
 	"library/control"
 	"library/agent"
 	log "github.com/sirupsen/logrus"
@@ -93,6 +94,7 @@ func main() {
 	httpService  := http.NewHttpService(appContext)
 	tcpService   := tcp.NewTcpService(appContext)
 	redisService := redis.NewRedis()
+	kafkaService := kafka.NewProducer()
 
 	agentServer := agent.NewAgentServer(
 		appContext,
@@ -108,6 +110,7 @@ func main() {
 	blog.RegisterService(tcpService)
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
+	blog.RegisterService(kafkaService)
 	blog.Start()
 
 	// set agent receive pos callback
