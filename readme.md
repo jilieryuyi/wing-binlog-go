@@ -1,6 +1,6 @@
 wing-binlog-go
-----
-This project uses replication protocol to read events from Mysql or MariaDB's binlog build on top of [go-mysql](https://github.com/siddontang/go-mysql/), and send json data via Http, TCP or WebSocket.
+--------------
+wing-binlog-go is a mysql(mariadb) master-slave replication client, that uses replication protocol to read events from Mysql or MariaDB's binlog build on top of [go-mysql](https://github.com/siddontang/go-mysql/), and send json data via Http, TCP or Redis queue.
 It allows you to receive events like insert, update and delete with the original data.
 
 * wing-binlog-go is a high performance Mysql/MariaDB middleware
