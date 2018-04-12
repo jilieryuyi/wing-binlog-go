@@ -7,15 +7,19 @@ import (
 	"library/app"
 	"library/file"
 	log "github.com/sirupsen/logrus"
+	"sync"
 )
 
 type Redis struct {
 	services.Service
 	client *redis.Client
 	config *redisConfig
-
+	status int
+	lock *sync.Mutex
 }
-
+const (
+	isClose = 1 << iota
+)
 var _ services.Service = &Redis{}
 
 type redisConfig struct{
@@ -56,6 +60,8 @@ func NewRedis() services.Service {
 	return &Redis{
 		client:client,
 		config:config,
+		lock: new(sync.Mutex),
+		status:0,
 	}
 }
 
@@ -63,6 +69,12 @@ func (r *Redis) SendAll(table string, data []byte) bool {
 	if !r.config.Enable || r.client == nil {
 		return true
 	}
+	r.lock.Lock()
+	if r.status & isClose > 0 {
+		r.lock.Unlock()
+		return false
+	}
+	r.lock.Unlock()
 	//if match
 	if services.MatchFilters(r.config.Filter, table) {
 		err := r.client.RPush(r.config.Queue, string(data)).Err()
@@ -77,6 +89,11 @@ func (r *Redis) Close() {
 	if r.client == nil {
 		return
 	}
+	r.lock.Lock()
+	if r.status & isClose <= 0 {
+		r.status |= isClose
+	}
+	r.lock.Unlock()
 	r.client.Close()
 }
 func (r *Redis) Reload() {

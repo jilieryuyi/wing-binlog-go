@@ -4,14 +4,20 @@ import (
 	"library/services"
 	log "github.com/sirupsen/logrus"
 	"github.com/Shopify/sarama"
+	"sync"
 )
 
+const (
+	isClose = 1 << iota
+)
 type Producer struct {
 	services.Service
 	AccessLogProducer sarama.AsyncProducer
 	enable bool
 	topic string
 	filter []string
+	status int
+	lock *sync.Mutex
 }
 
 var _ services.Service = &Producer{}
@@ -31,6 +37,8 @@ func NewProducer() services.Service {
 		enable:true,
 		topic:config.Topic,
 		filter:config.Filter,
+		status:0,
+		lock:new(sync.Mutex),
 	}
 }
 
@@ -38,6 +46,14 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 	if !r.enable {
 		return false
 	}
+
+	r.lock.Lock()
+	if r.status & isClose > 0 {
+		r.lock.Unlock()
+		return false
+	}
+	r.lock.Unlock()
+
 	entry := &accessLogEntry{
 		Data:data,
 	}
@@ -61,6 +77,11 @@ func (r *Producer) Close() {
 	if !r.enable {
 		return
 	}
+	r.lock.Lock()
+	if r.status & isClose <= 0 {
+		r.status |= isClose
+	}
+	r.lock.Unlock()
 	if err := r.AccessLogProducer.Close(); err != nil {
 		log.Println("Failed to shut down access log producer cleanly", err)
 	}
