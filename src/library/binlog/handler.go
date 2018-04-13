@@ -74,13 +74,16 @@ func (h *Binlog) RegisterService(s services.Service) {
 	h.lock.Unlock()
 }
 
-func (h *Binlog) notify(table string, data map[string] interface{}) {
+func (h *Binlog) notify(data map[string] interface{}) {
 	log.Debugf("binlog notify: %+v", data)
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Errorf("json pack data error[%v]: %v", err, data)
 		return
 	}
+
+	table := data["database"].(string) + "." + data["table"].(string)
+
 	for _, service := range h.services {
 		service.SendAll(table, jsonData)
 	}
@@ -97,7 +100,7 @@ func (h *Binlog) OnTableChanged(schema string, table string) error {
 	rowData["time"]        = time.Now().Unix()
 	rowData["table"]       = table
 	rowData["event_index"] = atomic.AddInt64(&h.EventIndex, int64(1))
-	h.notify(table, rowData)
+	h.notify(rowData)
 	return nil
 }
 
@@ -152,7 +155,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			data["new_data"] = newData
 			ed["data"] = data
 			rowData["event"] = ed
-			h.notify(e.Table.Name, rowData)
+			h.notify(rowData)
 		}
 	} else {
 		for i := 0; i < len(e.Rows); i += 1 {
@@ -168,7 +171,7 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 			}
 			ed["data"] = data
 			rowData["event"] = ed
-			h.notify(e.Table.Name, rowData)
+			h.notify(rowData)
 		}
 	}
 	return nil

@@ -59,6 +59,7 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 	}
 
 	if !services.MatchFilters(r.filter, table) {
+		log.Debugf("table(%v) does not match filter", table)
 		return false
 	}
 	log.Debugf("push to kafka: %v", data)
