@@ -90,6 +90,17 @@ func (h *Binlog) notify(table string, data map[string] interface{}) {
 	}
 }
 
+func (h *Binlog) OnTableChanged(schema string, table string) error {
+	rowData := make(map[string] interface{})
+	rowData["database"]    = schema
+	rowData["event_type"]  = "alter"
+	rowData["time"]        = time.Now().Unix()
+	rowData["table"]       = table
+	rowData["event_index"] = atomic.AddInt64(&h.EventIndex, int64(1))
+	h.notify(table, rowData)
+	return nil
+}
+
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	h.statusLock.Lock()
 	if h.status & binlogIsExit > 0 {

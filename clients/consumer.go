@@ -17,13 +17,35 @@ func main() {
 	config.Group.Return.Notifications = true
 
 	// init consumer
-	brokers := []string{"127.0.0.1:9092"}
+	brokers := []string{"127.0.0.1:9092", "127.0.0.1:9093", "127.0.0.1:9094"}
 	topics := []string{"wing-binlog-event"}
+	c,_:=cluster.NewClient(brokers,config)
+	bb := c.Brokers()
+	fmt.Printf("Brokers: %+v\n", bb)
+	for _, v:=range bb {
+		fmt.Printf("Broker: %+v\n", *v)
+	}
+
+	tt, _ := c.Topics()
+	fmt.Printf("Topics: %+v\n", tt)
+
 	consumer, err := cluster.NewConsumer(brokers, "my-consumer-group", topics, config)
 	if err != nil {
 		panic(err)
 	}
 	defer consumer.Close()
+
+	go func () {
+		for {
+			select {
+				case pp, ok := <-consumer.Partitions():
+					if !ok {
+						return
+					}
+					fmt.Printf("Partition: %+v", pp)
+			}
+		}
+	}()
 
 	// trap SIGINT to trigger a shutdown.
 	signals := make(chan os.Signal, 1)
