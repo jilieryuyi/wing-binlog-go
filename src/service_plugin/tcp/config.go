@@ -32,6 +32,7 @@ const (
 
 const (
 	serviceEnable = 1 << iota
+	serviceClosed
 )
 
 const (

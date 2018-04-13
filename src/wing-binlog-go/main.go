@@ -127,6 +127,7 @@ func main() {
 			tcpService.Reload()
 			redisService.Reload()
 			httpService.Reload()
+			kafkaService.Reload()
 		} else {
 			switch name {
 			case httpService.Name():

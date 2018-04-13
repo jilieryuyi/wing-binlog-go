@@ -88,6 +88,7 @@ func (r *Producer) Close() {
 	}
 }
 func (r *Producer) Reload() {
+	log.Debugf("kafka service reload")
 	config, _ := getConfig()
 	if r.AccessLogProducer != nil {
 		r.AccessLogProducer.Close()

@@ -129,6 +129,9 @@ func (tcp *TcpService) Start() {
 		tcp.statusLock.Unlock()
 		return
 	}
+	if tcp.status & serviceClosed > 0 {
+		tcp.status ^= serviceClosed
+	}
 	tcp.statusLock.Unlock()
 	go func() {
 		dns := fmt.Sprintf("%s:%d", tcp.Ip, tcp.Port)
@@ -146,6 +149,12 @@ func (tcp *TcpService) Start() {
 				return
 			default:
 			}
+			tcp.statusLock.Lock()
+			if tcp.status & serviceClosed > 0 {
+				tcp.statusLock.Unlock()
+				return
+			}
+			tcp.statusLock.Unlock()
 			if err != nil {
 				log.Warnf("tcp service accept with error: %+v", err)
 				continue
@@ -161,6 +170,9 @@ func (tcp *TcpService) Start() {
 }
 
 func (tcp *TcpService) Close() {
+	if tcp.status & serviceClosed > 0 {
+		return
+	}
 	log.Debugf("tcp service closing, waiting for buffer send complete.")
 	tcp.lock.Lock()
 	defer tcp.lock.Unlock()
@@ -170,6 +182,9 @@ func (tcp *TcpService) Close() {
 	//tcp.groups.close()
 	for _, f := range tcp.onClose {
 		f()
+	}
+	if tcp.status & serviceClosed <= 0 {
+		tcp.status |= serviceClosed
 	}
 	log.Debugf("tcp service closed.")
 }
