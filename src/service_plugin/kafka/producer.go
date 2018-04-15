@@ -62,7 +62,7 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 		log.Debugf("table(%v) does not match filter", table)
 		return false
 	}
-	log.Debugf("push to kafka: %v", data)
+	log.Debugf("##########push to kafka: %v", data)
 	// We will use the client's IP address as key. This will cause
 	// all the access log entries of the same IP address to end up
 	// on the same partition.
@@ -73,7 +73,20 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 	}
 	return true
 }
-func (r *Producer) Start() {}
+func (r *Producer) Start() {
+	go func() {
+	     select {
+	     case e, ok := <- r.AccessLogProducer.Errors():
+	     	if !ok {
+	     		return
+			}
+			if e.Msg != nil {
+				log.Errorf("kafka error: %+v", *e.Msg)
+			}
+			 log.Errorf("kafka error: %+v", e.Err)
+		 }
+	}()
+}
 func (r *Producer) Close() {
 	if !r.enable {
 		return
