@@ -8,7 +8,7 @@ import (
 	"time"
 	"encoding/json"
 	"os"
-	"strconv"
+	"os/signal"
 )
 
 const (
@@ -56,9 +56,10 @@ type Client struct {
 	lock *sync.Mutex
 	buffer []byte
 	startTime int64
-	Services []*service
+	Services []string
 	times int64
 	status int
+	onevent []OnEventFunc
 }
 
 type Node struct {
@@ -66,7 +67,10 @@ type Node struct {
 	status int
 }
 
-func NewClient(s []*service) *Client{
+type ClientOption func(client *Client)
+type OnEventFunc func(data map[string]interface{})
+
+func NewClient(s []string, opts ...ClientOption) *Client{
 	client := &Client{
 		status    : clientOffline,
 		node      : nil,
@@ -75,20 +79,42 @@ func NewClient(s []*service) *Client{
 		startTime : time.Now().Unix(),
 		Services  : s,
 		times     : 0,
+		onevent : make([]OnEventFunc, 0),
 	}
+	for _, f := range opts {
+		f(client)
+	}
+	go client.start()
 	return client
 }
 
-func (client *Client) connect(ip string, port int) {
-	log.Debugf("connect to %s:%d", ip, port)
+func OnEventOption(f OnEventFunc) ClientOption{
+	return func(client *Client) {
+		client.onevent = append(client.onevent, f)
+	}
+}
+
+func (client *Client) Subscribe(topic string) {
+	//订阅主题
+	t := time.Now().Unix()
+	for {
+		if client.node != nil || time.Now().Unix() - t >= 3 {
+			break
+		}
+	}
+	clientH := client.setPro(topic)
+	client.node.conn.Write(clientH)
+}
+func (client *Client) connect(server string) {
+	log.Debugf("connect to %s", server)
 	client.lock.Lock()
 	defer client.lock.Unlock()
 	if client.node != nil && client.node.status & nodeOnline > 0 {
 		client.disconnect()
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", server)
 	if err != nil {
-		log.Errorf("connect to %s:%d with error: %+v", ip, port, err)
+		log.Errorf("connect to %s with error: %+v", server, err)
 		return
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
@@ -170,12 +196,12 @@ func (client *Client) keepalive() {
 	}()
 }
 
-func (client *Client) Start() {
+func (client *Client) start() {
 	client.keepalive()
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
 		for _, server := range client.Services {
-			client.connect(server.ip, server.port)
+			client.connect(server)
 			if  client.node == nil || client.node.conn == nil || client.node.status & nodeOffline > 0 {
 				time.Sleep(time.Second)
 				continue
@@ -184,9 +210,7 @@ func (client *Client) Start() {
 			if client.status & clientOffline > 0 {
 				return
 			}
-			//订阅主题
-			clientH := client.setPro("new_yonglibao_c.bl_city")
-			client.node.conn.Write(clientH)
+
 			for {
 				if client.status & clientOffline > 0 {
 					return
@@ -263,9 +287,13 @@ func (client *Client) onMessage(msg []byte) {
 				p = int64(client.times/sp)
 			}
 			log.Debugf("每秒接收数据 %d 条", p)
-			var data interface{}
+			var data map[string]interface{}
 			json.Unmarshal(dataB, &data)
 			log.Debugf("%+v", data)
+
+			for _, f := range client.onevent {
+				f(data)
+			}
 		case CMD_SET_PRO:
 		case CMD_AUTH:          // 认证（暂未使用）
 		case CMD_ERROR:         // 错误响应
@@ -285,12 +313,6 @@ func (client *Client) onMessage(msg []byte) {
 	}
 }
 
-
-type service struct {
-	ip string
-	port int
-}
-
 func main() {
 	//初始化debug终端输出日志支持
 	log.SetFormatter(&log.TextFormatter{
@@ -300,23 +322,21 @@ func main() {
 		FullTimestamp:    true,
 	})
 	log.SetLevel(log.Level(5))
-	defaultIp := "127.0.0.1"
-	defaultPort := 9998
+	defaultDns := "127.0.0.1:9996"
 
-	if len(os.Args) >= 3 {
-		defaultIp = os.Args[1]
-		port, _:= strconv.Atoi(os.Args[2])
-		defaultPort = port
+	if len(os.Args) >= 2 {
+		defaultDns = os.Args[1]
+	}
+	// event callback
+	var onEvent = func(data map[string]interface{}) {
+		fmt.Printf("new event: %+v", data)
 	}
 
-	ser1 := &service{
-		ip : defaultIp,
-		port : defaultPort,
-	}
+	client := NewClient([]string{defaultDns}, OnEventOption(onEvent))
+	client.Subscribe("new_yonglibao_c.*")
+	client.Subscribe("test.*")
 
-	s := make([]*service, 0)
-	s = append(s, ser1)
-
-	client := NewClient(s)
-	client.Start()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	<-signals
 }
