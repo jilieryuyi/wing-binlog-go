@@ -86,6 +86,7 @@ func (node *tcpClientNode) asyncSend(data []byte) {
 		}
 		log.Warnf("cache full, try wait, %v, %v", len(node.sendQueue) , cap(node.sendQueue))
 	}
+	//log.Debugf("subscribe node send")
 	node.sendQueue <- data
 }
 
@@ -160,6 +161,7 @@ func (node *tcpClientNode) onSetProEvent(data []byte) {
 }
 
 func (node *tcpClientNode) onSetPro(groupName string) {
+	log.Debugf("add topic: %v", groupName)
 	node.send(packDataSetPro)
 	node.addTopic(groupName)
 	go node.asyncSendService()

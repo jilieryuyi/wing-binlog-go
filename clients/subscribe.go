@@ -60,11 +60,16 @@ type Client struct {
 	times int64
 	status int
 	onevent []OnEventFunc
+	topics []string
 }
 
 type Node struct {
 	conn *net.TCPConn
 	status int
+}
+type wait struct {
+	c chan struct{}
+	closed bool
 }
 
 type ClientOption func(client *Client)
@@ -80,11 +85,17 @@ func NewClient(s []string, opts ...ClientOption) *Client{
 		Services  : s,
 		times     : 0,
 		onevent : make([]OnEventFunc, 0),
+		topics:make([]string,0),
 	}
 	for _, f := range opts {
 		f(client)
 	}
-	go client.start()
+	var wi = &wait{
+		c:make(chan struct{}),
+		closed:false,
+	}
+	go client.start(wi)
+	<-wi.c
 	return client
 }
 
@@ -96,17 +107,26 @@ func OnEventOption(f OnEventFunc) ClientOption{
 
 // 这里的主题，其实就是 database.table 数据库.表明
 // 支持正则，比如test库下面的所有表：test.*
-func (client *Client) Subscribe(topic string) {
+func (client *Client) Subscribe(topics ...string) {
 	// 订阅主题
-	// 如果未完成初始化，尝试等待3秒
-	t := time.Now().Unix()
-	for {
-		if client.node != nil || time.Now().Unix() - t >= 3 {
-			break
+	if client.node == nil {
+		log.Errorf("client is not connect")
+		return
+	}
+	for _, t := range topics {
+		found := false
+		for _, st := range client.topics {
+			if st == t {
+				found = true
+				break
+			}
+		}
+		if !found {
+			client.topics = append(client.topics, t)
+			clientH := client.setPro(t)
+			client.node.conn.Write(clientH)
 		}
 	}
-	clientH := client.setPro(topic)
-	client.node.conn.Write(clientH)
 }
 
 func (client *Client) connect(server string) {
@@ -135,6 +155,10 @@ func (client *Client) connect(server string) {
 		if client.status & clientOffline > 0 {
 			client.status ^= clientOffline
 			client.status |= clientOnline
+		}
+		for _, t:= range client.topics {
+			clientH := client.setPro(t)
+			client.node.conn.Write(clientH)
 		}
 	}
 }
@@ -200,7 +224,7 @@ func (client *Client) keepalive() {
 	}()
 }
 
-func (client *Client) start() {
+func (client *Client) start(wi *wait) {
 	client.keepalive()
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
@@ -209,6 +233,10 @@ func (client *Client) start() {
 			if  client.node == nil || client.node.conn == nil || client.node.status & nodeOffline > 0 {
 				time.Sleep(time.Second)
 				continue
+			}
+			if !wi.closed {
+				close(wi.c)
+				wi.closed = true
 			}
 			log.Debugf("====================client start====================")
 			if client.status & clientOffline > 0 {
@@ -338,8 +366,8 @@ func main() {
 	}
 
 	client := NewClient([]string{defaultDns}, OnEventOption(onEvent))
-	client.Subscribe("new_yonglibao_c.*")
-	client.Subscribe("test.*")
+	defer client.Close()
+	client.Subscribe("new_yonglibao_c.*", "test.*")
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)

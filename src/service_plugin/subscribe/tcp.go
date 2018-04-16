@@ -92,7 +92,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 		return false
 	}
 	tcp.statusLock.Unlock()
-	log.Debugf("tcp SendAll: %s, %+v", table, string(data))
+	log.Debugf("subscribe SendAll: %s, %+v", table, string(data))
 	// pack data
 	packData := services.Pack(CMD_EVENT, data)
 	for _, f := range tcp.sendAll {
@@ -224,5 +224,5 @@ func (tcp *TcpService) keepalive() {
 }
 
 func (tcp *TcpService) Name() string {
-	return "tcp"
+	return "subscribe"
 }

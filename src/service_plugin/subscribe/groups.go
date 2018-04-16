@@ -5,6 +5,7 @@ import (
 	"library/app"
 	"net"
 	"library/services"
+	log "github.com/sirupsen/logrus"
 )
 
 type tcpGroups struct {
@@ -26,6 +27,7 @@ func newGroups(ctx *app.Context) *tcpGroups {
 
 func (groups *tcpGroups) sendAll(table string, data []byte) bool {
 	for _, group := range groups.g {
+		log.Debugf("topics:%+v, %v", group.topics, table)
 		// 如果有订阅主题
 		if services.MatchFilters(group.topics, table) {
 			group.asyncSend(data)
@@ -63,5 +65,6 @@ func (groups *tcpGroups) close() {
 
 func (groups *tcpGroups) onConnect(conn *net.Conn) {
 	node := newNode(groups.ctx, conn, NodeClose(groups.remove))
+	groups.g = append(groups.g, node)
 	go node.onConnect()
 }
