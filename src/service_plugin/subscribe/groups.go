@@ -43,6 +43,24 @@ func (groups *tcpGroups) remove(node *tcpClientNode) {
 	}
 }
 
+func (groups *tcpGroups) reload() {
+	groups.close()
+}
+
+func (groups *tcpGroups) asyncSend(data []byte) {
+	for _, group := range groups.g {
+		group.asyncSend(data)
+	}
+}
+
+func (groups *tcpGroups) close() {
+	for _, group := range groups.g {
+		group.close()
+	}
+	groups.g = make([]*tcpClientNode, 0)
+}
+
+
 func (groups *tcpGroups) onConnect(conn *net.Conn) {
 	node := newNode(groups.ctx, conn, NodeClose(groups.remove))
 	go node.onConnect()

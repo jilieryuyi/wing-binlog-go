@@ -13,6 +13,7 @@ import (
 	"library/control"
 	"library/agent"
 	log "github.com/sirupsen/logrus"
+	"service_plugin/subscribe"
 )
 
 var (
@@ -91,10 +92,11 @@ func main() {
 		return
 	}
 
-	httpService  := http.NewHttpService(appContext)
-	tcpService   := tcp.NewTcpService(appContext)
-	redisService := redis.NewRedis()
-	kafkaService := kafka.NewProducer()
+	httpService      := http.NewHttpService(appContext)
+	tcpService       := tcp.NewTcpService(appContext)
+	redisService     := redis.NewRedis()
+	kafkaService     := kafka.NewProducer()
+	subscribeService := subscribe.NewSubscribeService(appContext)
 
 	agentServer := agent.NewAgentServer(
 		appContext,
@@ -111,6 +113,7 @@ func main() {
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
 	blog.RegisterService(kafkaService)
+	blog.RegisterService(subscribeService)
 	blog.Start()
 
 	// set agent receive pos callback
