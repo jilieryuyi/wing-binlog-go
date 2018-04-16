@@ -94,8 +94,11 @@ func OnEventOption(f OnEventFunc) ClientOption{
 	}
 }
 
+// 这里的主题，其实就是 database.table 数据库.表明
+// 支持正则，比如test库下面的所有表：test.*
 func (client *Client) Subscribe(topic string) {
-	//订阅主题
+	// 订阅主题
+	// 如果未完成初始化，尝试等待3秒
 	t := time.Now().Unix()
 	for {
 		if client.node != nil || time.Now().Unix() - t >= 3 {
@@ -105,6 +108,7 @@ func (client *Client) Subscribe(topic string) {
 	clientH := client.setPro(topic)
 	client.node.conn.Write(clientH)
 }
+
 func (client *Client) connect(server string) {
 	log.Debugf("connect to %s", server)
 	client.lock.Lock()
@@ -328,6 +332,7 @@ func main() {
 		defaultDns = os.Args[1]
 	}
 	// event callback
+	// 有事件过来的时候，就会进入这个回调
 	var onEvent = func(data map[string]interface{}) {
 		fmt.Printf("new event: %+v", data)
 	}
