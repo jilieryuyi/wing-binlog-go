@@ -15,17 +15,17 @@ func main() {
 	config.Version = sarama.V1_1_0_0
 
 	retention := "-1"
-	topicName := "testtopic5"
+	topicName := "testtopic9"
 	req := &sarama.CreateTopicsRequest{
 		//Version:sarama.V1_1_0_0,
 		TopicDetails: map[string]*sarama.TopicDetail{
 			topicName: {
 				//---注意这里的三个参数，特别是最后一个不能与前面两个共存
 				//这个参数必须要大于0
-				NumPartitions:     3,
+				NumPartitions:     -1,
 				//这个设置不能大于当前集群内的节点数
-				ReplicationFactor: 3,
-				ReplicaAssignment: nil,
+				ReplicationFactor:3,//3,// -1,
+				ReplicaAssignment: map[int32][]int32{0: []int32{0, 1, 2}},
 
 				ConfigEntries: map[string]*string{
 					"retention.ms": &retention,
