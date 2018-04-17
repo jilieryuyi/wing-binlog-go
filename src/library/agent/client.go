@@ -247,7 +247,7 @@ func (tcp *AgentClient) onMessage(msg []byte) {
 				log.Debugf("agent receive event: %+v", data)
 				//tcp.SendAll(data["table"].(string), dataB)
 				for _, f := range tcp.onEvent {
-					f(data["table"].(string), dataB)
+					f(data["database"].(string) + "." + data["table"].(string), dataB)
 				}
 			} else {
 				log.Errorf("json Unmarshal error: %+v, %s, %+v", dataB, string(dataB), err)

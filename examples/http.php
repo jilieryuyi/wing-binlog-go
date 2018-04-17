@@ -4,7 +4,7 @@
  * 监听在本地 8000端口
  * 发送端可以配置将数据发送到http://127.0.0.1:8000/
  */
-
+// php接收数据示例
 // 获取centineld通过POST发过来的数据
 $content = file_get_contents('php://input', 'r');
 
