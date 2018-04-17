@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/signal"
+	"github.com/jilieryuyi/wing-binlog-go/src/library/client"
 )
 
 const (

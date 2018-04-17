@@ -1,17 +1,12 @@
-package main
+package client
 
 import (
 	"sync"
 	"net"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"time"
 	"encoding/json"
-	"os"
-	"strconv"
 )
-
-//todo 客户端协议封装
 
 const (
 	CMD_SET_PRO = iota // 注册客户端操作，加入到指定分组
@@ -58,17 +53,26 @@ type Client struct {
 	lock *sync.Mutex
 	buffer []byte
 	startTime int64
-	Services []*service
+	Services []string
 	times int64
 	status int
+	onevent []OnEventFunc
+	topics []string
 }
 
 type Node struct {
 	conn *net.TCPConn
 	status int
 }
+type wait struct {
+	c chan struct{}
+	closed bool
+}
 
-func NewClient(s []*service) *Client{
+type ClientOption func(client *Client)
+type OnEventFunc func(data map[string]interface{})
+
+func NewClient(s []string, opts ...ClientOption) *Client{
 	client := &Client{
 		status    : clientOffline,
 		node      : nil,
@@ -77,20 +81,61 @@ func NewClient(s []*service) *Client{
 		startTime : time.Now().Unix(),
 		Services  : s,
 		times     : 0,
+		onevent : make([]OnEventFunc, 0),
+		topics:make([]string,0),
 	}
+	for _, f := range opts {
+		f(client)
+	}
+	var wi = &wait{
+		c:make(chan struct{}),
+		closed:false,
+	}
+	go client.start(wi)
+	<-wi.c
 	return client
 }
 
-func (client *Client) connect(ip string, port int) {
-	log.Debugf("connect to %s:%d", ip, port)
+func OnEventOption(f OnEventFunc) ClientOption{
+	return func(client *Client) {
+		client.onevent = append(client.onevent, f)
+	}
+}
+
+// 这里的主题，其实就是 database.table 数据库.表明
+// 支持正则，比如test库下面的所有表：test.*
+func (client *Client) Subscribe(topics ...string) {
+	// 订阅主题
+	if client.node == nil {
+		log.Errorf("client is not connect")
+		return
+	}
+	for _, t := range topics {
+		found := false
+		for _, st := range client.topics {
+			if st == t {
+				found = true
+				break
+			}
+		}
+		if !found {
+			client.topics = append(client.topics, t)
+			clientH := client.setPro(t)
+			client.node.conn.Write(clientH)
+		}
+	}
+}
+
+func (client *Client) connect(server string) {
+	log.Debugf("connect to %s", server)
 	client.lock.Lock()
 	defer client.lock.Unlock()
 	if client.node != nil && client.node.status & nodeOnline > 0 {
 		client.disconnect()
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", ip, port))
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", server)
 	if err != nil {
-		log.Errorf("connect to %s:%d with error: %+v", ip, port, err)
+		log.Errorf("connect to %s with error: %+v", server, err)
 		return
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
@@ -107,6 +152,10 @@ func (client *Client) connect(ip string, port int) {
 		if client.status & clientOffline > 0 {
 			client.status ^= clientOffline
 			client.status |= clientOnline
+		}
+		for _, t:= range client.topics {
+			clientH := client.setPro(t)
+			client.node.conn.Write(clientH)
 		}
 	}
 }
@@ -172,23 +221,25 @@ func (client *Client) keepalive() {
 	}()
 }
 
-func (client *Client) Start() {
+func (client *Client) start(wi *wait) {
 	client.keepalive()
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
 		for _, server := range client.Services {
-			client.connect(server.ip, server.port)
+			client.connect(server)
 			if  client.node == nil || client.node.conn == nil || client.node.status & nodeOffline > 0 {
 				time.Sleep(time.Second)
 				continue
+			}
+			if !wi.closed {
+				close(wi.c)
+				wi.closed = true
 			}
 			log.Debugf("====================client start====================")
 			if client.status & clientOffline > 0 {
 				return
 			}
-			//加入到分组
-			clientH := client.setPro(server.groupName)
-			client.node.conn.Write(clientH)
+
 			for {
 				if client.status & clientOffline > 0 {
 					return
@@ -265,9 +316,13 @@ func (client *Client) onMessage(msg []byte) {
 				p = int64(client.times/sp)
 			}
 			log.Debugf("每秒接收数据 %d 条", p)
-			var data interface{}
+			var data map[string]interface{}
 			json.Unmarshal(dataB, &data)
 			log.Debugf("%+v", data)
+
+			for _, f := range client.onevent {
+				f(data)
+			}
 		case CMD_SET_PRO:
 		case CMD_AUTH:          // 认证（暂未使用）
 		case CMD_ERROR:         // 错误响应
@@ -285,42 +340,4 @@ func (client *Client) onMessage(msg []byte) {
 		//清除已读数据
 		client.buffer = append(client.buffer[:0], client.buffer[contentLen + 4:]...)
 	}
-}
-
-
-type service struct {
-	groupName string
-	ip string
-	port int
-}
-
-func main() {
-	//初始化debug终端输出日志支持
-	log.SetFormatter(&log.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		ForceColors:      true,
-		QuoteEmptyFields: true,
-		FullTimestamp:    true,
-	})
-	log.SetLevel(log.Level(5))
-	defaultIp := "127.0.0.1"
-	defaultPort := 9998
-
-	if len(os.Args) >= 3 {
-		defaultIp = os.Args[1]
-		port, _:= strconv.Atoi(os.Args[2])
-		defaultPort = port
-	}
-
-	ser1 := &service{
-		groupName : "group1",
-		ip : defaultIp,
-		port : defaultPort,
-	}
-
-	s := make([]*service, 0)
-	s = append(s, ser1)
-
-	client := NewClient(s)
-	client.Start()
 }
