@@ -8,7 +8,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"service_plugin/redis"
 	"service_plugin/http"
-	"service_plugin/tcp"
 	"service_plugin/kafka"
 	"library/control"
 	"library/agent"
@@ -93,15 +92,15 @@ func main() {
 	}
 
 	httpService      := http.NewHttpService(appContext)
-	tcpService       := tcp.NewTcpService(appContext)
+	//tcpService       := tcp.NewTcpService(appContext)
 	redisService     := redis.NewRedis()
 	kafkaService     := kafka.NewProducer()
 	subscribeService := subscribe.NewSubscribeService(appContext)
 
 	agentServer := agent.NewAgentServer(
 		appContext,
-		agent.OnEvent(tcpService.SendAll),
-		agent.OnRaw(tcpService.SendRaw),
+		agent.OnEvent(subscribeService.SendAll),
+		agent.OnRaw(subscribeService.SendRaw),
 	)
 
 	blog := binlog.NewBinlog(
@@ -109,7 +108,6 @@ func main() {
 		binlog.PosChange(agentServer.SendPos),
 		binlog.OnEvent(agentServer.SendEvent),
 	)
-	blog.RegisterService(tcpService)
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
 	blog.RegisterService(kafkaService)
@@ -127,7 +125,6 @@ func main() {
 
 	var reload = func(name string) {
 		if name == "all" {
-			tcpService.Reload()
 			redisService.Reload()
 			httpService.Reload()
 			kafkaService.Reload()
@@ -136,10 +133,10 @@ func main() {
 			switch name {
 			case httpService.Name():
 				httpService.Reload()
-			case tcpService.Name():
-				tcpService.Reload()
 			case redisService.Name():
 				redisService.Reload()
+			case subscribeService.Name():
+				subscribeService.Reload()
 			default:
 				log.Errorf("unknown service: %v", name)
 			}
