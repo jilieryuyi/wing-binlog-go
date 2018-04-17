@@ -20,7 +20,7 @@ class Client
     private $ip;
     private $port;
     private $socket;
-    private $processes = [];
+    private static $processes = [];
     private $onevent = [];
     private $keepalive_pid = 0;
 
@@ -28,7 +28,6 @@ class Client
     {
         $this->ip = $ip;
         $this->port = $port;
-        \pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
 
         $this->socket = \socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         $con = \socket_connect($this->socket, $this->ip, $this->port);
@@ -51,9 +50,10 @@ class Client
     }
 
     // 信号处理
-    private static function sig_handler()
+    public static function sig_handler()
     {
         self::debug("收到退出信号");
+        self::stop();
         exit;
     }
 
@@ -100,7 +100,7 @@ class Client
         if ($pid > 0) {
             return $pid;
         }
-        pcntl_signal(SIGINT, "sig_handler", false);
+        //pcntl_signal(SIGINT, "sig_handler", false);
         $tick = self::pack_cmd(self::CMD_TICK);
         //子进程发送心跳包
         while (1) {
@@ -122,8 +122,8 @@ class Client
     public function start()
     {
         self::debug("连接成功");
-        $this->processes[] = $this->keepalive_pid = self::keepalive($this->socket);
-        $this->processes[] = $this->read();
+        self::$processes[] = $this->keepalive_pid = self::keepalive($this->socket);
+        self::$processes[] = $this->read();
         return true;
     }
 
@@ -224,19 +224,24 @@ class Client
     }
 
     // 退出服务
-    public function stop()
+    public static function stop()
     {
         //简单的子进程管理，当父进程退出时
         $start = time();
         while (1) {
             $status = 0;
-            pcntl_signal_dispatch();
-            foreach ($this->processes as $child) {
-                posix_kill($child, SIGINT);
-                $pid = pcntl_wait($status);
+            \pcntl_signal_dispatch();
+            foreach (self::$processes as $child) {
+                \posix_kill($child, SIGINT);
+                $pid = \pcntl_wait($status);
+                $id = array_search($pid, self::$processes);
+                unset(self::$processes[$id]);
                 if ($pid > 0) {
                     self::debug($pid."退出成功");
                 }
+            }
+            if (count(self::$processes) <= 0) {
+                break;
             }
             if ((time() - $start) > 5) {
                 self::debug("退出超时");
@@ -248,31 +253,32 @@ class Client
     // 等待子进程退出
     public function wait()
     {
+        \pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
         while (1) {
-            pcntl_signal_dispatch();
+            \pcntl_signal_dispatch();
             try {
-                ob_start();
+                \ob_start();
                 $status = 0;
-                $pid = pcntl_wait($status, WNOHANG);
+                $pid = \pcntl_wait($status, WNOHANG);
                 if ($pid > 0) {
                     self::debug($pid . "进程退出");
-                    $id = array_search($pid, $this->processes);
-                    unset($this->processes[$id]);
+                    $id = \array_search($pid, self::$processes);
+                    unset(self::$processes[$id]);
                     if ($pid == $this->keepalive_pid) {
-                        $this->processes[] = $this->keepalive_pid = self::keepalive($this->socket);
+                        self::$processes[] = $this->keepalive_pid = self::keepalive($this->socket);
                     } else {
-                        $this->processes[] = $this->read();
+                        self::$processes[] = $this->read();
                     }
                 }
-                $content = ob_get_contents();
-                ob_end_clean();
+                $content = \ob_get_contents();
+                \ob_end_clean();
                 if ($content) {
                     self::debug($content);
                 }
             } catch (\Exception $e) {
-                var_dump($e->getMessage());
+                \var_dump($e->getMessage());
             }
-            sleep(1);
+            \sleep(1);
         }
     }
 }
