@@ -26,11 +26,12 @@ func newGroups(ctx *app.Context) *tcpGroups {
 }
 
 func (groups *tcpGroups) sendAll(table string, data []byte) bool {
-	for _, group := range groups.g {
-		log.Debugf("topics:%+v, %v", group.topics, table)
+	for _, node := range groups.g {
+		log.Debugf("topics:%+v, %v", node.topics, table)
 		// 如果有订阅主题
-		if services.MatchFilters(group.topics, table) {
-			group.asyncSend(data)
+		if services.MatchFilters(node.topics, table) {
+			//log.Debugf("发送消息")
+			node.asyncSend(data)
 		}
 	}
 	return true

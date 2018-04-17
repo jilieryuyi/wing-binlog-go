@@ -36,7 +36,7 @@ func main() {
 	client := wclient.NewClient([]string{defaultDns}, wclient.OnEventOption(onEvent))
 	// 程序退出时 close 掉客户端
 	defer client.Close()
-	client.Subscribe("new_yonglibao_c.*", "test.*")
+	//client.Subscribe("new_yonglibao_c.*", "test.*")
 
 	// 等待退出信号，比如control+c
 	signals := make(chan os.Signal, 1)

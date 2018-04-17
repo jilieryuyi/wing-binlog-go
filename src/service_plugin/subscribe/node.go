@@ -30,6 +30,7 @@ func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNod
 	for _, f := range opts {
 		f(node)
 	}
+	go node.asyncSendService()
 	return node
 }
 
@@ -164,7 +165,6 @@ func (node *tcpClientNode) onSetPro(groupName string) {
 	log.Debugf("add topic: %v", groupName)
 	node.send(packDataSetPro)
 	node.addTopic(groupName)
-	go node.asyncSendService()
 }
 
 func (node *tcpClientNode) asyncSendService() {

@@ -3,10 +3,12 @@ package services
 import (
 	"regexp"
 	"errors"
+	//log "github.com/sirupsen/logrus"
 )
 
 func MatchFilters(filters []string, table string) bool {
 	if filters == nil || len(filters) <= 0 {
+		//log.Debugf("主题为空，直接返回true")
 		return true
 	}
 	for _, f := range filters {

@@ -100,7 +100,7 @@ class Client
         if ($pid > 0) {
             return $pid;
         }
-        //pcntl_signal(SIGINT, "sig_handler", false);
+        //\pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
         $tick = self::pack_cmd(self::CMD_TICK);
         //子进程发送心跳包
         while (1) {
@@ -123,7 +123,9 @@ class Client
     {
         self::debug("连接成功");
         self::$processes[] = $this->keepalive_pid = self::keepalive($this->socket);
-        self::$processes[] = $this->read();
+        self::$processes[] = $readid = $this->read();
+        self::debug("keepalive 进程".$this->keepalive_pid);
+        self::debug("read 进程".$readid);
         return true;
     }
 
@@ -135,10 +137,11 @@ class Client
         if ($pid > 0) {
             return $pid;
         }
+        //\pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
         //父进程接收消息
-        $count = 1;
+        //$count = 1;
         $recv_buf = "";
-        $start_time = time();
+        //$start_time = time();
 
         while ($msg = socket_read($this->socket, 4096)) {
             ob_start();
@@ -168,11 +171,11 @@ class Client
                 // 删除掉已经读取的数据
                 $recv_buf = substr($recv_buf, $len + 4);
 
-                $s = time() - $start_time;
-                $p = 0;
-                if ($s > 0) {
-                    $p = $count / $s;
-                }
+//                $s = time() - $start_time;
+//                $p = 0;
+//                if ($s > 0) {
+//                    $p = $count / $s;
+//                }
                 switch ($cmd) {
                     case self::CMD_TICK:
                         // debug("心跳包返回值：" . $content);
@@ -181,8 +184,8 @@ class Client
                         self::debug("错误：" . $content);
                         break;
                     case self::CMD_EVENT:
-                        self::debug("每秒响应 " . $p . " 次，" . $count . "次收到事件：" . $content);
-                        $count++;
+//                        self::debug("每秒响应 " . $p . " 次，" . $count . "次收到事件：" . $content);
+//                        $count++;
                         $edata = json_decode($content, true);
                         foreach ($this->onevent as $f) {
                             $f($edata);
@@ -190,7 +193,7 @@ class Client
                         break;
                     case self::CMD_SET_PRO:
                         //发送注册到分组，响应的cmd也会是注册到分组
-                        self::debug("注册到分组操作成功响应：" . $content);
+                        self::debug("订阅主题响应：" . $content);
                         break;
                     default:
                         self::debug("未知事件：" . $cmd);
@@ -221,6 +224,7 @@ class Client
         $pack = self::pack_pro($topic);
         self::debug("发送注册分组");
         socket_write($this->socket, $pack);
+        return $this;
     }
 
     // 退出服务
@@ -231,21 +235,27 @@ class Client
         while (1) {
             $status = 0;
             \pcntl_signal_dispatch();
-            foreach (self::$processes as $child) {
+            foreach (self::$processes as $id => $child) {
                 \posix_kill($child, SIGINT);
                 $pid = \pcntl_wait($status);
-                $id = array_search($pid, self::$processes);
-                unset(self::$processes[$id]);
+               // $id = array_search($pid, self::$processes);
                 if ($pid > 0) {
+                    unset(self::$processes[$id]);
+                    //var_dump(self::$processes);
                     self::debug($pid."退出成功");
                 }
             }
             if (count(self::$processes) <= 0) {
-                break;
+                self::debug("退出成功");
+                exit;
             }
             if ((time() - $start) > 5) {
                 self::debug("退出超时");
-                break;
+//                var_dump(self::$processes);
+//                foreach (self::$processes as $p) {
+//                    exec("kill -9 ".$p);
+//                }
+                exit;
             }
         }
     }
@@ -253,7 +263,8 @@ class Client
     // 等待子进程退出
     public function wait()
     {
-        \pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
+        self::debug("master进程id：".posix_getpid());
+        \pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", true);
         while (1) {
             \pcntl_signal_dispatch();
             try {
@@ -266,9 +277,13 @@ class Client
                     unset(self::$processes[$id]);
                     if ($pid == $this->keepalive_pid) {
                         self::$processes[] = $this->keepalive_pid = self::keepalive($this->socket);
+                        self::debug("keepalive进程退出，尝试重建，新进程id：".$this->keepalive_pid);
                     } else {
-                        self::$processes[] = $this->read();
+                        self::$processes[] = $readid = $this->read();
+                        self::debug("read进程退出，尝试重建，新进程id：".$readid);
                     }
+//                    \pcntl_signal(SIGINT, SIG_IGN);
+//                    \pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", false);
                 }
                 $content = \ob_get_contents();
                 \ob_end_clean();

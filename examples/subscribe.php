@@ -10,6 +10,10 @@ include "Client.php";
 date_default_timezone_set('Asia/Shanghai');
 
 $client = new \Wing\Binlog\Go\Client("127.0.0.1", 9996);
+$client
+    ->subscribe("new_yonglibao_c.*")
+    ->subscribe("test.*");
+
 // 注册事件回调
 $client->setOnEvent(function ($data) {
     echo "收到信的事件\n";
