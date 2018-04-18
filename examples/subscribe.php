@@ -20,7 +20,8 @@ $client
 // 注册事件回调
 $client->setOnEvent(function ($data) {
     //注意这里如果需要打印，务必使用fwrite STDERR的模式
-    //否则有可能多次重建子进程以后，echo和var_dump是看不到的，输出重定向未知
+    //否则有可能多次重建子进程以后，由于多进程输出重定向的原因，echo和var_dump是看不到的
+    //\Wing\Binlog\Go\Client::debug api 默认输出到STDERR
     \Wing\Binlog\Go\Client::debug(date("Y-m-d H:i:s") . "=>收到新的事件" . json_encode($data) . "\r\n");
 });
 //开始接受数据
