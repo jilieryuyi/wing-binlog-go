@@ -5,11 +5,14 @@
  * Date: 2018/4/17
  * Time: 17:45
  */
-
+//引入核心php库
 include "Client.php";
 date_default_timezone_set('Asia/Shanghai');
 
 $client = new \Wing\Binlog\Go\Client("127.0.0.1", 9996);
+//订阅感兴趣的数据变化
+//这里的订阅参数是 database.table
+//支持正则和订阅多个主题
 $client
     ->subscribe("new_yonglibao_c.*")
     ->subscribe("test.*");
