@@ -28,7 +28,7 @@ $client->setOnEvent(function ($data) {
     //注意这里如果需要打印，务必使用fwrite STDERR的模式
     //否则有可能多次重建子进程以后，由于多进程输出重定向的原因，echo和var_dump是看不到的
     //\Wing\Binlog\Go\Client::debug api 默认输出到STDERR
-    \Wing\Binlog\Go\Client::debug("收到新的事件" . json_encode($data) . "\r\n");
+    \Wing\Binlog\Go\Client::debug("收到新的事件" . json_encode($data));
 });
 //开始接受数据
 $client->start();
