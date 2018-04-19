@@ -32,13 +32,16 @@ func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Se
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
-		status:           serviceEnable,
+		status:           0,
 		sendAll:          make([]SendAllFunc, 0),
 		sendRaw:          make([]SendRawFunc, 0),
 		onConnect:        make([]OnConnectFunc, 0),
 		onClose:          make([]CloseFunc, 0),
 		onKeepalive:      make([]KeepaliveFunc, 0),
 		reload:           make([]ReloadFunc, 0),
+	}
+	if config.Enable {
+		tcp.status |= serviceEnable
 	}
 	for _, f := range opts {
 		f(tcp)

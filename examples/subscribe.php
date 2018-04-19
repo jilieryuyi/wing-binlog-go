@@ -25,6 +25,75 @@ $client
 
 // 注册事件回调
 $client->setOnEvent(function ($data) {
+    /**
+     * $data 是一个数组，字段如下
+     * database 发生变化的数据库
+     * event 事件数据
+     * data 为具体变化的数据
+     *      内部字段对应数据库的字段
+     * --data字段，仅update的时候分为old_data和new_data，其他的事件数据一致
+     * event_index 唯一事件id
+     * event_type 事件类型，目前所有的事件类型为 update、insert、delete、alter
+     * time 事件发生时间
+
+     alter事件是数据表结构变化事件，如：
+     * {"database":"test","event_index":1164,"event_type":"alter","table":"bar","time":1524116248}
+
+    delete 事件数据格式
+    {
+    "database": "new_yonglibao_c",
+    "event": {
+        "data": {
+            "city_name": "梧州市",
+            "id": 5764808,
+            "provinces_id": 22
+        }
+    },
+    "event_index": 1161,
+    "event_type": "delete",
+    "table": "bl_city1",
+    "time": 1524115287
+    }
+     *
+     update
+    {
+    "database": "new_yonglibao_c",
+    "event": {
+        "data": {
+            "new_data": {
+                "city_name": "北海市1",
+                "id": 5764809,
+                "provinces_id": 22
+            },
+            "old_data": {
+                "city_name": "北海市",
+                "id": 5764809,
+                "provinces_id": 22
+            }
+    }
+    },
+    "event_index": 1162,
+    "event_type": "update",
+    "table": "bl_city1",
+    "time": 1524115867
+    }
+     *
+     insert
+    {
+    "database": "new_yonglibao_c",
+    "event": {
+    "data": {
+    "city_name": "哈哈哈",
+    "id": 6078191,
+    "provinces_id": 1
+    }
+    },
+    "event_index": 1163,
+    "event_type": "insert",
+    "table": "bl_city1",
+    "time": 1524115914
+    }
+     */
     //注意这里如果需要打印，务必使用fwrite STDERR的模式
     //否则有可能多次重建子进程以后，由于多进程输出重定向的原因，echo和var_dump是看不到的
     //\Wing\Binlog\Go\Client::debug api 默认输出到STDERR
