@@ -20,12 +20,13 @@ class Client
     private $ip;
     private $port;
     private $socket;
-    private static $keepalive_processes = [];
-    private static $read_processes = [];
+//    private static $keepalive_processes = [];
+//    private static $read_processes = [];
     private static $processes;
     private $is_connected = false;
     private $onevent = [];
     private $keepalive_pid = 0;
+    private $read_pid = 0;
     private static $parent_id = 0;
 
     public function __construct($ip, $port)
@@ -63,7 +64,7 @@ class Client
             if (!is_scalar($v)) {
                 $v = json_encode($v);
             }
-            fwrite(STDERR, date("Y-m-d H:i:s") . "=>" . $v . "\r\n");
+            fwrite(STDERR, date("Y-m-d H:i:s") . " => " . $v . "\r\n");
         }
     }
 
@@ -123,8 +124,6 @@ class Client
         //\pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", true);
 
         self::$processes = [];
-        self::$keepalive_processes = [];
-        self::$read_processes = [];
         $tick = self::pack_cmd(self::CMD_TICK);
         //子进程发送心跳包
         while (1) {
@@ -142,12 +141,13 @@ class Client
                 // 3秒发送一次
                 sleep(3);
             } catch (\Exception $e) {
+                \posix_kill(posix_getpid(), SIGINT);
                 self::debug($e->getMessage());
                 exit(0);
             }
         }
+        \posix_kill(posix_getpid(), SIGINT);
         exit(0);
-        return $pid;
     }
 
     // 开始服务
@@ -155,15 +155,13 @@ class Client
     {
         self::debug("连接成功");
         $this->keepalive_pid = self::keepalive($this->socket);
-        $readid = $this->read();
+        $this->read_pid = $this->read();
 
         self::$processes[] = $this->keepalive_pid;
-        self::$processes[] = $readid;
-        self::$keepalive_processes[] = $this->keepalive_pid;
-        self::$read_processes[] = $readid;
+        self::$processes[] = $this->read_pid;
 
         self::debug("keepalive 进程".$this->keepalive_pid);
-        self::debug("read 进程".$readid);
+        self::debug("read 进程".$this->read_pid);
         return true;
     }
 
@@ -176,11 +174,8 @@ class Client
             return $pid;
         }
         \pcntl_signal(SIGINT, SIG_DFL);
-        //\pcntl_signal(SIGINT, __CLASS__ . "::sig_handler", true);
 
         self::$processes = [];
-        self::$keepalive_processes = [];
-        self::$read_processes = [];
         $recv_buf = "";
 
         while ($msg = socket_read($this->socket, 4096)) {
@@ -211,8 +206,6 @@ class Client
                 // 删除掉已经读取的数据
                 $recv_buf = substr($recv_buf, $len + 4);
 
-                //self::debug("收到指令".$cmd);
-
                 switch ($cmd) {
                     case self::CMD_TICK:
                         //self::debug("心跳包返回值：" . $content);
@@ -238,15 +231,10 @@ class Client
             \ob_end_clean();
             echo $content;
         }
-
         self::debug("连接关闭");
         self::debug("read进程即将退出");
         \posix_kill(posix_getpid(), SIGTERM);
-
-//        \socket_shutdown($this->socket);
-//        \socket_close($this->socket);
         exit(1);
-        return $pid;
     }
 
     // 关闭socket
@@ -285,9 +273,10 @@ class Client
                 self::debug(posix_getpid()."=>".$child."即将退出");
                 \posix_kill($child, SIGINT);
                 $pid = \pcntl_wait($status, WNOHANG);
-//                if ($pid <= 0) {
-//                    exec("kill -9 " . $child);
-//                }
+                if ($pid <= 0) {
+                    self::debug("stop: kill -9 ".$child);
+                    @exec("kill -9 ".$child);
+                }
                 unset(self::$processes[$id]);
                 self::debug(posix_getpid()."=>".$pid."退出成功");
             }
@@ -316,14 +305,16 @@ class Client
                 if ($pid > 0) {
                     self::debug($pid . "进程退出");
                     $eid = \array_search($pid, self::$processes);
-                    if (in_array($pid, self::$keepalive_processes) && in_array($pid, self::$processes)) {
+                    unset(self::$processes[$eid]);
+                    self::$processes = array_values(self::$processes);
+
+                    if ($pid == $this->keepalive_pid) {
                         $this->keepalive_pid = self::keepalive($this->socket);
                         self::$processes[] = $this->keepalive_pid;
-                        self::$keepalive_processes[] = $this->keepalive_pid;
                         self::debug("keepalive进程退出，尝试重建，新进程id：".$this->keepalive_pid);
                     }
 
-                    if (in_array($pid, self::$read_processes) && in_array($pid, self::$processes)) {
+                    if ($pid == $this->read_pid) {
                         self::debug("退出状态码".$status);
                         // 尝试重连
                         // socket 断线，这里手动返回的信号是SIGTERM
@@ -332,43 +323,23 @@ class Client
                         // 如果重连成功，则重建keepalive进程和read进程
                         if (SIGTERM == $status) {
                             $this->close();
-                            \posix_kill($pid, SIGINT);
-                            $kstatus = 0;
-                            $kpid = \pcntl_waitpid($pid, $kstatus, WNOHANG);
-                            if ($kpid <= 0) {
-                                exec("kill -9 " . $pid);
-                            }
                             self::debug("尝试重连");
                             while (!$this->connect()) {
                                 self::debug("尝试重连");
                                 sleep(1);
                             }
-                            $id = array_search($kpid, self::$processes);
-                            unset(self::$processes[$id]);
+                            // 如果重连了，keepalive也需要重建
                             $this->keepalive_pid = self::keepalive($this->socket);
                             self::$processes[] = $this->keepalive_pid;
-                            self::$keepalive_processes[] = $this->keepalive_pid;
-                            self::debug($kpid."keepalive进程退出，尝试重建，新进程id：" . $this->keepalive_pid);
+                            self::debug("read-keepalive进程退出，尝试重建，新进程id：" . $this->keepalive_pid);
                         }
-                        $readid = $this->read();
-                        self::$processes[] = $readid;
-                        self::$read_processes[] = $readid;
-                        self::debug($pid."read进程退出，尝试重建，新进程id：".$readid);
-                    }
-                    unset(self::$processes[$eid]);
-                } else {
-                    //清理一些id
-                    foreach (self::$keepalive_processes as $id => $p) {
-                        if (!in_array($p, self::$processes)) {
-                            unset(self::$keepalive_processes[$id]);
-                        }
-                    }
-                    foreach (self::$read_processes as $id => $p) {
-                        if (!in_array($p, self::$processes)) {
-                            unset(self::$read_processes[$id]);
-                        }
+                        $this->read_pid = $this->read();
+                        self::$processes[] = $this->read_pid;
+                        self::debug($pid."read进程退出，尝试重建，新进程id：".$this->read_pid);
                     }
                 }
+
+                $this->clear();
                 $content = \ob_get_contents();
                 \ob_end_clean();
                 if ($content) {
@@ -378,6 +349,24 @@ class Client
                 \var_dump($e->getMessage());
             }
             \sleep(1);
+        }
+    }
+
+    private function clear()
+    {
+        foreach (self::$processes as $key => $pid) {
+            if ($pid != $this->keepalive_pid && $pid != $this->read_pid) {
+                //多余的进程要干掉
+                \posix_kill($pid, SIGINT);
+                $status = 0;
+                $epid = \pcntl_waitpid($pid, $status, WNOHANG);
+                if ($epid <= 0) {
+                    self::debug("kill -9 " . $pid);
+                    @exec("kill -9 " . $pid);
+                }
+                unset(self::$processes[$key]);
+                self::$processes = array_values(self::$processes);
+            }
         }
     }
 }
