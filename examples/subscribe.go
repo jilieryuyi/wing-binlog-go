@@ -36,6 +36,8 @@ func main() {
 	client := wclient.NewClient([]string{defaultDns}, wclient.OnEventOption(onEvent))
 	// 程序退出时 close 掉客户端
 	defer client.Close()
+	//订阅感兴趣的数据库、表变化事件
+	//如果不订阅，默认对所有的变化感兴趣
 	//client.Subscribe("new_yonglibao_c.*", "test.*")
 
 	// 等待退出信号，比如control+c

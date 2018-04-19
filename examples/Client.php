@@ -6,6 +6,8 @@ namespace Wing\Binlog\Go;
  * Date: 17/11/12
  * Time: 07:51
  * only for linux
+ * php subscribe library
+ * demo: see subscribe.php
  */
 
 class Client
