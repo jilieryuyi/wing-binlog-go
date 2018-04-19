@@ -20,8 +20,6 @@ class Client
     private $ip;
     private $port;
     private $socket;
-//    private static $keepalive_processes = [];
-//    private static $read_processes = [];
     private static $processes;
     private $is_connected = false;
     private $onevent = [];
@@ -253,7 +251,7 @@ class Client
     public function subscribe($topic)
     {
         $pack = self::pack_pro($topic);
-        self::debug("发送注册分组");
+        self::debug("订阅主题".$topic);
         \socket_write($this->socket, $pack);
         return $this;
     }
