@@ -1,2 +1,12 @@
-listen = "0.0.0.0:9996"
+##监听地址
+listen = "127.0.0.1:9996"
+##是否启用subscribe服务
 enable = true
+##这里的consul用于注册subscribe服务
+##这样subscribe客户端就可以watch这个服务，实现动态负载均衡，高可用等等
+##服务注册必须不能是 "0.0.0.0:9996" 这样的监听ip，
+##因为服务发现这个地址后不能根据这个地址连接到目标服务
+consul_address = "127.0.0.1:8500"
+##如果这个 consul_enable 为false，则禁用服务注册
+##consul_address为空也会禁用服务注册
+consul_enable = true

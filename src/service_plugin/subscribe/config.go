@@ -42,6 +42,8 @@ const (
 	tcpNodeOnline = 1 << iota
 )
 
+const ServiceName = "wing-binlog-go-subscribe"
+
 type tcpClientNode struct {
 	conn             *net.Conn   // 客户端连接进来的资源句柄
 	sendQueue        chan []byte // 发送channel
@@ -111,6 +113,8 @@ type ReloadFunc func()
 type TcpConfig struct {
 	Listen string `toml:"listen"` //like 0.0.0.0:9996
 	Enable bool   `toml:"enable"` //service enable
+	ConsulAddress string `toml:"consul_address"`
+	ConsulEnable bool `toml:"consul_enable"`
 }
 
 func getConfig() (*TcpConfig, error) {

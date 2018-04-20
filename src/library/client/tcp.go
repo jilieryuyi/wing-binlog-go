@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"time"
 	"encoding/json"
+	"fmt"
 )
 
 const (
@@ -53,11 +54,12 @@ type Client struct {
 	lock *sync.Mutex
 	buffer []byte
 	startTime int64
-	Services []string
+	Services map[string]string
 	times int64
 	status int
 	onevent []OnEventFunc
 	topics []string
+	consulAddress string
 }
 
 type Node struct {
@@ -72,14 +74,14 @@ type wait struct {
 type ClientOption func(client *Client)
 type OnEventFunc func(data map[string]interface{})
 
-func NewClient(s []string, opts ...ClientOption) *Client{
+func NewClient(opts ...ClientOption) *Client{
 	client := &Client{
 		status    : clientOffline,
 		node      : nil,
 		lock      : new(sync.Mutex),
 		buffer    : make([]byte, 0),
 		startTime : time.Now().Unix(),
-		Services  : s,
+		Services  : make(map[string]string),
 		times     : 0,
 		onevent : make([]OnEventFunc, 0),
 		topics:make([]string,0),
@@ -91,7 +93,36 @@ func NewClient(s []string, opts ...ClientOption) *Client{
 		c:make(chan struct{}),
 		closed:false,
 	}
-	go client.start(wi)
+	if client.Services != nil && len(client.Services) > 0 {
+		go client.start(wi)
+	} else if client.consulAddress != "" {
+		//获取所有的服务
+		w := newWatch(client.consulAddress, onWatch(func(ip string, port int, event int) {
+			s := fmt.Sprintf("%v:%v", ip, port)
+			switch event {
+			case EV_CHANGE:
+				log.Debugf("service change(delete): %s", s)
+				delete(client.Services, s)
+			case EV_DELETE:
+				log.Debugf("service delete: %s", s)
+				delete(client.Services, s)
+			case EV_ADD:
+				log.Debugf("service add: %s", s)
+				client.Services[s] = s
+			default:
+				log.Errorf("unknown event: %v", event)
+			}
+		}))
+		members, _, err := w.getMembers()
+		if err != nil {
+			log.Printf("%+v", err)
+		}
+		for _, m := range members  {
+			s := fmt.Sprintf("%v:%v", m.Service.Address, m.Service.Port)
+			client.Services[s] = s
+		}
+		go client.start(wi)
+	}
 	<-wi.c
 	return client
 }
@@ -99,6 +130,20 @@ func NewClient(s []string, opts ...ClientOption) *Client{
 func OnEventOption(f OnEventFunc) ClientOption{
 	return func(client *Client) {
 		client.onevent = append(client.onevent, f)
+	}
+}
+
+func SetServices (ss []string) ClientOption {
+	return func(client *Client) {
+		for _, s := range ss  {
+			client.Services[s] = s
+		}
+	}
+}
+
+func SetConsulAddress(a string) ClientOption {
+	return func(client *Client) {
+		client.consulAddress = a
 	}
 }
 

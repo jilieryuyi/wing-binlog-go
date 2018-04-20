@@ -7,11 +7,14 @@ import (
 	"time"
 	"library/app"
 	"library/services"
+	"strings"
+	"strconv"
 )
 
 func NewSubscribeService(ctx *app.Context) services.Service {
 	g := newGroups(ctx)
-	t := newSubscribeService(ctx,
+	t := newSubscribeService(
+		ctx,
 		SetSendAll(g.sendAll),
 		SetSendRaw(g.asyncSend),
 		SetOnConnect(g.onConnect),
@@ -48,6 +51,18 @@ func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Se
 	}
 	go tcp.keepalive()
 	log.Debugf("-----subscribe service init----")
+
+	// 服务注册相关
+	if config.ConsulEnable && config.ConsulAddress != "" {
+		t := strings.Split(config.Listen, ":")
+		host    := t[0]
+		port, _ := strconv.ParseInt(t[1], 20, 32)
+		service := NewService(host, int(port), config.ConsulAddress)
+		service.Register()
+		//注入close依赖
+		SetOnClose(service.Close)(tcp)
+	}
+
 	return tcp
 }
 
@@ -104,8 +119,6 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	return true
 }
 
-
-
 // send raw bytes data to all connects client
 // msg is the pack frame form func: pack
 func (tcp *TcpService) SendRaw(msg []byte) bool {
@@ -116,8 +129,6 @@ func (tcp *TcpService) SendRaw(msg []byte) bool {
 	}
 	tcp.statusLock.Unlock()
 	log.Debugf("tcp sendRaw: %+v", msg)
-	//tcp.groups.asyncSend(msg)
-
 	for _, f := range tcp.sendRaw {
 		f(msg)
 	}
@@ -159,9 +170,6 @@ func (tcp *TcpService) Start() {
 				log.Warnf("tcp service accept with error: %+v", err)
 				continue
 			}
-			//node := newNode(tcp.ctx, &conn, NodeClose(tcp.groups.removeNode), NodePro(tcp.groups.addNode))
-			//go node.onConnect()
-
 			for _, f := range tcp.onConnect {
 				f(&conn)
 			}
@@ -179,7 +187,6 @@ func (tcp *TcpService) Close() {
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	//tcp.groups.close()
 	for _, f := range tcp.onClose {
 		f()
 	}
@@ -218,7 +225,6 @@ func (tcp *TcpService) keepalive() {
 			return
 		default:
 		}
-		//tcp.groups.asyncSend(packDataTickOk)
 		for _, f := range tcp.onKeepalive {
 			f(packDataTickOk)
 		}

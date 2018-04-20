@@ -95,10 +95,8 @@ func NewService(key string, name string, host string, port int,
 		leader:false,
 		onleader:make([]OnLeaderFunc, 0),
 	}
-	if len(opts) > 0 {
-		for _, opt := range opts {
-			opt(sev)
-		}
+	for _, opt := range opts {
+		opt(sev)
 	}
 	sev.client = c
 	sev.handler = c.Session()
