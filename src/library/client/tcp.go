@@ -122,6 +122,8 @@ func NewClient(opts ...ClientOption) *Client{
 			client.Services[s] = s
 		}
 		go client.start(wi)
+	} else {
+		log.Panicf("param error")
 	}
 	<-wi.c
 	return client
