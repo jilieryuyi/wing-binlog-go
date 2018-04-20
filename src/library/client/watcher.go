@@ -4,7 +4,6 @@ import (
 	"time"
 	consul "github.com/hashicorp/consul/api"
 	log "github.com/sirupsen/logrus"
-	"service_plugin/subscribe"
 )
 
 //监听服务变化
@@ -23,7 +22,7 @@ type ConsulWatcher struct {
 	addrs []*consul.ServiceEntry//[]string
 	health *consul.Health
 	// leader change callback
-	onChange []onchangeFunc
+	onChange []onChangeFunc
 }
 
 const (
@@ -139,7 +138,7 @@ func (cw *ConsulWatcher) dialAdd(addrs []*consul.ServiceEntry) {
 // queryConsul is helper function to query consul
 func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceEntry, uint64, error) {
 	// query consul
-	cs, meta, err := cw.health.Service(subscribe.ServiceName, "", false, q)
+	cs, meta, err := cw.health.Service("wing-binlog-go-subscribe", "", false, q)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -212,6 +211,6 @@ func getChange(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 }
 
 func (cw *ConsulWatcher) getMembers() ([]*consul.ServiceEntry, *consul.QueryMeta, error) {
-	return cw.cc.Health().Service(subscribe.ServiceName, "", true, nil)
+	return cw.cc.Health().Service("wing-binlog-go-subscribe", "", true, nil)
 }
 

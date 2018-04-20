@@ -174,7 +174,7 @@ func (sev *Service) Register() error {
 		Port:    sev.ServicePort,
 		Tags:    []string{hostname},
 	}
-	log.Debugf("service register")
+	log.Debugf("subscribe service register: %+v", *regis)
 	err = sev.agent.ServiceRegister(regis)
 	if err != nil {
 		return fmt.Errorf("initial register service '%s' host to consul error: %s", sev.ServiceName, err.Error())

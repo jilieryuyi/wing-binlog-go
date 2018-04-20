@@ -55,8 +55,10 @@ func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Se
 	// 服务注册相关
 	if config.ConsulEnable && config.ConsulAddress != "" {
 		t := strings.Split(config.Listen, ":")
+		log.Debugf("listen: %v", config.Listen)
 		host    := t[0]
-		port, _ := strconv.ParseInt(t[1], 20, 32)
+		port, _ := strconv.ParseInt(t[1], 10, 32)
+		log.Debugf("%v==%v", host, port)
 		service := NewService(host, int(port), config.ConsulAddress)
 		service.Register()
 		//注入close依赖
@@ -197,13 +199,13 @@ func (tcp *TcpService) Close() {
 }
 
 func (tcp *TcpService) Reload() {
-	tcp.ctx.ReloadTcpConfig()
-	log.Debugf("tcp service reload with new config：%+v", tcp.ctx.TcpConfig)
+	config, _ := getConfig()
+	log.Debugf("tcp service reload with new config：%+v", *config)
 	tcp.statusLock.Lock()
-	if tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable <= 0 {
+	if config.Enable && tcp.status & serviceEnable <= 0 {
 		tcp.status |= serviceEnable
 	}
-	if !tcp.ctx.TcpConfig.Enable && tcp.status & serviceEnable > 0 {
+	if !config.Enable && tcp.status & serviceEnable > 0 {
 		tcp.status ^= serviceEnable
 	}
 	tcp.statusLock.Unlock()

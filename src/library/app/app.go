@@ -15,7 +15,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"strings"
 	wstring "library/string"
-	"library/ip"
 )
 
 var (
@@ -271,32 +270,32 @@ type TcpGroupConfig struct {
 	Filter []string
 }
 
-func getTcpConfig() (*TcpConfig, error) {
-	configFile := ConfigPath + "/tcp.toml"
-	var err error
-	if !file.Exists(configFile) {
-		log.Warnf("config %s does not exists", configFile)
-		return nil, ErrorFileNotFound
-	}
-	var tcpConfig TcpConfig
-	if _, err = toml.DecodeFile(configFile, &tcpConfig); err != nil {
-		log.Println(err)
-		return nil, ErrorFileParse
-	}
-	if 	tcpConfig.ServiceIp == "" {
-		tcpConfig.ServiceIp, err = ip.Local()
-		if err != nil {
-			log.Panicf("can not get local ip, please set service ip(service_ip) in file %s", configFile)
-		}
-	}
-	if tcpConfig.ServiceIp == "" {
-		log.Panicf("service ip can not be empty (config file: %s)", configFile)
-	}
-	if tcpConfig.Port <= 0 {
-		log.Panicf("service port can not be 0 (config file: %s)", configFile)
-	}
-	return &tcpConfig, nil
-}
+//func getTcpConfig() (*TcpConfig, error) {
+//	configFile := ConfigPath + "/tcp.toml"
+//	var err error
+//	if !file.Exists(configFile) {
+//		log.Warnf("config %s does not exists", configFile)
+//		return nil, ErrorFileNotFound
+//	}
+//	var tcpConfig TcpConfig
+//	if _, err = toml.DecodeFile(configFile, &tcpConfig); err != nil {
+//		log.Println(err)
+//		return nil, ErrorFileParse
+//	}
+//	if 	tcpConfig.ServiceIp == "" {
+//		tcpConfig.ServiceIp, err = ip.Local()
+//		if err != nil {
+//			log.Panicf("can not get local ip, please set service ip(service_ip) in file %s", configFile)
+//		}
+//	}
+//	if tcpConfig.ServiceIp == "" {
+//		log.Panicf("service ip can not be empty (config file: %s)", configFile)
+//	}
+//	if tcpConfig.Port <= 0 {
+//		log.Panicf("service port can not be 0 (config file: %s)", configFile)
+//	}
+//	return &tcpConfig, nil
+//}
 
 type MysqlConfig struct {
 	// mysql service ip and port, like: "127.0.0.1:3306"

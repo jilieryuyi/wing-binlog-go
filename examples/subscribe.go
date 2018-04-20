@@ -18,11 +18,7 @@ func main() {
 		FullTimestamp:    true,
 	})
 	log.SetLevel(log.Level(5))
-	defaultDns := "127.0.0.1:9996"
 
-	if len(os.Args) >= 2 {
-		defaultDns = os.Args[1]
-	}
 	// event callback
 	// 有事件过来的时候，就会进入这个回调
 	var onEvent = func(data map[string]interface{}) {
@@ -33,7 +29,16 @@ func main() {
 	// 第一个参数为一个数组，这里可以指定多个地址，当其中一个失败的时候自动轮训下一个
 	// 简单的高可用方案支持
 	// 第二个参数为注册事件回调
-	client := wclient.NewClient([]string{defaultDns}, wclient.OnEventOption(onEvent))
+
+	//defaultDns := "127.0.0.1:9996"
+	//if len(os.Args) >= 2 {
+	//	defaultDns = os.Args[1]
+	//}
+	//client := wclient.NewClient(wclient.SetServices([]string{defaultDns}), wclient.OnEventOption(onEvent))
+
+	//或者使用consul
+	client := wclient.NewClient(wclient.SetConsulAddress("127.0.0.1:8500"), wclient.OnEventOption(onEvent))
+
 	// 程序退出时 close 掉客户端
 	defer client.Close()
 	//订阅感兴趣的数据库、表变化事件

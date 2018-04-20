@@ -21,7 +21,7 @@ type Context struct {
 	//ShowMembersRes chan string
 	PosChan chan string
 	//HttpConfig *HttpConfig
-	TcpConfig *TcpConfig
+	//TcpConfig *TcpConfig
 	MysqlConfig *MysqlConfig
 	//ClusterConfig *ClusterConfig
 	AppConfig *Config
@@ -30,7 +30,7 @@ type Context struct {
 // new app context
 func NewContext() *Context {
 	//httpConfig, _ := getHttpConfig()
-	tcpConfig, _ := getTcpConfig()
+	//tcpConfig, _ := getTcpConfig()
 	mysqlConfig, _:= getMysqlConfig()
 	//clusterConfig, _ := getClusterConfig()
 	appConfig, _ := getAppConfig()
@@ -41,7 +41,7 @@ func NewContext() *Context {
 		//ShowMembersRes:make(chan string, 12),
 		//PosChan:make(chan string, 10000),
 		//HttpConfig: httpConfig,
-		TcpConfig: tcpConfig,
+		//TcpConfig: tcpConfig,
 		MysqlConfig: mysqlConfig,
 		//ClusterConfig: clusterConfig,
 		AppConfig:appConfig,
@@ -77,14 +77,14 @@ func (ctx *Context) Done() <-chan struct{} {
 //	ctx.HttpConfig = httpConfig
 //}
 
-func (ctx *Context) ReloadTcpConfig() {
-	tcpConfig, err := getTcpConfig()
-	if err != nil {
-		log.Errorf("get tcp config error: %v", err)
-		return
-	}
-	ctx.TcpConfig = tcpConfig
-}
+//func (ctx *Context) ReloadTcpConfig() {
+//	tcpConfig, err := getTcpConfig()
+//	if err != nil {
+//		log.Errorf("get tcp config error: %v", err)
+//		return
+//	}
+//	ctx.TcpConfig = tcpConfig
+//}
 
 // wait for control + c signal
 func (ctx *Context) signalHandler() {
