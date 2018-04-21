@@ -7,6 +7,8 @@ import (
 	"time"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"strconv"
 )
 
 const (
@@ -54,12 +56,20 @@ type Client struct {
 	lock *sync.Mutex
 	buffer []byte
 	startTime int64
-	Services map[string]string
+	Services map[string]*serverNode//string
 	times int64
 	status int
 	onevent []OnEventFunc
 	topics []string
 	consulAddress string
+	getConnects func(ip string, port int) uint64
+}
+
+type serverNode struct {
+	offline bool
+	host string
+	port int
+	connects uint64
 }
 
 type Node struct {
@@ -81,10 +91,13 @@ func NewClient(opts ...ClientOption) *Client{
 		lock      : new(sync.Mutex),
 		buffer    : make([]byte, 0),
 		startTime : time.Now().Unix(),
-		Services  : make(map[string]string),
+		Services  : make(map[string]*serverNode),
 		times     : 0,
-		onevent : make([]OnEventFunc, 0),
-		topics:make([]string,0),
+		onevent   : make([]OnEventFunc, 0),
+		topics    : make([]string,0),
+		getConnects: func(ip string, port int) uint64 {
+			return 0
+		},
 	}
 	for _, f := range opts {
 		f(client)
@@ -98,6 +111,10 @@ func NewClient(opts ...ClientOption) *Client{
 	} else if client.consulAddress != "" {
 		//获取所有的服务
 		w := newWatch(client.consulAddress, onWatch(func(ip string, port int, event int) {
+			client.lock.Lock()
+			defer client.lock.Unlock()
+			defer log.Debugf("2-current services list: %+v", client.Services)
+
 			s := fmt.Sprintf("%v:%v", ip, port)
 			switch event {
 			case EV_CHANGE:
@@ -107,8 +124,15 @@ func NewClient(opts ...ClientOption) *Client{
 				log.Debugf("service delete: %s", s)
 				delete(client.Services, s)
 			case EV_ADD:
-				log.Debugf("service add: %s", s)
-				client.Services[s] = s
+				_, ok := client.Services[s]
+				if !ok {
+					log.Debugf("service add: %s", s)
+					client.Services[s] = &serverNode{
+						offline:false,
+						host:ip,//m.Service.Address,
+						port:port,//m.Service.Port,
+					}
+				}
 			default:
 				log.Errorf("unknown event: %v", event)
 			}
@@ -117,10 +141,22 @@ func NewClient(opts ...ClientOption) *Client{
 		if err != nil {
 			log.Printf("%+v", err)
 		}
+		client.lock.Lock()
 		for _, m := range members  {
 			s := fmt.Sprintf("%v:%v", m.Service.Address, m.Service.Port)
-			client.Services[s] = s
+			_, ok := client.Services[s]
+			if !ok {
+				log.Debugf("1-add : %v", s)
+				client.Services[s] = &serverNode{
+					offline:false,
+					host:m.Service.Address,
+					port:m.Service.Port,
+				}
+			}
 		}
+		client.lock.Unlock()
+		log.Debugf("1-current services list: %+v", client.Services)
+		client.getConnects = w.getConnects
 		go client.start(wi)
 	} else {
 		log.Panicf("param error")
@@ -138,7 +174,14 @@ func OnEventOption(f OnEventFunc) ClientOption{
 func SetServices (ss []string) ClientOption {
 	return func(client *Client) {
 		for _, s := range ss  {
-			client.Services[s] = s
+			temp := strings.Split(s, ":")
+			host := temp[0]
+			port, _:=strconv.ParseInt(temp[1], 10, 64)
+			client.Services[s] = &serverNode{
+				offline:false,
+				host:host,//m.Service.Address,
+				port:int(port),//m.Service.Port,
+			}
 		}
 	}
 }
@@ -173,16 +216,17 @@ func (client *Client) Subscribe(topics ...string) {
 	}
 }
 
-func (client *Client) connect(server string) {
-	log.Debugf("connect to %s", server)
+func (client *Client) connect(server *serverNode) {
+	log.Debugf("connect to %+v", *server)
 	client.lock.Lock()
 	defer client.lock.Unlock()
 	if client.node != nil && client.node.status & nodeOnline > 0 {
 		client.disconnect()
 	}
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", server)
+	dns := fmt.Sprintf("%v:%v", server.host, server.port)
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", dns)
 	if err != nil {
-		log.Errorf("connect to %s with error: %+v", server, err)
+		log.Errorf("connect to %+v with error: %+v", *server, err)
 		return
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
@@ -268,37 +312,67 @@ func (client *Client) keepalive() {
 	}()
 }
 
+func (client *Client) getServer() *serverNode {
+	if len(client.Services) <= 0 {
+		return nil
+	}
+	var currentNode *serverNode
+	currentNode = nil
+	//var min = uint64(0)
+	for _, server := range client.Services {
+		if server.offline {
+			continue
+		}
+		currentNode = server
+		currentNode.connects = client.getConnects(server.host, server.port)
+		break
+	}
+	for _, server := range client.Services {
+		if server.offline {
+			continue
+		}
+		server.connects = client.getConnects(server.host, server.port)
+		if server.connects < currentNode.connects {
+			currentNode = server
+		}
+	}
+	return currentNode
+}
+
 func (client *Client) start(wi *wait) {
 	client.keepalive()
 	var readBuffer [tcpDefaultReadBufferSize]byte
 	for {
-		for _, server := range client.Services {
-			client.connect(server)
-			if  client.node == nil || client.node.conn == nil || client.node.status & nodeOffline > 0 {
-				time.Sleep(time.Second)
-				continue
-			}
-			if !wi.closed {
-				close(wi.c)
-				wi.closed = true
-			}
-			log.Debugf("====================client start====================")
+		server := client.getServer()
+		if server == nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		client.connect(server)
+		if  client.node == nil || client.node.conn == nil || client.node.status & nodeOffline > 0 {
+			time.Sleep(time.Second)
+			continue
+		}
+		if !wi.closed {
+			close(wi.c)
+			wi.closed = true
+		}
+		if client.status & clientOffline > 0 {
+			return
+		}
+		log.Debugf("====================client start====================")
+		for {
 			if client.status & clientOffline > 0 {
 				return
 			}
-
-			for {
-				if client.status & clientOffline > 0 {
-					return
-				}
-				size, err := client.node.conn.Read(readBuffer[0:])
-				if err != nil || size <= 0 {
-					log.Warnf("client read with error: %+v", err)
-					client.disconnect()
-					break
-				}
-				client.onMessage(readBuffer[:size])
+			size, err := client.node.conn.Read(readBuffer[0:])
+			if err != nil || size <= 0 {
+				log.Warnf("client read with error: %+v", err)
+				client.disconnect()
+				server.offline = true
+				break
 			}
+			client.onMessage(readBuffer[:size])
 		}
 	}
 }

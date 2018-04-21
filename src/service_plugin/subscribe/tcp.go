@@ -12,9 +12,13 @@ import (
 )
 
 func NewSubscribeService(ctx *app.Context) services.Service {
+	config, _ := getConfig()
+
 	g := newGroups(ctx)
 	t := newSubscribeService(
 		ctx,
+		config.Enable,
+		config.Listen,
 		SetSendAll(g.sendAll),
 		SetSendRaw(g.asyncSend),
 		SetOnConnect(g.onConnect),
@@ -22,14 +26,34 @@ func NewSubscribeService(ctx *app.Context) services.Service {
 		SetKeepalive(g.asyncSend),
 		SetReload(g.reload),
 	)
+
+	// 服务注册相关
+	if config.ConsulEnable && config.ConsulAddress != "" {
+		temp := strings.Split(config.Listen, ":")
+		log.Debugf("listen: %v", config.Listen)
+		host    := temp[0]
+		port, _ := strconv.ParseInt(temp[1], 10, 32)
+		log.Debugf("%v==%v", host, port)
+		service := NewService(host, int(port), config.ConsulAddress)
+		service.Register()
+		//注入close依赖
+		SetOnClose(service.Close)(t)
+		SetOnConnect(service.newConnect)(t)
+		SetOnRemove(service.disconnect)(g)
+	}
+
 	return t
 }
 
-func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Service {
-	config, _ := getConfig()
+func newSubscribeService(
+	ctx *app.Context,
+	enable bool,
+	listen string,
+	opts ...TcpServiceOption) *TcpService {
+
 	tcp := &TcpService{
-		Enable:           config.Enable,
-		Listen:           config.Listen,
+		Enable:           enable,//config.Enable,
+		Listen:           listen,//config.Listen,
 		lock:             new(sync.Mutex),
 		statusLock:       new(sync.Mutex),
 		wg:               new(sync.WaitGroup),
@@ -43,7 +67,7 @@ func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Se
 		onKeepalive:      make([]KeepaliveFunc, 0),
 		reload:           make([]ReloadFunc, 0),
 	}
-	if config.Enable {
+	if enable {
 		tcp.status |= serviceEnable
 	}
 	for _, f := range opts {
@@ -51,20 +75,6 @@ func newSubscribeService(ctx *app.Context, opts ...TcpServiceOption) services.Se
 	}
 	go tcp.keepalive()
 	log.Debugf("-----subscribe service init----")
-
-	// 服务注册相关
-	if config.ConsulEnable && config.ConsulAddress != "" {
-		t := strings.Split(config.Listen, ":")
-		log.Debugf("listen: %v", config.Listen)
-		host    := t[0]
-		port, _ := strconv.ParseInt(t[1], 10, 32)
-		log.Debugf("%v==%v", host, port)
-		service := NewService(host, int(port), config.ConsulAddress)
-		service.Register()
-		//注入close依赖
-		SetOnClose(service.Close)(tcp)
-	}
-
 	return tcp
 }
 

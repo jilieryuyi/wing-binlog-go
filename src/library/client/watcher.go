@@ -4,6 +4,8 @@ import (
 	"time"
 	consul "github.com/hashicorp/consul/api"
 	log "github.com/sirupsen/logrus"
+	"fmt"
+	"encoding/binary"
 )
 
 //监听服务变化
@@ -212,5 +214,16 @@ func getChange(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 
 func (cw *ConsulWatcher) getMembers() ([]*consul.ServiceEntry, *consul.QueryMeta, error) {
 	return cw.cc.Health().Service("wing-binlog-go-subscribe", "", true, nil)
+}
+
+func (cw *ConsulWatcher) getConnects(ip string, port int) uint64 {
+	key := fmt.Sprintf("connects/%v/%v", ip, port)
+
+	k, _, err := cw.cc.KV().Get(key, nil)
+	if err != nil {
+		log.Errorf("%v", err)
+		return 0
+	}
+	return binary.LittleEndian.Uint64(k.Value)
 }
 

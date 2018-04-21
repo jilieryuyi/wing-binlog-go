@@ -7,6 +7,9 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"sync"
 	"os"
+	"net"
+	"sync/atomic"
+	"encoding/binary"
 )
 
 // 服务注册
@@ -20,14 +23,6 @@ const (
 // todo 这里还需要一个操作，就是，客户端接入或者断开的时候，触发更新服务的属性
 // 即将当前连接数接入到consul服务，客户端做服务发现的时候，自动优先连接连接数最少的
 
-// cluster node(member)
-type clusterMember struct {
-	Hostname string
-	SessionId string
-	Status string
-	ServiceIp string
-	Port int
-}
 type Service struct {
 	ServiceName string 		//service name, like: service.add
 	ServiceHost string 		//service host, like: 0.0.0.0, 127.0.0.1
@@ -43,9 +38,9 @@ type Service struct {
 	lock *sync.Mutex 		//sync lock
 	handler *consul.Session
 	Kv *consul.KV
-	lastSession string
 	onleader []OnLeaderFunc
 	health *consul.Health
+	connects int64
 }
 
 type OnLeaderFunc func(bool)
@@ -93,6 +88,7 @@ func NewService(
 		status: 0,
 		lock:new(sync.Mutex),
 		onleader:make([]OnLeaderFunc, 0),
+		connects:int64(0),
 	}
 	for _, opt := range opts {
 		opt(sev)
@@ -134,21 +130,55 @@ func (sev *Service) Deregister() error {
 }
 
 func (sev *Service) updateTtl() {
+	ip := sev.ServiceHost
+	if ip == "0.0.0.0" && sev.ServiceIp != "" {
+		ip = sev.ServiceIp
+	}
+	key := fmt.Sprintf("connects/%v/%v", ip, sev.ServicePort)
+	se := &consul.SessionEntry{
+		Behavior : consul.SessionBehaviorDelete,
+		TTL: fmt.Sprintf("%vs", sev.Interval.Seconds() * 3),
+	}
+	session, _, err := sev.handler.Create(se, nil)
+	if err != nil {
+		log.Panicf("%+v", err)
+	}
 	for {
-		if sev.lastSession != "" {
-			//log.Debugf("session renew")
-			sev.handler.Renew(sev.lastSession, nil)
+		_, _, err = sev.handler.Renew(session, nil)
+		if err != nil {
+			log.Errorf("%+v", err)
+		}
+		count := atomic.LoadInt64(&sev.connects)
+		var data = make([]byte, 8)
+		binary.LittleEndian.PutUint64(data, uint64(count))
+		p := &consul.KVPair{
+			Key: key,
+			Value: data,//[]byte(fmt.Sprintf("%v", count)),
+			Session: session,
+		}
+		_, err = sev.Kv.Put(p, nil)
+		if err != nil {
+			log.Errorf("%+v", err)
 		}
 		if sev.status & Registered <= 0 {
 			time.Sleep(sev.Interval)
 			continue
 		}
-		err := sev.agent.UpdateTTL(sev.ServiceID, "", "passing")
+		err = sev.agent.UpdateTTL(sev.ServiceID, "", "passing")
 		if err != nil {
 			log.Println("update ttl of service error: ", err.Error())
 		}
 		time.Sleep(sev.Interval)
 	}
+}
+
+func (sev *Service) newConnect(conn *net.Conn) {
+	log.Debugf("##############service new connect##############")
+	atomic.AddInt64(&sev.connects, 1)
+}
+func (sev *Service) disconnect(conn *net.Conn) {
+	log.Debugf("##############service new disconnect##############")
+	atomic.AddInt64(&sev.connects, -1)
 }
 
 func (sev *Service) Register() error {

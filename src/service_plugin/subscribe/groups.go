@@ -13,16 +13,29 @@ type tcpGroups struct {
 	lock *sync.Mutex
 	ctx *app.Context
 	unique int64
+	onRemove []OnRemoveFunc
 }
+type OnRemoveFunc func(conn *net.Conn)
+type TcpGroupsOptions func(groups *tcpGroups)
 
-func newGroups(ctx *app.Context) *tcpGroups {
+func newGroups(ctx *app.Context, opts ...TcpGroupsOptions) *tcpGroups {
 	g := &tcpGroups{
 		unique:0,
 		lock:new(sync.Mutex),
 		g:make([]*tcpClientNode, 0),
 		ctx: ctx,
+		onRemove: make([]OnRemoveFunc, 0),
+	}
+	for _, f := range opts  {
+		f(g)
 	}
 	return g
+}
+
+func SetOnRemove(f OnRemoveFunc) TcpGroupsOptions {
+	return func(groups *tcpGroups) {
+		groups.onRemove = append(groups.onRemove, f)
+	}
 }
 
 func (groups *tcpGroups) sendAll(table string, data []byte) bool {
@@ -44,6 +57,9 @@ func (groups *tcpGroups) remove(node *tcpClientNode) {
 			break
 		}
 	}
+	for _, f:=range groups.onRemove {
+		f(node.conn)
+	}
 }
 
 func (groups *tcpGroups) reload() {
@@ -62,7 +78,6 @@ func (groups *tcpGroups) close() {
 	}
 	groups.g = make([]*tcpClientNode, 0)
 }
-
 
 func (groups *tcpGroups) onConnect(conn *net.Conn) {
 	node := newNode(groups.ctx, conn, NodeClose(groups.remove))
