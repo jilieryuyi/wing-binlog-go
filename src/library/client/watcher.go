@@ -9,8 +9,6 @@ import (
 )
 
 //监听服务变化
-//如果leader服务变为不可用状态
-//则重新选举leader
 
 // ConsulWatcher is the implementation of grpc.naming.Watcher
 type ConsulWatcher struct {
@@ -18,20 +16,14 @@ type ConsulWatcher struct {
 	cc *consul.Client
 	// LastIndex to watch consul
 	li uint64
-	// addrs is the service address cache
-	// before check: every value shoud be 1
-	// after check: 1 - deleted  2 - nothing  3 - new added
 	addrs []*consul.ServiceEntry//[]string
 	health *consul.Health
-	// leader change callback
 	onChange []onChangeFunc
 }
 
 const (
 	EV_ADD = 1
-
 	EV_DELETE = 2 // need to delete service
-	//EV_CHANGE = 3 // status change to not reachable, need to delete service
 )
 
 type watchOption func(w *ConsulWatcher)
@@ -64,48 +56,24 @@ func onWatch(f onChangeFunc) watchOption {
 
 // watch service delete and change
 func (cw *ConsulWatcher) process() {
-	// Nil cw.addrs means it is initial called
-	// If get addrs, return to balancer
-	// If no addrs, need to watch consul
-		
-		for {
-			// watch consul
-			addrs, li, err := cw.queryConsul(&consul.QueryOptions{WaitIndex: cw.li})
-			if err != nil {
-				log.Errorf("============>cw.queryConsul error: %+v", err)
-				time.Sleep(1 * time.Second)
-				continue
-			}
-			log.Debugf("============>service change: %+v, %+v", addrs, li)
-			if addrs == nil {
-				log.Warnf("watch consul services return nil")
-				addrs = make([]*consul.ServiceEntry, 0)
-			}
-			
-			cw.dialDelete(addrs)
-			//cw.dialChande(addrs)
-			cw.dialAdd(addrs)
-			
-			cw.addrs = addrs
-			cw.li = li
+	for {
+		// watch consul
+		addrs, li, err := cw.queryConsul(&consul.QueryOptions{WaitIndex: cw.li})
+		if err != nil {
+			log.Errorf("============>cw.queryConsul error: %+v", err)
+			time.Sleep(1 * time.Second)
+			continue
 		}
-			
-		
+		if addrs == nil {
+			log.Warnf("watch consul services return nil")
+			addrs = make([]*consul.ServiceEntry, 0)
+		}
+		cw.dialDelete(addrs)
+		cw.dialAdd(addrs)
+		cw.addrs = addrs
+		cw.li = li.LastIndex
+	}
 }
-
-//func (cw *ConsulWatcher) dialChande(addrs []*consul.ServiceEntry) {
-//	changed := getChange(cw.addrs, addrs)
-//	for _, u := range changed {
-//		for {
-//			log.Debugf("====>status change service: %+v", *u.Service)
-//			log.Debugf("============>fired cw.onChange<====")
-//			for _, f := range cw.onChange {
-//				f(u.Service.Address, u.Service.Port, EV_CHANGE)
-//			}
-//			break
-//		}
-//	}
-//}
 
 func (cw *ConsulWatcher) dialDelete(addrs []*consul.ServiceEntry) {
 	deleted := getDelete(cw.addrs, addrs)
@@ -137,20 +105,19 @@ func (cw *ConsulWatcher) dialAdd(addrs []*consul.ServiceEntry) {
 }
 
 // queryConsul is helper function to query consul
-func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceEntry, uint64, error) {
+func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceEntry, *consul.QueryMeta, error) {
 	// query consul
 	cs, meta, err := cw.health.Service("wing-binlog-go-subscribe", "", true, q)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
-	return cs, meta.LastIndex, nil
+	return cs, meta, nil
 }
 
 // diff(a, b) = a - a(n)b
 func getDelete(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 	d := make([]*consul.ServiceEntry, 0)
 	for _, va := range a {
-		//log.Debugf("##########%+v", *va)
 		found := false
 		for _, vb := range b {
 			if va.Service.ID == vb.Service.ID {
@@ -166,10 +133,10 @@ func getDelete(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 }
 
 func (cw *ConsulWatcher) getMembers() ([]*consul.ServiceEntry, error) {
-	c, i, e := cw.queryConsul(nil)//cw.cc.Health().Service("wing-binlog-go-subscribe", "", true, nil)
+	c, i, e := cw.queryConsul(nil)
 	if e == nil {
 		cw.addrs = c
-		cw.li = i
+		cw.li = i.LastIndex
 	}
 	return c, e
 }
