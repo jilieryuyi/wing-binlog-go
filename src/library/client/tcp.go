@@ -117,9 +117,9 @@ func NewClient(opts ...ClientOption) *Client{
 
 			s := fmt.Sprintf("%v:%v", ip, port)
 			switch event {
-			case EV_CHANGE:
-				log.Debugf("service change(delete): %s", s)
-				delete(client.Services, s)
+			//case EV_CHANGE:
+			//	log.Debugf("service change(delete): %s", s)
+			//	delete(client.Services, s)
 			case EV_DELETE:
 				log.Debugf("service delete: %s", s)
 				delete(client.Services, s)
@@ -137,7 +137,7 @@ func NewClient(opts ...ClientOption) *Client{
 				log.Errorf("unknown event: %v", event)
 			}
 		}))
-		members, _, err := w.getMembers()
+		members, err := w.getMembers()
 		if err != nil {
 			log.Printf("%+v", err)
 		}
