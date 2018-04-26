@@ -20,6 +20,7 @@ func init() {
 }
 
 // test SaveBinlogPostionCache api
+// 基础的保存pos到cache和读取cache相关zpi测试
 func TestBinlogHandler_SaveBinlogPostionCache(t *testing.T) {
 	h := &Binlog{
 		statusLock:new(sync.Mutex),

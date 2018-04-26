@@ -114,6 +114,5 @@ func (r *Producer) Reload() {
 func (r *Producer) Name() string {
 	return "kafka"
 }
-func (r *Producer) SendRaw(data []byte) bool { return true }
 
 

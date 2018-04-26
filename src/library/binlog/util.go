@@ -6,6 +6,8 @@ import (
 	"reflect"
 )
 
+// 打包pos信息
+// 最终这个打包的信息会被写入到cache
 func packPos(binFile string, pos int64, eventIndex int64) []byte {
 	res := []byte(binFile)
 	l := 16 + len(res)
@@ -36,6 +38,7 @@ func packPos(binFile string, pos int64, eventIndex int64) []byte {
 	return r
 }
 
+// 解包pos信息，这里的信息来源于读取的cache
 func unpackPos(data []byte) (string, int64, int64) {
 	dl := int64(data[0]) | int64(data[1]) << 8
 	pos := int64(data[2]) | int64(data[3]) << 8 | int64(data[4]) << 16 |
@@ -53,6 +56,8 @@ func unpackPos(data []byte) (string, int64, int64) {
 	return string(data[18:dl+2]), pos, eventIndex
 }
 
+// 字段解析
+// binlog数据改变事件相关字段使用这个api解析
 func fieldDecode(edata interface{}, column *schema.TableColumn) interface{} {
 	switch edata.(type) {
 	case string:

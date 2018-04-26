@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 )
 
+// 初始化binlog事件相关句柄
 func (h *Binlog) handlerInit() {
 	var err error
 	mysqlBinlogCacheFile := app.CachePath + "/mysql_binlog_position.pos"
@@ -53,6 +54,7 @@ func (h *Binlog) handlerInit() {
 	log.Debugf("current pos: (%+v, %+v)", h.lastBinFile, h.lastPos)
 }
 
+// 设置binlog句柄为当前实现类
 func (h *Binlog) setHandler()  {
 	cfg, err := canal.NewConfigWithFile(app.ConfigPath + "/canal.toml")
 	if err != nil {
@@ -68,12 +70,14 @@ func (h *Binlog) setHandler()  {
 	h.handler.SetEventHandler(h)
 }
 
+// 注册服务
 func (h *Binlog) RegisterService(s services.Service) {
 	h.lock.Lock()
 	h.services[s.Name()] = s
 	h.lock.Unlock()
 }
 
+// 事件广播通知
 func (h *Binlog) notify(data map[string] interface{}) {
 	log.Debugf("binlog notify: %+v", data)
 	jsonData, err := json.Marshal(data)
@@ -93,6 +97,7 @@ func (h *Binlog) notify(data map[string] interface{}) {
 	}
 }
 
+// alter table结构改变事件回调
 func (h *Binlog) OnTableChanged(schema string, table string) error {
 	rowData := make(map[string] interface{})
 	rowData["database"]    = schema
@@ -104,6 +109,7 @@ func (h *Binlog) OnTableChanged(schema string, table string) error {
 	return nil
 }
 
+// 数据改变事件回调
 func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	h.statusLock.Lock()
 	if h.status & binlogIsExit > 0 {
@@ -177,30 +183,36 @@ func (h *Binlog) OnRow(e *canal.RowsEvent) error {
 	return nil
 }
 
+// String 基础接口
 func (h *Binlog) String() string {
 	return "Binlog"
 }
 
+// 暂未使用的基础事件
 func (h *Binlog) OnRotate(e *replication.RotateEvent) error {
 	log.Debugf("OnRotate event fired with data: %+v", e)
 	return nil
 }
 
+// 暂未使用的基础事件
 func (h *Binlog) OnDDL(p mysql.Position, e *replication.QueryEvent) error {
 	log.Debugf("OnDDL event fired, %+v, %+v", p, e)
 	return nil
 }
 
+// 暂未使用的基础事件
 func (h *Binlog) OnXID(p mysql.Position) error {
 	log.Debugf("OnXID event fired, %+v.", p)
 	return nil
 }
 
+// 暂未使用的基础事件
 func (h *Binlog) OnGTID(g mysql.GTIDSet) error {
 	log.Debugf("OnGTID event fired, GTID: %+v", g)
 	return nil
 }
 
+// pos改变事件
 func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 	log.Debugf("OnPosSynced fired with data: %+v, %v", p, b)
 	eventIndex := atomic.LoadInt64(&h.EventIndex)
@@ -213,6 +225,8 @@ func (h *Binlog) OnPosSynced(p mysql.Position, b bool) error {
 }
 
 // use for agent sync pos callback
+// 保存pos信息到cache
+// 这里的api对外提供，用于agent集群同步pos信息
 func (h *Binlog) SaveBinlogPosition(r []byte) {
 	file, pos, index := unpackPos(r)
 	h.lastBinFile = file//p.Name
@@ -222,6 +236,7 @@ func (h *Binlog) SaveBinlogPosition(r []byte) {
 }
 
 // agent 接收到pos改变的时候也会回调到这里
+// 保存pos信息到cache
 func (h *Binlog) saveBinlogPositionCache(r []byte) {
 	h.statusLock.Lock()
 	if h.status & binlogIsExit > 0 {
@@ -244,6 +259,8 @@ func (h *Binlog) saveBinlogPositionCache(r []byte) {
 	}
 }
 
+// 读取cache中的pos信息
+// 返回值分别为binlog file，binlog pos，event index 事件索引
 func (h *Binlog) getBinlogPositionCache() (string, int64, int64) {
 	h.statusLock.Lock()
 	if h.status & cacheHandlerIsOpened <= 0 {

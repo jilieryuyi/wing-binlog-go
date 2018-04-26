@@ -74,6 +74,7 @@ func main() {
 	//}()
 	isCmd := *version || *stop || *serviceReload != "" || *help || *members || *v
 	// app init
+	// 这里初始化一些全局配置信息
 	app.DEBUG = *debug
 	app.Init(isCmd, *configPath)
 
@@ -82,47 +83,62 @@ func main() {
 	appContext  := app.NewContext()
 
 	// if use cmd params
+	// 命令支持
+	// -stop
+	// -reload
+	// ... 详细信息可以使用 -help 帮助
+	// demo: ./bin/wing-binlog-go -help
 	if isCmd {
 		runCmd(appContext)
 		return
 	}
 	// return true is parent process
+	// 如果返回true，代表已守护进程运行
+	// 启动的时候带了 -d 或者 -daemon 参数
 	if app.DaemonProcess(*daemon || *d) {
 		return
 	}
 
+	// 四个服务插件 http、redis、kafka、tcp（subscribe）
 	httpService      := http.NewHttpService(appContext)
-	//tcpService       := tcp.NewTcpService(appContext)
 	redisService     := redis.NewRedis()
 	kafkaService     := kafka.NewProducer()
 	subscribeService := subscribe.NewSubscribeService(appContext)
 
+	// agent代理，用于实现集群
 	agentServer := agent.NewAgentServer(
 		appContext,
 		agent.OnEvent(subscribeService.SendAll),
 		agent.OnRaw(subscribeService.SendRaw),
 	)
 
+	// 核心binlog服务
 	blog := binlog.NewBinlog(
 		appContext,
 		binlog.PosChange(agentServer.SendPos),
 		binlog.OnEvent(agentServer.SendEvent),
 	)
+	// 注册服务
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
 	blog.RegisterService(kafkaService)
 	blog.RegisterService(subscribeService)
+	// 开始binlog进程
 	blog.Start()
 
 	// set agent receive pos callback
 	// 延迟依赖绑定
 	// agent与binlog相互依赖
+	// agent收到leader的pos改变同步信息时，回调到SaveBinlogPosition
+	// agent选leader成功回调到OnLeader上，是为了停止和开启服务，只有leader在工作
 	agent.OnPos(blog.SaveBinlogPosition)(agentServer)
 	agent.OnLeader(blog.OnLeader)(agentServer)
 
+	// 启动agent进程
 	agentServer.Start()
 	defer agentServer.Close()
 
+	// 热更新reload支持
 	var reload = func(name string) {
 		if name == "all" {
 			redisService.Reload()
