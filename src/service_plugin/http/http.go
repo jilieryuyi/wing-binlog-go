@@ -37,6 +37,7 @@ func NewHttpService(ctx *app.Context) *HttpService {
 // 开始服务
 func (client *HttpService) Start() {
 	if client.status & serviceEnable <= 0 {
+		log.Infof("http service is disable")
 		return
 	}
 	client.groups.sendService()

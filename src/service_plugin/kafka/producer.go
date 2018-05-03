@@ -75,6 +75,7 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 }
 func (r *Producer) Start() {
 	if !r.enable {
+		log.Infof("kafka service is disable")
 		return
 	}
 	go func() {
