@@ -74,6 +74,9 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 	return true
 }
 func (r *Producer) Start() {
+	if !r.enable {
+		return
+	}
 	go func() {
 	     select {
 	     case e, ok := <- r.AccessLogProducer.Errors():
