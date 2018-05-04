@@ -105,7 +105,6 @@ func (cw *ConsulWatcher) process() {
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			log.Debugf("============>service change: %+v, %+v", addrs, li)
 
 			// 这里意欲监听leader的变化
 			// 比如删除了leader，需要触发重选leader
@@ -123,55 +122,6 @@ func (cw *ConsulWatcher) process() {
 		}
 	}
 }
-
-//func (cw *ConsulWatcher) dialAdd(addrs []*consul.ServiceEntry) {
-//	added := getDelete(addrs, cw.addrs)
-//	//如果发生改变的服务里面有leader，并且不是自己，则执行重新选leader
-//	for _, u := range added {
-//		for {
-//			log.Debugf("====>new add service: %+v", *u.Service)
-//			//u.Checks.AggregatedStatus()
-//			// error data
-//			if len(u.Service.Tags) <= 0 {
-//				log.Errorf("tag is error")
-//				break
-//			}
-//			// if not leader
-//			// 发生改变的不是leader，无须理会，只有leader发生改变才需要执行重选leader
-//			if u.Service.Tags[0] != "isleader:true" {
-//				//log.Errorf("is not leader")
-//				break
-//			}
-//			// if leader runs ok
-//			// 如果是leader，并且leader正常运行，也无需例会
-//			//if u.Service.Tags[0] == "isleader:true" && u.Checks.AggregatedStatus() == "passing" {
-//			//	log.Errorf("leader is running")
-//			//	break
-//			//}
-//			// check is self
-//			// 如果是当前节点，也无需处理
-//			if u.Service.Address == cw.serviceIp && u.Service.Port == cw.port {
-//				//log.Warnf("is current node")
-//				break
-//			}
-//			// try to unlock
-//			for i := 0; i < 3; i++ {
-//				s, err := cw.unlock()
-//				if s {
-//					break
-//				}
-//				if err != nil {
-//					log.Errorf("unlock error: %+v", err)
-//				}
-//			}
-//			log.Debugf("============>fired cw.onChange<====")
-//			for _, f := range cw.onChange {
-//				f()
-//			}
-//			break
-//		}
-//	}
-//}
 
 func (cw *ConsulWatcher) dialChange(addrs []*consul.ServiceEntry) {
 	changed := getChange(cw.addrs, addrs)
@@ -239,12 +189,6 @@ func (cw *ConsulWatcher) dialDelete(addrs []*consul.ServiceEntry) {
 				//log.Errorf("is not leader")
 				break
 			}
-			// if leader runs ok
-			// 如果是leader，并且leader正常运行，也无需例会
-			//if u.Service.Tags[0] == "isleader:true" && u.Checks.AggregatedStatus() == "passing" {
-			//	log.Errorf("leader is running")
-			//	break
-			//}
 			// check is self
 			// 如果是当前节点，也无需处理
 			if u.Service.Address == cw.serviceIp && u.Service.Port == cw.port {
@@ -283,10 +227,8 @@ func (cw *ConsulWatcher) queryConsul(q *consul.QueryOptions) ([]*consul.ServiceE
 // diff(a, b) = a - a(n)b
 func getDelete(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 	d := make([]*consul.ServiceEntry, 0)
-	//exists := make([]*consul.ServiceEntry, 0)
 	for _, va := range a {
 		found := false
-		//statusChange := false
 		for _, vb := range b {
 			if va.Service.ID == vb.Service.ID {
 				found = true
@@ -302,13 +244,9 @@ func getDelete(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 
 func getChange(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 	d := make([]*consul.ServiceEntry, 0)
-	//exists := make([]*consul.ServiceEntry, 0)
 	for _, va := range a {
-		//found := false
-		//statusChange := false
 		for _, vb := range b {
 			if va.Service.ID == vb.Service.ID && va.Checks.AggregatedStatus() != vb.Checks.AggregatedStatus() {
-				//found = true
 				// 如果已存在，对比一下状态是否已发生改变
 				// 如果已经改变追加到d里面返回
 				log.Debugf("status change: %+v", )
@@ -319,14 +257,6 @@ func getChange(a, b []*consul.ServiceEntry) ([]*consul.ServiceEntry) {
 				break
 			}
 		}
-		//if !found {
-		//	d = append(d, va)
-		//}
-		//if found && statusChange {
-		//	// 如果已存在，对比一下状态是否已发生改变
-		//	// 如果已经改变追加到d里面返回
-		//	d = append(d, va)
-		//}
 	}
 	return d
 }
