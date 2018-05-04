@@ -34,9 +34,15 @@ type unlockFunc func() (bool, error)
 type watchOption func(w *ConsulWatcher)
 type onchangeFunc func()//ip string, port int, isLeader bool)
 
-func newWatch(cc *consul.Client, serviceName string,
-	health *consul.Health, serviceIp string, port int,
-		opts ...watchOption) *ConsulWatcher {
+// watch service change
+func newWatch(
+	cc *consul.Client,
+	serviceName string,
+	health *consul.Health,
+	serviceIp string,
+	port int,
+	opts ...watchOption,
+) *ConsulWatcher {
 	w := &ConsulWatcher{
 		cc: cc,
 		target: serviceName,
@@ -44,20 +50,20 @@ func newWatch(cc *consul.Client, serviceName string,
 		serviceIp:serviceIp,
 		port:port,
 	}
-	if len(opts) > 0 {
-		for _, f := range opts {
-			f(w)
-		}
+	for _, f := range opts {
+		f(w)
 	}
 	return  w
 }
 
+// on service change callback
 func onWatch(f onchangeFunc) watchOption {
 	return func(w *ConsulWatcher) {
 		w.onChange = append(w.onChange, f)
 	}
 }
 
+// unlock callback
 func unlock(f unlockFunc) watchOption {
 	return func(w *ConsulWatcher) {
 		w.unlock = f
