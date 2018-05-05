@@ -1,8 +1,0 @@
-[2018-04-14 18:02:32,659] INFO [GroupMetadataManager brokerId=0] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:12:32,691] INFO [GroupMetadataManager brokerId=0] Group console-consumer-98930 transitioned to Dead in generation 4 (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:12:32,731] INFO Updated PartitionLeaderEpoch. New: {epoch:4, offset:5569}, Current: {epoch:0, offset:0} for Partition: __consumer_offsets-0. Cache now contains 1 entries. (kafka.server.epoch.LeaderEpochFileCache)
-[2018-04-14 18:12:32,765] INFO [GroupMetadataManager brokerId=0] Removed 1 expired offsets in 75 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:22:32,704] INFO [GroupMetadataManager brokerId=0] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:32:32,733] INFO [GroupMetadataManager brokerId=0] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:42:32,748] INFO [GroupMetadataManager brokerId=0] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-14 18:52:32,775] INFO [GroupMetadataManager brokerId=0] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)

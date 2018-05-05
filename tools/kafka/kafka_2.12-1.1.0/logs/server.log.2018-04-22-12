@@ -1,8 +1,0 @@
-[2018-04-22 13:27:27,300] WARN Client session timed out, have not heard from server in 2114238ms for sessionid 0x30001a6d46b0000 (org.apache.zookeeper.ClientCnxn)
-[2018-04-22 13:27:27,585] INFO Client session timed out, have not heard from server in 2114238ms for sessionid 0x30001a6d46b0000, closing socket connection and attempting reconnect (org.apache.zookeeper.ClientCnxn)
-[2018-04-22 13:27:27,961] INFO Opening socket connection to server 127.0.0.1/127.0.0.1:12182. Will not attempt to authenticate using SASL (unknown error) (org.apache.zookeeper.ClientCnxn)
-[2018-04-22 13:27:27,977] INFO Socket connection established to 127.0.0.1/127.0.0.1:12182, initiating session (org.apache.zookeeper.ClientCnxn)
-[2018-04-22 13:27:28,061] INFO Session establishment complete on server 127.0.0.1/127.0.0.1:12182, sessionid = 0x30001a6d46b0000, negotiated timeout = 6000 (org.apache.zookeeper.ClientCnxn)
-[2018-04-22 13:35:03,282] INFO [GroupMetadataManager brokerId=2] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-22 13:45:01,008] INFO [GroupMetadataManager brokerId=2] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
-[2018-04-22 13:55:01,012] INFO [GroupMetadataManager brokerId=2] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)

@@ -1,4 +1,0 @@
-[2018-04-20 05:58:54,366] DEBUG [Controller id=1] Sending MetadataRequest to Brokers: Vector(0, 1, 2) for TopicPartitions: ArrayBuffer(wing-binlog-event-2) (kafka.controller.KafkaController)
-[2018-04-20 05:58:54,376] INFO [RequestSendThread controllerId=1] Controller 1 connected to 192.168.0.105:9093 (id: 1 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
-[2018-04-20 05:58:54,376] INFO [RequestSendThread controllerId=1] Controller 1 connected to 192.168.0.105:9092 (id: 0 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
-[2018-04-20 05:58:54,376] INFO [RequestSendThread controllerId=1] Controller 1 connected to 192.168.0.105:9094 (id: 2 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
