@@ -1,0 +1,1 @@
+[2018-04-20 05:58:54,382] TRACE [Broker id=0] Cached leader info PartitionState(controllerEpoch=68, leader=0, leaderEpoch=19, isr=[0, 2, 1], zkVersion=69, replicas=[0, 1, 2], offlineReplicas=[]) for partition wing-binlog-event-2 in response to UpdateMetadata request sent by controller 1 epoch 68 with correlation id 15 (state.change.logger)

@@ -1,0 +1,7 @@
+[2018-04-18 11:06:01,114] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-18 11:16:01,157] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-18 11:21:50,685] INFO Updated PartitionLeaderEpoch. New: {epoch:18, offset:3}, Current: {epoch:17, offset:1} for Partition: wing-binlog-event-2. Cache now contains 2 entries. (kafka.server.epoch.LeaderEpochFileCache)
+[2018-04-18 11:26:01,238] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 35 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-18 11:36:01,210] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 5 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-18 11:46:01,229] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-18 11:56:01,255] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 6 milliseconds. (kafka.coordinator.group.GroupMetadataManager)

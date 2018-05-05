@@ -1,0 +1,6 @@
+[2018-04-27 08:01:34,176] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-27 08:11:34,188] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 2 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-27 08:21:34,214] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 1 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+[2018-04-27 08:29:43,988] INFO Terminating process due to signal SIGTERM (kafka.Kafka$)
+[2018-04-27 08:29:44,004] INFO [KafkaServer id=1] shutting down (kafka.server.KafkaServer)
+[2018-04-27 08:29:44,008] INFO [KafkaServer id=1] Starting controlled shutdown (kafka.server.KafkaServer)
