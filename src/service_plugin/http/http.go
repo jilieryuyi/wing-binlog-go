@@ -79,9 +79,6 @@ func (client *HttpService) Reload() {
 	log.Debug("http service reloaded.")
 }
 
-func (client *HttpService) SendRaw(data []byte) bool {
-	return true
-}
 func (client *HttpService) Name() string{
 	return "http"
 }

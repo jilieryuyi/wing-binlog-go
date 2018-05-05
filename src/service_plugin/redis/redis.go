@@ -126,4 +126,3 @@ func (r *Redis) Reload() {
 func (r *Redis) Name() string {
 	return "redis"
 }
-func (r *Redis) SendRaw(data []byte) bool { return true }

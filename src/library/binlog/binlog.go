@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// 创建一个binlog服务对象
 func NewBinlog(ctx *app.Context, opts ...BinlogOption) *Binlog {
 	binlog := &Binlog{
 		Config     : ctx.MysqlConfig,
@@ -34,6 +35,7 @@ func NewBinlog(ctx *app.Context, opts ...BinlogOption) *Binlog {
 
 // set pos change callback
 // if pos change, will call h.onPosChanges func
+// 设置binlog pos改变回调api
 func PosChange(f PosChangeFunc) BinlogOption {
 	return func(h *Binlog) {
 		h.onPosChanges = append(h.onPosChanges, f)
@@ -41,12 +43,14 @@ func PosChange(f PosChangeFunc) BinlogOption {
 }
 
 // set on event callback
+// 设置事件回调api
 func OnEvent(f OnEventFunc) BinlogOption {
 	return func(h *Binlog) {
 		h.onEvent = append(h.onEvent, f)
 	}
 }
 
+// 关闭binlog服务
 func (h *Binlog) Close() {
 	h.statusLock.Lock()
 	if h.status & binlogIsExit > 0 {
@@ -65,6 +69,9 @@ func (h *Binlog) Close() {
 }
 
 // for start and stop binlog service
+// 监听启动服务信号
+// 选leader时，如果成功被选为leader，则会发出启动binlog服务启动信号，由lookStartService处理
+// 非leader则会收到停止服务信号，由lookStopService停止binlog服务
 func (h *Binlog) lookStartService() {
 	h.wg.Add(1)
 	defer h.wg.Done()
@@ -125,6 +132,9 @@ func (h *Binlog) lookStartService() {
 	}
 }
 
+// 监听停止服务信号
+// 选leader时，如果成功被选为leader，则会发出启动binlog服务启动信号，由lookStartService处理
+// 非leader则会收到停止服务信号，由lookStopService停止binlog服务
 func (h *Binlog) lookStopService() {
 	h.wg.Add(1)
 	defer h.wg.Done()
@@ -168,16 +178,23 @@ func (h *Binlog) lookStopService() {
 	}
 }
 
+// 停止服务
+// 参数exit为true时，会彻底退出服务
+// 这里只是发出了停止服务信号
 func (h *Binlog) StopService(exit bool) {
 	log.Debugf("===========binlog service stop was called===========")
 	h.stopServiceChan <- exit
 }
 
+// 启动服务
+// 这里只是发出了启动服务信号
 func (h *Binlog) StartService() {
 	log.Debugf("===========binlog service start was called===========")
 	h.startServiceChan <- struct{}{}
 }
 
+// 启动binlog
+// 这里启动的是服务插件
 func (h *Binlog) Start() {
 	for _, service := range h.services {
 		log.Debugf("try start service: %v", service.Name())
@@ -185,6 +202,8 @@ func (h *Binlog) Start() {
 	}
 }
 
+// 选leader回调
+// binlog服务启动和停止由此控制
 func (h *Binlog) OnLeader(isLeader bool) {
 	if isLeader {
 		// leader start service

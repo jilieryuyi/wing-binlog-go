@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func NewSubscribeService(ctx *app.Context) services.Service {
+func NewSubscribeService(ctx *app.Context) *TcpService {
 	config, _ := getConfig()
 
 	g := newGroups(ctx)
