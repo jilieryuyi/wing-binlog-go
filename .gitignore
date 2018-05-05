@@ -20,7 +20,6 @@
 /vendor/library
 /vendor/golang.org
 /vendor/github.com
-/tools
 /tests/bin/*
 /tests/bin/cache/*
 /dev/*
@@ -31,3 +30,4 @@
 /bin/config3/*
 /bin/config3/*
 /bin/cache_test.pos
+/tools
