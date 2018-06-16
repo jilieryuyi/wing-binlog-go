@@ -51,8 +51,6 @@ type TcpService struct {
 	sService mconsul.ILeader
 	onleader []OnLeaderFunc
 	leader bool
-	ip string
-	port int
 	server *mtcp.Server
 }
 
@@ -86,9 +84,6 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	strs    := strings.Split(config.AgentListen, ":")
 	ip      := strs[0]
 	port, _ := strconv.ParseInt(strs[1], 10, 32)
-
-	tcp.ip   = ip
-	tcp.port = int(port)
 
 	//conf    := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
 	//c, err := consul.NewClient(conf)
@@ -192,7 +187,7 @@ func OnRaw(f OnRawFunc) AgentServerOption {
 }
 
 func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
-
+	//收到分组消息，加入分组
 }
 
 func (tcp *TcpService) Start() {
@@ -224,15 +219,12 @@ func (tcp *TcpService) Start() {
 		}
 	}()*/
 	tcp.server.Start()
-	go func() {
-		tcp.sService.Select(func(member *mconsul.ServiceMember) {
-			tcp.leader = member.IsLeader
-			//tcp.client.OnLeader(member.IsLeader)
-			for _, f := range tcp.onleader {
-				f(member.IsLeader)
-			}
-		})
-	}()
+	tcp.sService.Select(func(member *mconsul.ServiceMember) {
+		tcp.leader = member.IsLeader
+		for _, f := range tcp.onleader {
+			f(member.IsLeader)
+		}
+	})
 }
 
 func (tcp *TcpService) Close() {
@@ -306,7 +298,7 @@ func (tcp *TcpService) ShowMembers() string {
 	if err != nil {
 		hostname = ""
 	}
-	res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, tcp.ip, tcp.port)
+	res := fmt.Sprintf("current node: %s(%s)\r\n", hostname, tcp.Address)
 	res += fmt.Sprintf("cluster size: %d node(s)\r\n", len(data))
 	res += fmt.Sprintf("======+=============================================+==========+===============\r\n")
 	res += fmt.Sprintf("%-6s| %-43s | %-8s | %s\r\n", "index", "node", "role", "status")
