@@ -8,7 +8,7 @@ import (
 	"github.com/siddontang/go-mysql/dump"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/schema"
-	log "github.com/sirupsen/logrus"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 type dumpParseHandler struct {
@@ -69,7 +69,7 @@ func (h *dumpParseHandler) Data(db string, table string, values []string) error 
 		}
 	}
 
-	events := newRowsEvent(tableInfo, InsertAction, [][]interface{}{vs})
+	events := newRowsEvent(tableInfo, InsertAction, [][]interface{}{vs}, nil)
 	return h.c.eventHandler.OnRow(events)
 }
 
@@ -132,7 +132,8 @@ func (c *Canal) dump() error {
 func (c *Canal) tryDump() error {
 	pos := c.master.Position()
 	gtid := c.master.GTID()
-	if (len(pos.Name) > 0 && pos.Pos > 0) || gtid != nil {
+	if (len(pos.Name) > 0 && pos.Pos > 0) ||
+		(gtid != nil && gtid.String() != "") {
 		// we will sync with binlog name and position
 		log.Infof("skip dump, use last binlog replication pos %s or GTID %s", pos, gtid)
 		return nil

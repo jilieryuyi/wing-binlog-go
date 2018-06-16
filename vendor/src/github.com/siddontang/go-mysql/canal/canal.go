@@ -17,7 +17,7 @@ import (
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
 	"github.com/siddontang/go-mysql/schema"
-	log "github.com/sirupsen/logrus"
+	"gopkg.in/birkirb/loggers.v1/log"
 )
 
 // Canal can sync your MySQL data into everywhere, like Elasticsearch, Redis, etc...
@@ -26,8 +26,6 @@ type Canal struct {
 	m sync.Mutex
 
 	cfg *Config
-
-	useGTID bool
 
 	master     *masterInfo
 	dumper     *dump.Dumper
@@ -174,14 +172,12 @@ func (c *Canal) Run() error {
 
 // RunFrom will sync from the binlog position directly, ignore mysqldump.
 func (c *Canal) RunFrom(pos mysql.Position) error {
-	c.useGTID = false
 	c.master.Update(pos)
 
 	return c.Run()
 }
 
 func (c *Canal) StartFromGTID(set mysql.GTIDSet) error {
-	c.useGTID = true
 	c.master.UpdateGTID(set)
 
 	return c.Run()
@@ -419,6 +415,7 @@ func (c *Canal) prepareSyncer() error {
 		HeartbeatPeriod: c.cfg.HeartbeatPeriod,
 		ReadTimeout:     c.cfg.ReadTimeout,
 		UseDecimal:      c.cfg.UseDecimal,
+		SemiSyncEnabled: c.cfg.SemiSyncEnabled,
 	}
 
 	c.syncer = replication.NewBinlogSyncer(cfg)
@@ -456,4 +453,8 @@ func (c *Canal) Execute(cmd string, args ...interface{}) (rr *mysql.Result, err 
 
 func (c *Canal) SyncedPosition() mysql.Position {
 	return c.master.Position()
+}
+
+func (c *Canal) SyncedGTID() mysql.GTIDSet {
+	return c.master.GTID()
 }
