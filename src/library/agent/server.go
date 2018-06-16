@@ -8,8 +8,11 @@ import (
 	"library/app"
 	"strings"
 	"strconv"
-	consul "github.com/hashicorp/consul/api"
+	//consul "github.com/hashicorp/consul/api"
 	"library/services"
+	mconsul "github.com/jilieryuyi/wing-go/consul"
+	"os"
+	"fmt"
 )
 
 //agent 所需要做的事情
@@ -45,8 +48,9 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		ctx:              ctx,
 		agents:           nil,
 		status:           0,
-		buffer: make([]byte, 0),
-		enable: config.Enable,
+		buffer:           make([]byte, 0),
+		enable:           config.Enable,
+		onleader:         make([]OnLeaderFunc, 0),
 	}
 	go tcp.keepalive()
 	tcp.client = newAgentClient(ctx)
@@ -54,37 +58,62 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	strs    := strings.Split(config.AgentListen, ":")
 	ip      := strs[0]
 	port, _ := strconv.ParseInt(strs[1], 10, 32)
-	conf    := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
-	c, err := consul.NewClient(conf)
-	if err != nil {
-		log.Panicf("%v", err)
-		return nil
-	}
-	tcp.service = NewService(
-		config.Lock,
-		ServiceName,
-		ip,
-		int(port),
-		c,
-	)
-	tcp.service.Register()
+
+	tcp.ip = ip
+	tcp.port = int(port)
+
+	//conf    := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
+	//c, err := consul.NewClient(conf)
+	//if err != nil {
+	//	log.Panicf("%v", err)
+	//	return nil
+	//}
+	//tcp.service = NewService(
+	//	config.Lock,
+	//	ServiceName,
+	//	ip,
+	//	int(port),
+	//	c,
+	//)
+	//tcp.service.Register()
 	for _, f := range opts {
 		f(tcp)
 	}
 	//将tcp.client.OnLeader注册到server的选leader回调
 	OnLeader(tcp.client.OnLeader)(tcp)
 	//将tcp.service.getLeader注册为client获取leader的api
-	GetLeader(tcp.service.getLeader)(tcp.client)
+	//GetLeader(tcp.service.getLeader)(tcp.client)
 	//watch监听服务变化
-	tcp.watch = newWatch(
-		c,
+	//tcp.watch = newWatch(
+	//	c,
+	//	ServiceName,
+	//	c.Health(),
+	//	ip,
+	//	int(port),
+	//	onWatch(tcp.service.selectLeader),
+	//	unlock(tcp.service.Unlock),
+	//)
+
+
+
+
+	///////////////
+	tcp.sService = mconsul.NewLeader(
+		config.ConsulAddress,
+		config.Lock,
 		ServiceName,
-		c.Health(),
 		ip,
 		int(port),
-		onWatch(tcp.service.selectLeader),
-		unlock(tcp.service.Unlock),
 	)
+
+	GetLeader(func() (string, int, error) {
+		m, err := tcp.sService.Get()
+		if err != nil {
+			return "", 0, err
+		}
+		return m.ServiceIp, m.Port, nil
+	})(tcp.client)
+
 	return tcp
 }
 
@@ -104,7 +133,7 @@ func OnLeader(f OnLeaderFunc) AgentServerOption {
 			f(true)
 			return
 		}
-		s.service.onleader = append(s.service.onleader, f)
+		s.onleader = append(s.onleader, f)
 	}
 }
 
@@ -135,7 +164,7 @@ func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
-	go tcp.watch.process()
+	//go tcp.watch.process()
 	go func() {
 		listen, err := net.Listen("tcp", tcp.Address)
 		if err != nil {
@@ -159,6 +188,15 @@ func (tcp *TcpService) Start() {
 			go node.readMessage()
 		}
 	}()
+	go func() {
+		tcp.sService.Select(func(member *mconsul.ServiceMember) {
+			tcp.leader = member.IsLeader
+			//tcp.client.OnLeader(member.IsLeader)
+			for _, f := range tcp.onleader {
+				f(member.IsLeader)
+			}
+		})
+	}()
 }
 
 func (tcp *TcpService) Close() {
@@ -173,7 +211,10 @@ func (tcp *TcpService) Close() {
 	}
 	tcp.agents.close()
 	log.Debugf("tcp service closed.")
-	tcp.service.Close()
+	//tcp.service.Close()
+
+
+	tcp.sService.Free()
 }
 
 // binlog的pos发生改变会通知到这里
@@ -183,9 +224,10 @@ func (tcp *TcpService) SendPos(data []byte) {
 	if !tcp.enable {
 		return
 	}
-	if !tcp.service.leader {
+	if !tcp.leader {
 		return
 	}
+	//tcp.sService.
 	packData := services.Pack(CMD_POS, data)
 	tcp.agents.asyncSend(packData)
 }
@@ -220,5 +262,27 @@ func (tcp *TcpService) ShowMembers() string {
 	if !tcp.enable {
 		return "agent is not enable"
 	}
-	return tcp.service.ShowMembers()
+	data, err := tcp.sService.GetServices(false)//.getMembers()
+	if data == nil || err != nil {
+		return ""
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+	}
+	res := fmt.Sprintf("current node: %s(%s:%d)\r\n", hostname, tcp.ip, tcp.port)
+	res += fmt.Sprintf("cluster size: %d node(s)\r\n", len(data))
+	res += fmt.Sprintf("======+=============================================+==========+===============\r\n")
+	res += fmt.Sprintf("%-6s| %-43s | %-8s | %s\r\n", "index", "node", "role", "status")
+	res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+	for i, member := range data {
+		role := "follower"
+		if member.IsLeader {
+			role = "leader"
+		}
+		res += fmt.Sprintf("%-6d| %-43s | %-8s | %s\r\n", i, fmt.Sprintf("%s(%s:%d)", "", member.ServiceIp, member.Port), role, member.Status)
+	}
+	res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
+	return res
 }
+

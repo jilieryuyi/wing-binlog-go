@@ -8,6 +8,7 @@ import (
 	"library/file"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
+	mconsul "github.com/jilieryuyi/wing-go/consul"
 )
 
 const (
@@ -75,10 +76,15 @@ type TcpService struct {
 	status int
 	conn *net.TCPConn
 	buffer []byte
-	service *Service
+	//service *Service
 	client *AgentClient
-	watch *ConsulWatcher
+	//watch *ConsulWatcher
 	enable bool
+	sService mconsul.ILeader
+	onleader []OnLeaderFunc
+	leader bool
+	ip string
+	port int
 }
 type OnPosFunc func(r []byte)
 type AgentServerOption func(s *TcpService)

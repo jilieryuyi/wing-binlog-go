@@ -1,15 +1,5 @@
 package agent
 
-import (
-	"fmt"
-	log "github.com/sirupsen/logrus"
-	"time"
-	consul "github.com/hashicorp/consul/api"
-	"sync"
-	"strings"
-	"os"
-	"errors"
-)
 
 // 服务注册
 const (
@@ -28,51 +18,51 @@ type clusterMember struct {
 	ServiceIp string
 	Port int
 }
-type Service struct {
-	ServiceName string //service name, like: service.add
-	ServiceHost string //service host, like: 0.0.0.0, 127.0.0.1
-	ServiceIp string // if ServiceHost is 0.0.0.0, ServiceIp must set,
-	// like 127.0.0.1 or 192.168.9.12 or 114.55.56.168
-	ServicePort int // service port, like: 9998
-	Interval time.Duration // interval for update ttl
-	Ttl int //check ttl
-	ServiceID string //serviceID = fmt.Sprintf("%s-%s-%d", name, ip, port)
-	client *consul.Client ///consul client
-	agent *consul.Agent //consul agent
-	status int // register status
-	lock *sync.Mutex //sync lock
-	leader bool
-	lockKey string
-	handler *consul.Session
-	Kv *consul.KV
-	lastSession string
-	onleader []OnLeaderFunc
-	health *consul.Health
-}
+//type Service struct {
+//	ServiceName string //service name, like: service.add
+//	ServiceHost string //service host, like: 0.0.0.0, 127.0.0.1
+//	ServiceIp string // if ServiceHost is 0.0.0.0, ServiceIp must set,
+//	// like 127.0.0.1 or 192.168.9.12 or 114.55.56.168
+//	ServicePort int // service port, like: 9998
+//	Interval time.Duration // interval for update ttl
+//	Ttl int //check ttl
+//	ServiceID string //serviceID = fmt.Sprintf("%s-%s-%d", name, ip, port)
+//	client *consul.Client ///consul client
+//	agent *consul.Agent //consul agent
+//	status int // register status
+//	lock *sync.Mutex //sync lock
+//	leader bool
+//	lockKey string
+//	handler *consul.Session
+//	Kv *consul.KV
+//	lastSession string
+//	onleader []OnLeaderFunc
+//	health *consul.Health
+//}
 
 type OnLeaderFunc func(bool)
-type ServiceOption func(s *Service)
-
-// set ttl
-func Ttl(ttl int) ServiceOption {
-	return func(s *Service){
-		s.Ttl = ttl
-	}
-}
-
-// set interval
-func Interval(interval time.Duration) ServiceOption {
-	return func(s *Service){
-		s.Interval = interval
-	}
-}
-
-// set service ip
-func ServiceIp(serviceIp string) ServiceOption {
-	return func(s *Service){
-		s.ServiceIp = serviceIp
-	}
-}
+//type ServiceOption func(s *Service)
+//
+//// set ttl
+//func Ttl(ttl int) ServiceOption {
+//	return func(s *Service){
+//		s.Ttl = ttl
+//	}
+//}
+//
+//// set interval
+//func Interval(interval time.Duration) ServiceOption {
+//	return func(s *Service){
+//		s.Interval = interval
+//	}
+//}
+//
+//// set service ip
+//func ServiceIp(serviceIp string) ServiceOption {
+//	return func(s *Service){
+//		s.ServiceIp = serviceIp
+//	}
+//}
 
 // new a service
 // name: service name
@@ -81,6 +71,7 @@ func ServiceIp(serviceIp string) ServiceOption {
 // consulAddress: consul service address, like 127.0.0.1:8500
 // opts: ServiceOption, like ServiceIp("127.0.0.1")
 // return new service pointer
+/*
 func NewService(key string, name string, host string, port int,
 	 c *consul.Client, opts ...ServiceOption) *Service {
 	sev := &Service{
@@ -262,7 +253,7 @@ func (sev *Service) selectLeader() {
 	}
 }
 
-func (sev *Service) createSession(/*timeOut int64*/) string {
+func (sev *Service) createSession() string {
 	//if timeOut < 10 {
 	//	timeOut = 10
 	//}
@@ -394,4 +385,4 @@ func (sev *Service) ShowMembers() string {
 	}
 	res += fmt.Sprintf("------+---------------------------------------------+----------+---------------\r\n")
 	return res
-}
+}*/
