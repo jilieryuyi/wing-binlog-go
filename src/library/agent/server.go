@@ -11,6 +11,7 @@ import (
 	//consul "github.com/hashicorp/consul/api"
 	"library/services"
 	mconsul "github.com/jilieryuyi/wing-go/consul"
+	mtcp "github.com/jilieryuyi/wing-go/tcp"
 	"os"
 	"fmt"
 )
@@ -32,6 +33,28 @@ const (
 	Registered = 1 << iota
 )
 type OnLeaderFunc func(bool)
+type TcpService struct {
+	Address string               // 监听ip
+	lock *sync.Mutex
+	statusLock *sync.Mutex
+	ctx *app.Context
+	listener *net.Listener
+	wg *sync.WaitGroup
+	agents tcpClients
+	status int
+	conn *net.TCPConn
+	buffer []byte
+	//service *Service
+	client *AgentClient
+	//watch *ConsulWatcher
+	enable bool
+	sService mconsul.ILeader
+	onleader []OnLeaderFunc
+	leader bool
+	ip string
+	port int
+	server *mtcp.Server
+}
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	config, _ := getConfig()
@@ -64,7 +87,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	ip      := strs[0]
 	port, _ := strconv.ParseInt(strs[1], 10, 32)
 
-	tcp.ip = ip
+	tcp.ip   = ip
 	tcp.port = int(port)
 
 	//conf    := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
@@ -119,6 +142,9 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		return m.ServiceIp, m.Port, nil
 	})(tcp.client)
 
+
+	tcp.server = mtcp.NewServer(ctx.Ctx, config.AgentListen, mtcp.SetOnServerMessage(tcp.onServerMessage))
+
 	return tcp
 }
 
@@ -165,12 +191,16 @@ func OnRaw(f OnRawFunc) AgentServerOption {
 	}
 }
 
+func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
+
+}
+
 func (tcp *TcpService) Start() {
 	if !tcp.enable {
 		return
 	}
 	//go tcp.watch.process()
-	go func() {
+	/*go func() {
 		listen, err := net.Listen("tcp", tcp.Address)
 		if err != nil {
 			log.Errorf("tcp service listen with error: %+v", err)
@@ -192,7 +222,8 @@ func (tcp *TcpService) Start() {
 			node := newNode(tcp.ctx, &conn, NodeClose(tcp.agents.remove), NodePro(tcp.agents.append))
 			go node.readMessage()
 		}
-	}()
+	}()*/
+	tcp.server.Start()
 	go func() {
 		tcp.sService.Select(func(member *mconsul.ServiceMember) {
 			tcp.leader = member.IsLeader
@@ -218,7 +249,7 @@ func (tcp *TcpService) Close() {
 	log.Debugf("tcp service closed.")
 	//tcp.service.Close()
 
-
+	tcp.server.Close()
 	tcp.sService.Free()
 }
 

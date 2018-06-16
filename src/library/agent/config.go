@@ -65,27 +65,6 @@ type NodeOption func(n *tcpClientNode)
 
 type tcpClients []*tcpClientNode
 
-type TcpService struct {
-	Address string               // 监听ip
-	lock *sync.Mutex
-	statusLock *sync.Mutex
-	ctx *app.Context
-	listener *net.Listener
-	wg *sync.WaitGroup
-	agents tcpClients
-	status int
-	conn *net.TCPConn
-	buffer []byte
-	//service *Service
-	client *AgentClient
-	//watch *ConsulWatcher
-	enable bool
-	sService mconsul.ILeader
-	onleader []OnLeaderFunc
-	leader bool
-	ip string
-	port int
-}
 type OnPosFunc func(r []byte)
 type AgentServerOption func(s *TcpService)
 var (
