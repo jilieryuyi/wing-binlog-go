@@ -27,6 +27,11 @@ import (
 // 定期检测是否有leader在运行，如果没有，尝试强制解锁，然后选出新的leader
 
 const ServiceName = "wing-binlog-go-agent"
+// 服务注册
+const (
+	Registered = 1 << iota
+)
+type OnLeaderFunc func(bool)
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	config, _ := getConfig()

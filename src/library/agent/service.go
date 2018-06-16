@@ -1,23 +1,20 @@
 package agent
 
 
-// 服务注册
-const (
-	Registered = 1 << iota
-)
-const (
-	statusOnline    = "online"
-	statusOffline   = "offline"
-)
+
+//const (
+//	statusOnline    = "online"
+//	statusOffline   = "offline"
+//)
 // cluster node(member)
-type clusterMember struct {
-	Hostname string
-	IsLeader bool
-	SessionId string
-	Status string
-	ServiceIp string
-	Port int
-}
+//type clusterMember struct {
+//	Hostname string
+//	IsLeader bool
+//	SessionId string
+//	Status string
+//	ServiceIp string
+//	Port int
+//}
 //type Service struct {
 //	ServiceName string //service name, like: service.add
 //	ServiceHost string //service host, like: 0.0.0.0, 127.0.0.1
@@ -40,7 +37,6 @@ type clusterMember struct {
 //	health *consul.Health
 //}
 
-type OnLeaderFunc func(bool)
 //type ServiceOption func(s *Service)
 //
 //// set ttl
