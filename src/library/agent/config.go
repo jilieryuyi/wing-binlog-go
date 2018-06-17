@@ -8,7 +8,6 @@ import (
 	"library/file"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
-	//mconsul "github.com/jilieryuyi/wing-go/consul"
 )
 
 const (
@@ -46,18 +45,18 @@ const (
 )
 
 type tcpClientNode struct {
-	conn *net.Conn   // 客户端连接进来的资源句柄
-	sendQueue chan []byte // 发送channel
+	conn             *net.Conn   // 客户端连接进来的资源句柄
+	sendQueue        chan []byte // 发送channel
 	sendFailureTimes int64       // 发送失败次数
-	recvBuf []byte      // 读缓冲区
-	connectTime int64       // 连接成功的时间戳
-	status int
-	wg *sync.WaitGroup
-	ctx *app.Context
-	lock *sync.Mutex          // 互斥锁，修改资源时锁定
-	onclose []NodeFunc
-	agents tcpClients
-	onpro []NodeFunc
+	recvBuf          []byte      // 读缓冲区
+	connectTime      int64       // 连接成功的时间戳
+	status           int
+	wg               *sync.WaitGroup
+	ctx              *app.Context
+	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	onclose          []NodeFunc
+	agents           tcpClients
+	onpro            []NodeFunc
 }
 
 type NodeFunc func(n *tcpClientNode)
@@ -72,7 +71,7 @@ var (
 	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
-type AgentConfig struct {
+type Config struct {
 	Enable bool `toml:"enable"`
 	Type string `toml:"type"`
 	Lock string `toml:"lock"`
@@ -80,8 +79,8 @@ type AgentConfig struct {
 	ConsulAddress string `toml:"consul_address"`
 }
 
-func getConfig() (*AgentConfig, error) {
-	var config AgentConfig
+func getConfig() (*Config, error) {
+	var config Config
 	configFile := app.ConfigPath + "/agent.toml"
 	if !file.Exists(configFile) {
 		log.Errorf("config file not found: %s", configFile)
