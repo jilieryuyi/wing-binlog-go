@@ -8,7 +8,7 @@ import (
 	"library/file"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
-	mconsul "github.com/jilieryuyi/wing-go/consul"
+	//mconsul "github.com/jilieryuyi/wing-go/consul"
 )
 
 const (

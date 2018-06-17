@@ -51,7 +51,7 @@ type TcpService struct {
 	//watch *ConsulWatcher
 	enable bool
 	sService mconsul.ILeader
-	//onleader []OnLeaderFunc
+	onLeader []OnLeaderFunc
 	leader bool
 	server *mtcp.Server
 }
@@ -125,15 +125,15 @@ func OnPos(f OnPosFunc) AgentServerOption  {
 	}
 }
 
-//func OnLeader(f OnLeaderFunc) AgentServerOption {
-//	return func(s *TcpService) {
-//		if !s.enable {
-//			f(true)
-//			return
-//		}
-//		s.onleader = append(s.onleader, f)
-//	}
-//}
+func OnLeader(f OnLeaderFunc) AgentServerOption {
+	return func(s *TcpService) {
+		if !s.enable {
+			f(true)
+			return
+		}
+		s.onLeader = append(s.onLeader, f)
+	}
+}
 
 // agent client 收到事件回调
 // 这个回调应该来源于service_plugin/tcp
@@ -197,9 +197,9 @@ func (tcp *TcpService) Start() {
 	tcp.server.Start()
 	tcp.sService.Select(func(member *mconsul.ServiceMember) {
 		tcp.leader = member.IsLeader
-		//for _, f := range tcp.onleader {
-		//	f(member.IsLeader)
-		//}
+		for _, f := range tcp.onLeader {
+			f(member.IsLeader)
+		}
 		// 连接到leader
 		if !tcp.leader {
 			for {
