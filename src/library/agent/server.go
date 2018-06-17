@@ -13,6 +13,7 @@ import (
 	mtcp "github.com/jilieryuyi/wing-go/tcp"
 	"os"
 	"fmt"
+	"time"
 )
 
 //agent 所需要做的事情
@@ -32,6 +33,8 @@ const (
 	Registered = 1 << iota
 )
 type OnLeaderFunc func(bool)
+type OnEventFunc       func(table string, data []byte) bool
+type OnRawFunc         func(msg []byte) bool
 type TcpService struct {
 	Address string               // 监听ip
 	lock *sync.Mutex
@@ -44,11 +47,11 @@ type TcpService struct {
 	conn *net.TCPConn
 	buffer []byte
 	//service *Service
-	client *AgentClient
+	client *mtcp.Client//AgentClient
 	//watch *ConsulWatcher
 	enable bool
 	sService mconsul.ILeader
-	onleader []OnLeaderFunc
+	//onleader []OnLeaderFunc
 	leader bool
 	server *mtcp.Server
 }
@@ -75,51 +78,14 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		status:           0,
 		buffer:           make([]byte, 0),
 		enable:           config.Enable,
-		onleader:         make([]OnLeaderFunc, 0),
+		//onleader:         make([]OnLeaderFunc, 0),
 	}
-	//go tcp.keepalive()
-	tcp.client = newAgentClient(ctx)
+	tcp.client = mtcp.NewClient(ctx.Ctx, mtcp.SetOnMessage(tcp.onClientMessage))//newAgentClient(ctx)
 	// 服务注册
-	strs    := strings.Split(config.AgentListen, ":")
-	ip      := strs[0]
-	port, _ := strconv.ParseInt(strs[1], 10, 32)
+	strs      := strings.Split(config.AgentListen, ":")
+	ip        := strs[0]
+	port, _   := strconv.ParseInt(strs[1], 10, 32)
 
-	//conf    := &consul.Config{Scheme: "http", Address: config.ConsulAddress}
-	//c, err := consul.NewClient(conf)
-	//if err != nil {
-	//	log.Panicf("%v", err)
-	//	return nil
-	//}
-	//tcp.service = NewService(
-	//	config.Lock,
-	//	ServiceName,
-	//	ip,
-	//	int(port),
-	//	c,
-	//)
-	//tcp.service.Register()
-	for _, f := range opts {
-		f(tcp)
-	}
-	//将tcp.client.OnLeader注册到server的选leader回调
-	OnLeader(tcp.client.OnLeader)(tcp)
-	//将tcp.service.getLeader注册为client获取leader的api
-	//GetLeader(tcp.service.getLeader)(tcp.client)
-	//watch监听服务变化
-	//tcp.watch = newWatch(
-	//	c,
-	//	ServiceName,
-	//	c.Health(),
-	//	ip,
-	//	int(port),
-	//	onWatch(tcp.service.selectLeader),
-	//	unlock(tcp.service.Unlock),
-	//)
-
-
-
-
-	///////////////
 	tcp.sService = mconsul.NewLeader(
 		config.ConsulAddress,
 		config.Lock,
@@ -127,14 +93,17 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		ip,
 		int(port),
 	)
-
-	GetLeader(func() (string, int, error) {
-		m, err := tcp.sService.Get()
-		if err != nil {
-			return "", 0, err
-		}
-		return m.ServiceIp, m.Port, nil
-	})(tcp.client)
+	for _, f := range opts {
+		f(tcp)
+	}
+	//OnLeader(tcp.connectToLeader)(tcp)
+	//GetLeader(func() (string, int, error) {
+	//	m, err := tcp.sService.Get()
+	//	if err != nil {
+	//		return "", 0, err
+	//	}
+	//	return m.ServiceIp, m.Port, nil
+	//})(tcp.client)
 
 
 	tcp.server = mtcp.NewServer(ctx.Ctx, config.AgentListen, mtcp.SetOnServerMessage(tcp.onServerMessage))
@@ -142,25 +111,29 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 	return tcp
 }
 
+//func (tcp *TcpService) connectToLeader(isLeader bool) {
+//	//
+//}
+
 // 设置收到pos的回调函数
 func OnPos(f OnPosFunc) AgentServerOption  {
 	return func(s *TcpService) {
 		if !s.enable {
 			return
 		}
-		s.client.onPos = append(s.client.onPos, f)
+		//s.client.onPos = append(s.client.onPos, f)
 	}
 }
 
-func OnLeader(f OnLeaderFunc) AgentServerOption {
-	return func(s *TcpService) {
-		if !s.enable {
-			f(true)
-			return
-		}
-		s.onleader = append(s.onleader, f)
-	}
-}
+//func OnLeader(f OnLeaderFunc) AgentServerOption {
+//	return func(s *TcpService) {
+//		if !s.enable {
+//			f(true)
+//			return
+//		}
+//		s.onleader = append(s.onleader, f)
+//	}
+//}
 
 // agent client 收到事件回调
 // 这个回调应该来源于service_plugin/tcp
@@ -170,7 +143,7 @@ func OnEvent(f OnEventFunc) AgentServerOption {
 		if !s.enable {
 			return
 		}
-		s.client.onEvent = append(s.client.onEvent, f)
+		//s.client.onEvent = append(s.client.onEvent, f)
 	}
 }
 
@@ -181,8 +154,12 @@ func OnRaw(f OnRawFunc) AgentServerOption {
 		if !s.enable {
 			return
 		}
-		s.client.onRaw = append(s.client.onRaw, f)
+		//s.client.onRaw = append(s.client.onRaw, f)
 	}
+}
+
+func (tcp *TcpService) onClientMessage(client *mtcp.Client, content []byte) {
+
 }
 
 func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
@@ -220,8 +197,20 @@ func (tcp *TcpService) Start() {
 	tcp.server.Start()
 	tcp.sService.Select(func(member *mconsul.ServiceMember) {
 		tcp.leader = member.IsLeader
-		for _, f := range tcp.onleader {
-			f(member.IsLeader)
+		//for _, f := range tcp.onleader {
+		//	f(member.IsLeader)
+		//}
+		// 连接到leader
+		if !tcp.leader {
+			for {
+				m, err := tcp.sService.Get()
+				if err == nil && m != nil {
+					tcp.client.Connect(fmt.Sprintf("%v:%v", m.ServiceIp, m.Port), time.Second * 3)
+					break
+				}
+				log.Warnf("leader is not init, try to wait init")
+				time.Sleep(time.Second)
+			}
 		}
 	})
 }

@@ -1,5 +1,5 @@
 package agent
-
+/*
 import (
 	"net"
 	"fmt"
@@ -26,7 +26,7 @@ type AgentClient struct {
 	statusLock       *sync.Mutex
 	status int
 	leader bool
-	getLeader getLeaferFunc
+	//getLeader getLeaferFunc
 }
 
 type getLeaferFunc     func()(string, int, error)
@@ -34,11 +34,11 @@ type OnEventFunc       func(table string, data []byte) bool
 type OnRawFunc         func(msg []byte) bool
 type AgentClientOption func(tcp *AgentClient)
 
-func GetLeader(f getLeaferFunc) AgentClientOption{
-	return func(tcp *AgentClient) {
-		tcp.getLeader = f
-	}
-}
+//func GetLeader(f getLeaferFunc) AgentClientOption{
+//	return func(tcp *AgentClient) {
+//		tcp.getLeader = f
+//	}
+//}
 
 func newAgentClient(ctx *app.Context, opts ...AgentClientOption) *AgentClient {
 	c := &AgentClient{
@@ -315,6 +315,6 @@ func (tcp *AgentClient) AgentStop() {
 	}
 	tcp.statusLock.Unlock()
 }
-
+*/
 
 
