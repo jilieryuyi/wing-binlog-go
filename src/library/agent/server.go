@@ -4,7 +4,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"sync"
-	"time"
 	"library/app"
 	"strings"
 	"strconv"
@@ -78,7 +77,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		enable:           config.Enable,
 		onleader:         make([]OnLeaderFunc, 0),
 	}
-	go tcp.keepalive()
+	//go tcp.keepalive()
 	tcp.client = newAgentClient(ctx)
 	// 服务注册
 	strs    := strings.Split(config.AgentListen, ":")
@@ -271,6 +270,7 @@ func (tcp *TcpService) SendEvent(table string, data []byte) {
 }
 
 // 心跳
+/*
 func (tcp *TcpService) keepalive() {
 	if !tcp.enable {
 		return
@@ -285,7 +285,7 @@ func (tcp *TcpService) keepalive() {
 		time.Sleep(time.Second * 3)
 	}
 }
-
+*/
 func (tcp *TcpService) ShowMembers() string {
 	if !tcp.enable {
 		return "agent is not enable"
