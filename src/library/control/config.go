@@ -5,7 +5,7 @@ import (
 	"library/app"
 	"net"
 	"errors"
-	"library/services"
+	"library/service"
 )
 
 const (
@@ -51,7 +51,7 @@ type TcpService struct {
 }
 
 var (
-	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
+	packDataTickOk     = service.Pack(CMD_TICK, []byte("ok"))
 	nodeOffline        = errors.New("tcp node offline")
 )
 type ShowMemberFunc func() string

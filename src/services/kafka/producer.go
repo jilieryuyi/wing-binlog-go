@@ -1,7 +1,7 @@
 package kafka
 
 import (
-	"library/services"
+	"library/service"
 	log "github.com/sirupsen/logrus"
 	"github.com/Shopify/sarama"
 	"sync"
@@ -11,7 +11,7 @@ const (
 	isClose = 1 << iota
 )
 type Producer struct {
-	services.Service
+	service.Service
 	AccessLogProducer sarama.AsyncProducer
 	enable bool
 	topic string
@@ -20,9 +20,9 @@ type Producer struct {
 	lock *sync.Mutex
 }
 
-var _ services.Service = &Producer{}
+var _ service.Service = &Producer{}
 
-func NewProducer() services.Service {
+func NewProducer() service.Service {
 	config, _ := getConfig()
 	if !config.Enable {
 		return &Producer{
@@ -58,7 +58,7 @@ func (r *Producer) SendAll(table string, data []byte) bool {
 		Data:data,
 	}
 
-	if !services.MatchFilters(r.filter, table) {
+	if !service.MatchFilters(r.filter, table) {
 		log.Debugf("table(%v) does not match filter", table)
 		return false
 	}

@@ -6,13 +6,13 @@ import (
 	"library/app"
 	"library/binlog"
 	_ "github.com/go-sql-driver/mysql"
-	"service_plugin/redis"
-	"service_plugin/http"
-	"service_plugin/kafka"
+	"services/redis"
+	"services/http"
+	"services/kafka"
 	"library/control"
 	"library/agent"
 	log "github.com/sirupsen/logrus"
-	"service_plugin/subscribe"
+	"services/subscribe"
 )
 
 var (

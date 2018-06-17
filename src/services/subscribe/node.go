@@ -9,7 +9,7 @@ import (
 	"io"
 	"fmt"
 	"sync/atomic"
-	"library/services"
+	"library/service"
 	"strings"
 )
 
@@ -138,7 +138,7 @@ func (node *tcpClientNode) onMessage(msg []byte) {
 		case CMD_TICK:
 			node.asyncSend(packDataTickOk)
 		default:
-			node.asyncSend(services.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+			node.asyncSend(service.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
 			node.recvBuf = make([]byte, 0)
 			return
 		}

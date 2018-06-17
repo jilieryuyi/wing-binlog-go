@@ -3,7 +3,7 @@ package binlog
 import (
 	"sync"
 	"sync/atomic"
-	"library/services"
+	"library/service"
 	"github.com/siddontang/go-mysql/mysql"
 	log "github.com/sirupsen/logrus"
 	"library/app"
@@ -18,7 +18,7 @@ func NewBinlog(ctx *app.Context, opts ...BinlogOption) *Binlog {
 		lock       : new(sync.Mutex),
 		statusLock : new(sync.Mutex),
 		ctx        : ctx,
-		services   : make(map[string]services.Service),
+		services   : make(map[string]service.Service),
 		startServiceChan : make(chan struct{}, 100),
 		stopServiceChan  : make(chan bool, 100),
 		status           : 0,

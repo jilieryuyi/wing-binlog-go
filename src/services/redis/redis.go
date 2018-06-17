@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"library/services"
+	"library/service"
     "github.com/go-redis/redis"
 	"github.com/BurntSushi/toml"
 	"library/app"
@@ -11,7 +11,7 @@ import (
 )
 
 type Redis struct {
-	services.Service
+	service.Service
 	client *redis.Client
 	config *redisConfig
 	status int
@@ -20,7 +20,7 @@ type Redis struct {
 const (
 	isClose = 1 << iota
 )
-var _ services.Service = &Redis{}
+var _ service.Service = &Redis{}
 
 type redisConfig struct{
 	Enable bool `toml:"enable"`
@@ -45,7 +45,7 @@ func getRedisConfig() (*redisConfig, error) {
 	return &config, nil
 }
 
-func NewRedis() services.Service {
+func NewRedis() service.Service {
 	config, err := getRedisConfig()
 	if err != nil {
 		log.Errorf("get redis config error")
@@ -81,7 +81,7 @@ func (r *Redis) SendAll(table string, data []byte) bool {
 	}
 	r.lock.Unlock()
 	//if match
-	if services.MatchFilters(r.config.Filter, table) {
+	if service.MatchFilters(r.config.Filter, table) {
 		err := r.client.RPush(r.config.Queue, string(data)).Err()
 		if err != nil {
 			log.Errorf("redis RPush error: %+v", err)

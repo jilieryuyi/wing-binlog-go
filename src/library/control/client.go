@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"library/app"
 	"time"
-	"library/services"
+	"library/service"
 )
 
 type control struct {
@@ -32,7 +32,7 @@ func (con *control) Close() {
 
 // -stop
 func (con *control) Stop() {
-	data := services.Pack(CMD_STOP, []byte(""))
+	data := service.Pack(CMD_STOP, []byte(""))
 	con.conn.Write(data)
 	var buf = make([]byte, 1024)
 	con.conn.SetReadDeadline(time.Now().Add(time.Second*3))
@@ -45,13 +45,13 @@ func (con *control) Stop() {
 //-service-reload all ##重新加载全部服务
 //cmd: http、tcp、all、redis
 func (con *control) Reload(serviceName string) {
-	data := services.Pack(CMD_RELOAD, []byte(serviceName))
+	data := service.Pack(CMD_RELOAD, []byte(serviceName))
 	con.conn.Write(data)
 }
 
 // -members
 func (con *control) ShowMembers() {
-	data := services.Pack(CMD_SHOW_MEMBERS, []byte(""))
+	data := service.Pack(CMD_SHOW_MEMBERS, []byte(""))
 	con.conn.Write(data)
 	var buf = make([]byte, 40960)
 	con.conn.SetReadDeadline(time.Now().Add(time.Second*30))

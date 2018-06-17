@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"net"
-	"library/services"
+	"library/service"
 	"library/file"
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
@@ -67,8 +67,8 @@ type tcpClients []*tcpClientNode
 type OnPosFunc func(r []byte)
 type AgentServerOption func(s *TcpService)
 var (
-	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
-	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
+	packDataTickOk     = service.Pack(CMD_TICK, []byte("ok"))
+	packDataSetPro     = service.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
 type Config struct {

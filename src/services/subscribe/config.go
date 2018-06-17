@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"net"
-	"library/services"
+	"library/service"
 	"github.com/BurntSushi/toml"
 	"library/file"
 	log "github.com/sirupsen/logrus"
@@ -74,7 +74,7 @@ type tcpGroup struct {
 }
 
 type TcpService struct {
-	services.Service
+	service.Service
 	Listen           string               // 监听ip
 	lock             *sync.Mutex
 	statusLock       *sync.Mutex
@@ -95,9 +95,9 @@ type TcpService struct {
 }
 
 var (
-	_ services.Service = &TcpService{}
-	packDataTickOk     = services.Pack(CMD_TICK, []byte("ok"))
-	packDataSetPro     = services.Pack(CMD_SET_PRO, []byte("ok"))
+	_              service.Service = &TcpService{}
+	packDataTickOk                 = service.Pack(CMD_TICK, []byte("ok"))
+	packDataSetPro                 = service.Pack(CMD_SET_PRO, []byte("ok"))
 )
 
 type TcpServiceOption func(service *TcpService)

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"time"
-	"library/services"
+	"library/service"
 	"github.com/BurntSushi/toml"
 	"library/file"
 	log "github.com/sirupsen/logrus"
@@ -28,10 +28,10 @@ type httpNodes []*httpNode
 type httpGroups map[string]*httpGroup
 
 type HttpService struct {
-	services.Service                                //
-	groups           httpGroups//map[string]*httpGroup //
-	lock             *sync.Mutex           // 互斥锁，修改资源时锁定
-	timeTick         time.Duration         // 故障检测的时间间隔
+	service.Service                //
+	groups           httpGroups    //map[string]*httpGroup //
+	lock             *sync.Mutex   // 互斥锁，修改资源时锁定
+	timeTick         time.Duration // 故障检测的时间间隔
 	ctx              *app.Context
 	status           int
 }
@@ -45,7 +45,7 @@ type httpNode struct {
 }
 
 var (
-	_ services.Service = &HttpService{}
+	_ service.Service = &HttpService{}
 )
 
 

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 	"library/app"
-	"library/services"
+	"library/service"
 	"strings"
 	"strconv"
 )
@@ -124,7 +124,7 @@ func (tcp *TcpService) SendAll(table string, data []byte) bool {
 	tcp.statusLock.Unlock()
 	log.Debugf("subscribe SendAll: %s, %+v", table, string(data))
 	// pack data
-	packData := services.Pack(CMD_EVENT, data)
+	packData := service.Pack(CMD_EVENT, data)
 	for _, f := range tcp.sendAll {
 		f(table, packData)
 	}

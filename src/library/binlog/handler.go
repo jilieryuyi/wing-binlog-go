@@ -3,7 +3,7 @@ package binlog
 import (
 	"sync/atomic"
 	"time"
-	"library/services"
+	"library/service"
 	"github.com/siddontang/go-mysql/canal"
 	"github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/replication"
@@ -71,7 +71,7 @@ func (h *Binlog) setHandler()  {
 }
 
 // 注册服务
-func (h *Binlog) RegisterService(s services.Service) {
+func (h *Binlog) RegisterService(s service.Service) {
 	h.lock.Lock()
 	h.services[s.Name()] = s
 	h.lock.Unlock()

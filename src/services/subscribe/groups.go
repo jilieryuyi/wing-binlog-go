@@ -4,7 +4,7 @@ import (
 	"sync"
 	"library/app"
 	"net"
-	"library/services"
+	"library/service"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -42,7 +42,7 @@ func (groups *tcpGroups) sendAll(table string, data []byte) bool {
 	for _, node := range groups.g {
 		log.Debugf("topics:%+v, %v", node.topics, table)
 		// 如果有订阅主题
-		if services.MatchFilters(node.topics, table) {
+		if service.MatchFilters(node.topics, table) {
 			//log.Debugf("发送消息")
 			node.asyncSend(data)
 		}

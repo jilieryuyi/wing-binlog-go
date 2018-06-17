@@ -3,7 +3,7 @@ package binlog
 import (
 	"os"
 	"sync"
-	"library/services"
+	"library/service"
 	"github.com/siddontang/go-mysql/canal"
 	"library/app"
 )
@@ -25,7 +25,7 @@ type Binlog struct {
 	// event unique index
 	EventIndex    int64
 	// registered service, key is the name of the service
-	services      map[string]services.Service
+	services      map[string]service.Service
 	// cache handler, use for read and write cache file
 	// binlog_handler.go SaveBinlogPostionCache and getBinlogPositionCache
 	cacheHandler  *os.File

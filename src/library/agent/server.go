@@ -8,7 +8,7 @@ import (
 	"strings"
 	"strconv"
 	//consul "github.com/hashicorp/consul/api"
-	"library/services"
+	"library/service"
 	mconsul "github.com/jilieryuyi/wing-go/consul"
 	mtcp "github.com/jilieryuyi/wing-go/tcp"
 	"os"
@@ -244,7 +244,7 @@ func (tcp *TcpService) SendPos(data []byte) {
 		return
 	}
 	//tcp.sService.
-	packData := services.Pack(CMD_POS, data)
+	packData := service.Pack(CMD_POS, data)
 	tcp.agents.asyncSend(packData)
 }
 
@@ -254,7 +254,7 @@ func (tcp *TcpService) SendEvent(table string, data []byte) {
 	}
 	// 广播给agent client
 	// agent client 再发送给连接到当前service_plugin/tcp的客户端
-	packData := services.Pack(CMD_EVENT, data)
+	packData := service.Pack(CMD_EVENT, data)
 	tcp.agents.asyncSend(packData)
 }
 
