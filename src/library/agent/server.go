@@ -14,6 +14,7 @@ import (
 	"os"
 	"fmt"
 	"time"
+	"encoding/json"
 )
 
 //agent 所需要做的事情
@@ -54,6 +55,7 @@ type TcpService struct {
 	onLeader []OnLeaderFunc
 	leader bool
 	server *mtcp.Server
+	onEvent []OnEventFunc
 }
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
@@ -79,6 +81,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		buffer:           make([]byte, 0),
 		enable:           config.Enable,
 		//onleader:         make([]OnLeaderFunc, 0),
+		onEvent:          make([]OnEventFunc, 0),
 	}
 	tcp.client = mtcp.NewClient(ctx.Ctx, mtcp.SetOnMessage(tcp.onClientMessage))//newAgentClient(ctx)
 	// 服务注册
@@ -143,7 +146,7 @@ func OnEvent(f OnEventFunc) AgentServerOption {
 		if !s.enable {
 			return
 		}
-		//s.client.onEvent = append(s.client.onEvent, f)
+		s.onEvent = append(s.onEvent, f)
 	}
 }
 
@@ -159,11 +162,26 @@ func OnRaw(f OnRawFunc) AgentServerOption {
 }
 
 func (tcp *TcpService) onClientMessage(client *mtcp.Client, content []byte) {
-
+	cmd, data, err := service.Unpack(content)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	switch cmd {
+	case CMD_EVENT:
+		var raw map[string] interface{}
+		err = json.Unmarshal(data, &raw)
+		if err == nil {
+			table := raw["database"].(string) + "." + raw["table"].(string)
+			for _, f := range tcp.onEvent  {
+				f(table, data)
+			}
+		}
+	}
 }
 
 func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
-	//收到分组消息，加入分组
+
 }
 
 func (tcp *TcpService) Start() {
@@ -205,7 +223,9 @@ func (tcp *TcpService) Start() {
 			for {
 				m, err := tcp.sService.Get()
 				if err == nil && m != nil {
-					tcp.client.Connect(fmt.Sprintf("%v:%v", m.ServiceIp, m.Port), time.Second * 3)
+					leaderAddress := fmt.Sprintf("%v:%v", m.ServiceIp, m.Port)
+					log.Infof("connect to leader %v", leaderAddress)
+					tcp.client.Connect(leaderAddress, time.Second * 3)
 					break
 				}
 				log.Warnf("leader is not init, try to wait init")
@@ -255,7 +275,7 @@ func (tcp *TcpService) SendEvent(table string, data []byte) {
 	// 广播给agent client
 	// agent client 再发送给连接到当前service_plugin/tcp的客户端
 	packData := service.Pack(CMD_EVENT, data)
-	tcp.agents.asyncSend(packData)
+	tcp.server.Broadcast(1, packData)
 }
 
 // 心跳

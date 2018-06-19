@@ -2,24 +2,33 @@ package agent
 
 import (
 	"time"
-	"net"
-	log "github.com/sirupsen/logrus"
+//	log "github.com/sirupsen/logrus"
 	"library/app"
 	"sync"
-	"fmt"
-	"io"
-	"library/service"
+	"github.com/jilieryuyi/wing-go/tcp"
 )
 
-func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNode {
+type tcpClientNode struct {
+	conn             *tcp.ClientNode//net.Conn   // 客户端连接进来的资源句柄
+	//sendQueue        chan []byte // 发送channel
+	sendFailureTimes int64       // 发送失败次数
+	recvBuf          []byte      // 读缓冲区
+	connectTime      int64       // 连接成功的时间戳
+	status           int
+	wg               *sync.WaitGroup
+	ctx              *app.Context
+	lock             *sync.Mutex          // 互斥锁，修改资源时锁定
+	onclose          []NodeFunc
+	agents           tcpClients
+	onpro            []NodeFunc
+}
+
+func newNode(ctx *app.Context, conn *tcp.ClientNode, opts ...NodeOption) *tcpClientNode {
 	node := &tcpClientNode{
 		conn:             conn,
-		sendQueue:        make(chan []byte, tcpMaxSendQueue),
-		sendFailureTimes: 0,
 		connectTime:      time.Now().Unix(),
 		recvBuf:          make([]byte, 0),
 		status:           tcpNodeOnline,
-		//group:            "",
 		ctx:              ctx,
 		lock:             new(sync.Mutex),
 		onclose:          make([]NodeFunc, 0),
@@ -31,7 +40,6 @@ func newNode(ctx *app.Context, conn *net.Conn, opts ...NodeOption) *tcpClientNod
 			f(node)
 		}
 	}
-	node.setReadDeadline(time.Now().Add(time.Second * 3))
 	return node
 }
 
@@ -55,8 +63,6 @@ func (node *tcpClientNode) close() {
 	}
 	if node.status & tcpNodeOnline > 0{
 		node.status ^= tcpNodeOnline
-		(*node.conn).Close()
-		close(node.sendQueue)
 	}
 	for _, f := range node.onclose {
 		f(node)
@@ -64,8 +70,8 @@ func (node *tcpClientNode) close() {
 }
 
 func (node *tcpClientNode) send(data []byte) (int, error) {
-	(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 3))
-	return (*node.conn).Write(data)
+	//(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 3))
+	return node.conn.Send(1, data)
 }
 
 func (node *tcpClientNode) asyncSend(data []byte) {
@@ -75,127 +81,127 @@ func (node *tcpClientNode) asyncSend(data []byte) {
 		return
 	}
 	node.lock.Unlock()
-	for {
-		if len(node.sendQueue) < cap(node.sendQueue) {
-			break
-		}
-		log.Warnf("cache full, try wait, %v, %v", len(node.sendQueue) , cap(node.sendQueue))
-	}
-	node.sendQueue <- data
+	//for {
+	//	if len(node.sendQueue) < cap(node.sendQueue) {
+	//		break
+	//	}
+	//	log.Warnf("cache full, try wait, %v, %v", len(node.sendQueue) , cap(node.sendQueue))
+	//}
+	node.conn.AsyncSend(1, data)// <- data
 }
 
-func (node *tcpClientNode) setReadDeadline(t time.Time) {
-	(*node.conn).SetReadDeadline(t)
-}
+//func (node *tcpClientNode) setReadDeadline(t time.Time) {
+//	(*node.conn).SetReadDeadline(t)
+//}
 
-func (node *tcpClientNode) asyncSendService() {
-	node.wg.Add(1)
-	defer node.wg.Done()
-	for {
-		if node.status & tcpNodeOnline <= 0 {
-			log.Info("tcp node is closed, clientSendService exit.")
-			return
-		}
-		select {
-		case msg, ok := <-node.sendQueue:
-			if !ok {
-				log.Info("tcp node sendQueue is closed, sendQueue channel closed.")
-				return
-			}
-			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 30))
-			size, err := (*node.conn).Write(msg)
-			if err != nil {
-				log.Errorf("tcp send to %s error: %v", (*node.conn).RemoteAddr().String(), err)
-				node.close()
-				return
-			}
-			if size != len(msg) {
-				log.Errorf("%s send not complete: %v", (*node.conn).RemoteAddr().String(), msg)
-			}
-		case <-node.ctx.Ctx.Done():
-			log.Debugf("context is closed, wait for exit, left: %d", len(node.sendQueue))
-			if len(node.sendQueue) <= 0 {
-				log.Info("tcp service, clientSendService exit.")
-				return
-			}
-		}
-	}
-}
+//func (node *tcpClientNode) asyncSendService() {
+//	node.wg.Add(1)
+//	defer node.wg.Done()
+//	for {
+//		if node.status & tcpNodeOnline <= 0 {
+//			log.Info("tcp node is closed, clientSendService exit.")
+//			return
+//		}
+//		select {
+//		case msg, ok := <-node.sendQueue:
+//			if !ok {
+//				log.Info("tcp node sendQueue is closed, sendQueue channel closed.")
+//				return
+//			}
+//			(*node.conn).SetWriteDeadline(time.Now().Add(time.Second * 30))
+//			size, err := (*node.conn).Write(msg)
+//			if err != nil {
+//				log.Errorf("tcp send to %s error: %v", (*node.conn).RemoteAddr().String(), err)
+//				node.close()
+//				return
+//			}
+//			if size != len(msg) {
+//				log.Errorf("%s send not complete: %v", (*node.conn).RemoteAddr().String(), msg)
+//			}
+//		case <-node.ctx.Ctx.Done():
+//			log.Debugf("context is closed, wait for exit, left: %d", len(node.sendQueue))
+//			if len(node.sendQueue) <= 0 {
+//				log.Info("tcp service, clientSendService exit.")
+//				return
+//			}
+//		}
+//	}
+//}
 
 func (node *tcpClientNode) setPro(data []byte) {
 	flag    := data[0]
 	//content := string(data[1:])
 	switch flag {
 	case FlagAgent:
-		node.setReadDeadline(time.Time{})
+		//node.setReadDeadline(time.Time{})
 		node.send(packDataSetPro)
 		//tcp.agents.append(node)
 		for _, f := range node.onpro {
 			f(node)
 		}
-		go node.asyncSendService()
+		//go node.asyncSendService()
 	default:
 		node.close()
 	}
 }
 
-func (node *tcpClientNode) onMessage(msg []byte) {
-	node.recvBuf = append(node.recvBuf, msg...)
-	for {
-		size := len(node.recvBuf)
-		if size < 6 {
-			return
-		}
-		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
-			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
-		if len(node.recvBuf) < 	clen + 4 {
-			return
-		}
-		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
-		if !hasCmd(cmd) {
-			log.Errorf("cmd %d does not exists, data: %v", cmd, node.recvBuf)
-			node.recvBuf = make([]byte, 0)
-			return
-		}
-		content := node.recvBuf[6 : clen + 4]
-		log.Debugf("%+v", content)
-		switch cmd {
-		case CMD_SET_PRO:
-			//tcp.onSetProEvent(node, content)
-			node.setPro(content)
-		case CMD_TICK:
-			node.asyncSend(packDataTickOk)
-			//case CMD_POS:
-			//	// 如果是pos事件通知，执行回调函数
-			//	for _, f:= range tcp.onPos {
-			//		f(content)
-			//	}
-		default:
-			node.asyncSend(service.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
-			node.recvBuf = make([]byte, 0)
-			return
-		}
-		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
-	}
-}
+//func (node *tcpClientNode) onMessage(msg []byte) {
+//	node.recvBuf = append(node.recvBuf, msg...)
+//	for {
+//		size := len(node.recvBuf)
+//		if size < 6 {
+//			return
+//		}
+//		clen := int(node.recvBuf[0]) | int(node.recvBuf[1]) << 8 |
+//			int(node.recvBuf[2]) << 16 | int(node.recvBuf[3]) << 24
+//		if len(node.recvBuf) < 	clen + 4 {
+//			return
+//		}
+//		cmd  := int(node.recvBuf[4]) | int(node.recvBuf[5]) << 8
+//		if !hasCmd(cmd) {
+//			log.Errorf("cmd %d does not exists, data: %v", cmd, node.recvBuf)
+//			node.recvBuf = make([]byte, 0)
+//			return
+//		}
+//		content := node.recvBuf[6 : clen + 4]
+//		log.Debugf("%+v", content)
+//		switch cmd {
+//		case CMD_SET_PRO:
+//			//tcp.onSetProEvent(node, content)
+//			node.setPro(content)
+//		case CMD_TICK:
+//			node.asyncSend(packDataTickOk)
+//			//case CMD_POS:
+//			//	// 如果是pos事件通知，执行回调函数
+//			//	for _, f:= range tcp.onPos {
+//			//		f(content)
+//			//	}
+//		default:
+//			node.asyncSend(service.Pack(CMD_ERROR, []byte(fmt.Sprintf("tcp service does not support cmd: %d", cmd))))
+//			node.recvBuf = make([]byte, 0)
+//			return
+//		}
+//		node.recvBuf = append(node.recvBuf[:0], node.recvBuf[clen + 4:]...)
+//	}
+//}
 
-func (node *tcpClientNode) readMessage() {
-	//node := newNode(tcp.ctx, conn, NodeClose(tcp.agents.remove), NodePro(tcp.agents.append))
-	var readBuffer [tcpDefaultReadBufferSize]byte
-	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
-	for {
-		size, err := (*node.conn).Read(readBuffer[0:])
-		if err != nil {
-			if err != io.EOF {
-				log.Warnf("tcp node %s disconnect with error: %v", (*node.conn).RemoteAddr().String(), err)
-			} else {
-				log.Debugf("tcp node %s disconnect with error: %v", (*node.conn).RemoteAddr().String(), err)
-			}
-			node.close()
-			return
-		}
-		node.onMessage(readBuffer[:size])
-	}
-}
+//func (node *tcpClientNode) readMessage() {
+//	//node := newNode(tcp.ctx, conn, NodeClose(tcp.agents.remove), NodePro(tcp.agents.append))
+//	var readBuffer [tcpDefaultReadBufferSize]byte
+//	// 设定3秒超时，如果添加到分组成功，超时限制将被清除
+//	for {
+//		size, err := (*node.conn).Read(readBuffer[0:])
+//		if err != nil {
+//			if err != io.EOF {
+//				log.Warnf("tcp node %s disconnect with error: %v", (*node.conn).RemoteAddr().String(), err)
+//			} else {
+//				log.Debugf("tcp node %s disconnect with error: %v", (*node.conn).RemoteAddr().String(), err)
+//			}
+//			node.close()
+//			return
+//		}
+//		node.onMessage(readBuffer[:size])
+//	}
+//}
 
 
