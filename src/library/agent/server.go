@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"time"
 	//"encoding/json"
+	"encoding/json"
 )
 
 //agent 所需要做的事情
@@ -34,7 +35,7 @@ const (
 	Registered = 1 << iota
 )
 type OnLeaderFunc func(bool)
-type OnEventFunc       func(cmd int, data []byte) bool
+type OnEventFunc       func(table string, data []byte) bool
 type OnRawFunc         func(msg []byte) bool
 type TcpService struct {
 	Address string               // 监听ip
@@ -56,6 +57,7 @@ type TcpService struct {
 	leader bool
 	server *mtcp.Server
 	onEvent []OnEventFunc
+	onPos   []OnPosFunc
 }
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
@@ -82,6 +84,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		enable:           config.Enable,
 		//onleader:         make([]OnLeaderFunc, 0),
 		onEvent:          make([]OnEventFunc, 0),
+		onPos:            make([]OnPosFunc, 0),
 	}
 	tcp.client = mtcp.NewClient(ctx.Ctx, mtcp.SetOnMessage(tcp.onClientMessage))//newAgentClient(ctx)
 	// 服务注册
@@ -124,7 +127,7 @@ func OnPos(f OnPosFunc) AgentServerOption  {
 		if !s.enable {
 			return
 		}
-		//s.onPos = append(s.onPos, f)
+		s.onPos = append(s.onPos, f)
 	}
 }
 
@@ -167,17 +170,21 @@ func (tcp *TcpService) onClientMessage(client *mtcp.Client, content []byte) {
 		log.Error(err)
 		return
 	}
-	//switch cmd {
-	//case CMD_EVENT:
-	//	var raw map[string] interface{}
-	//	err = json.Unmarshal(data, &raw)
-	//	if err == nil {
-	//		table := raw["database"].(string) + "." + raw["table"].(string)
+	switch cmd {
+	case CMD_EVENT:
+		var raw map[string] interface{}
+		err = json.Unmarshal(data, &raw)
+		if err == nil {
+			table := raw["database"].(string) + "." + raw["table"].(string)
 			for _, f := range tcp.onEvent  {
-				f(cmd, data)
+				f(table, data)
 			}
-	//	}
-	//}
+		}
+	case CMD_POS:
+		for _, f := range tcp.onPos  {
+			f(data)
+		}
+	}
 }
 
 func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
