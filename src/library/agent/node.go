@@ -128,22 +128,22 @@ func (node *tcpClientNode) asyncSend(data []byte) {
 //	}
 //}
 
-func (node *tcpClientNode) setPro(data []byte) {
-	flag    := data[0]
-	//content := string(data[1:])
-	switch flag {
-	case FlagAgent:
-		//node.setReadDeadline(time.Time{})
-		node.send(packDataSetPro)
-		//tcp.agents.append(node)
-		for _, f := range node.onpro {
-			f(node)
-		}
-		//go node.asyncSendService()
-	default:
-		node.close()
-	}
-}
+//func (node *tcpClientNode) setPro(data []byte) {
+//	flag    := data[0]
+//	//content := string(data[1:])
+//	switch flag {
+//	case FlagAgent:
+//		//node.setReadDeadline(time.Time{})
+//		node.send(packDataSetPro)
+//		//tcp.agents.append(node)
+//		for _, f := range node.onpro {
+//			f(node)
+//		}
+//		//go node.asyncSendService()
+//	default:
+//		node.close()
+//	}
+//}
 
 //func (node *tcpClientNode) onMessage(msg []byte) {
 //	node.recvBuf = append(node.recvBuf, msg...)
