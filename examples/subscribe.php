@@ -9,7 +9,16 @@
 include "Client.php";
 date_default_timezone_set('Asia/Shanghai');
 
-$client = new \Wing\Binlog\Go\Client("127.0.0.1", 9996);
+$defaultServiceIp   = "127.0.0.1";
+$defaultServicePort = 9996;
+
+if ($argc > 1) {
+    $temp = explode(":", $argv[1]);
+    $defaultServiceIp   = $temp[0];
+    $defaultServicePort = $temp[1];
+}
+
+$client = new \Wing\Binlog\Go\Client($defaultServiceIp, $defaultServicePort);
 register_shutdown_function(function () use($client) {
     //如果wait返回了，说明所有的进程都退出了
     //这里需要对socket进行关闭处理
