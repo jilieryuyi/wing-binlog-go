@@ -219,10 +219,12 @@ func (client *Client) Subscribe(topics ...string) {
 func (client *Client) connect(server *serverNode) {
 	log.Debugf("connect to %+v", *server)
 	client.lock.Lock()
-	defer client.lock.Unlock()
 	if client.node != nil && client.node.status & nodeOnline > 0 {
+		client.lock.Unlock()
 		client.disconnect()
+		client.lock.Lock()
 	}
+	defer client.lock.Unlock()
 	dns := fmt.Sprintf("%v:%v", server.host, server.port)
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", dns)
 	if err != nil {
@@ -299,14 +301,16 @@ func (client *Client) keepalive() {
 			}
 			client.lock.Lock()
 			if client.node.conn != nil && client.node.status & nodeOnline > 0 {
+				client.lock.Unlock()
 				n, err := client.node.conn.Write(data)
 				if err != nil {
 					client.disconnect()
 				} else if n != dl {
 					log.Errorf("发送数据不完整")
 				}
+			} else {
+				client.lock.Unlock()
 			}
-			client.lock.Unlock()
 			time.Sleep(time.Second * 5)
 		}
 	}()

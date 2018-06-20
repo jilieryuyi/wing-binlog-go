@@ -30,14 +30,14 @@ func main() {
 	// 简单的高可用方案支持
 	// 第二个参数为注册事件回调
 
-	//defaultDns := "127.0.0.1:9996"
-	//if len(os.Args) >= 2 {
-	//	defaultDns = os.Args[1]
-	//}
-	//client := wclient.NewClient(wclient.SetServices([]string{defaultDns}), wclient.OnEventOption(onEvent))
+	defaultDns := "127.0.0.1:9996"
+	if len(os.Args) >= 2 {
+		defaultDns = os.Args[1]
+	}
+	client := wclient.NewClient(wclient.SetServices([]string{defaultDns}), wclient.OnEventOption(onEvent))
 
-	//或者使用consul
-	client := wclient.NewClient(wclient.SetConsulAddress("127.0.0.1:8500"), wclient.OnEventOption(onEvent))
+	//或者使用consul服务发现
+	//client := wclient.NewClient(wclient.SetConsulAddress("127.0.0.1:8500"), wclient.OnEventOption(onEvent))
 
 	// 程序退出时 close 掉客户端
 	defer client.Close()

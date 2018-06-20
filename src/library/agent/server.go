@@ -221,6 +221,7 @@ func (tcp *TcpService) Start() {
 	}()*/
 	tcp.server.Start()
 	tcp.sService.Select(func(member *mconsul.ServiceMember) {
+		log.Infof("current node %v is leader: %v", tcp.Address, member.IsLeader)
 		tcp.leader = member.IsLeader
 		for _, f := range tcp.onLeader {
 			f(member.IsLeader)
