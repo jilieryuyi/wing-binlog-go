@@ -14,7 +14,7 @@ import (
 	"os"
 	"fmt"
 	"time"
-	"encoding/json"
+	//"encoding/json"
 )
 
 //agent 所需要做的事情
@@ -34,7 +34,7 @@ const (
 	Registered = 1 << iota
 )
 type OnLeaderFunc func(bool)
-type OnEventFunc       func(table string, data []byte) bool
+type OnEventFunc       func(cmd int, data []byte) bool
 type OnRawFunc         func(msg []byte) bool
 type TcpService struct {
 	Address string               // 监听ip
@@ -124,7 +124,7 @@ func OnPos(f OnPosFunc) AgentServerOption  {
 		if !s.enable {
 			return
 		}
-		//s.client.onPos = append(s.client.onPos, f)
+		//s.onPos = append(s.onPos, f)
 	}
 }
 
@@ -167,17 +167,17 @@ func (tcp *TcpService) onClientMessage(client *mtcp.Client, content []byte) {
 		log.Error(err)
 		return
 	}
-	switch cmd {
-	case CMD_EVENT:
-		var raw map[string] interface{}
-		err = json.Unmarshal(data, &raw)
-		if err == nil {
-			table := raw["database"].(string) + "." + raw["table"].(string)
+	//switch cmd {
+	//case CMD_EVENT:
+	//	var raw map[string] interface{}
+	//	err = json.Unmarshal(data, &raw)
+	//	if err == nil {
+	//		table := raw["database"].(string) + "." + raw["table"].(string)
 			for _, f := range tcp.onEvent  {
-				f(table, data)
+				f(cmd, data)
 			}
-		}
-	}
+	//	}
+	//}
 }
 
 func (tcp *TcpService) onServerMessage(node *mtcp.ClientNode, msgId int64, data []byte) {
@@ -253,48 +253,17 @@ func (tcp *TcpService) Close() {
 	tcp.sService.Free()
 }
 
-// binlog的pos发生改变会通知到这里
-// r为压缩过的二进制数据
-// 可以直接写到pos cache缓存文件
-func (tcp *TcpService) SendPos(data []byte) {
-	if !tcp.enable {
-		return
-	}
-	if !tcp.leader {
-		return
-	}
-	//tcp.sService.
-	packData := service.Pack(CMD_POS, data)
-	tcp.agents.asyncSend(packData)
-}
-
-func (tcp *TcpService) SendEvent(table string, data []byte) {
+// 此api提供给binlog通过agent server同步广播发送给所有的client客户端
+func (tcp *TcpService) Sync(data []byte) {
 	if !tcp.enable {
 		return
 	}
 	// 广播给agent client
 	// agent client 再发送给连接到当前service_plugin/tcp的客户端
-	packData := service.Pack(CMD_EVENT, data)
-	tcp.server.Broadcast(1, packData)
+	//packData := service.Pack(CMD_EVENT, data)
+	tcp.server.Broadcast(1, data)
 }
 
-// 心跳
-/*
-func (tcp *TcpService) keepalive() {
-	if !tcp.enable {
-		return
-	}
-	for {
-		select {
-		case <-tcp.ctx.Ctx.Done():
-			return
-		default:
-		}
-		tcp.agents.asyncSend(packDataTickOk)
-		time.Sleep(time.Second * 3)
-	}
-}
-*/
 func (tcp *TcpService) ShowMembers() string {
 	if !tcp.enable {
 		return "agent is not enable"

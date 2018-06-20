@@ -13,6 +13,8 @@ import (
 	"library/agent"
 	log "github.com/sirupsen/logrus"
 	"services/subscribe"
+	"library/service"
+	"encoding/json"
 )
 
 var (
@@ -108,16 +110,40 @@ func main() {
 	// agent代理，用于实现集群
 	agentServer := agent.NewAgentServer(
 		appContext,
-		agent.OnEvent(subscribeService.SendAll),
 		agent.OnRaw(subscribeService.SendRaw),
 	)
 
 	// 核心binlog服务
 	blog := binlog.NewBinlog(
 		appContext,
-		binlog.PosChange(agentServer.SendPos),
-		binlog.OnEvent(agentServer.SendEvent),
+		// pos改变的时候，通过agent server同步给所有的客户端
+		binlog.PosChange(func(data []byte) {
+			packData := service.Pack(agent.CMD_POS, data)
+			agentServer.Sync(packData)
+		}),
+		// 将所有的事件同步给所有的客户端
+		binlog.OnEvent(func(table string, data []byte) {
+			packData := service.Pack(agent.CMD_EVENT, data)
+			agentServer.Sync(packData)
+		}),
 	)
+	agent.OnEvent(func(cmd int, data []byte) bool {
+		switch cmd {
+		case agent.CMD_EVENT:
+			log.Infof("agent get event")
+			var raw map[string] interface{}
+			err := json.Unmarshal(data, &raw)
+			if err == nil {
+				table := raw["database"].(string) + "." + raw["table"].(string)
+				subscribeService.SendAll(table, data)
+			}
+		case agent.CMD_POS:
+			log.Infof("agent get pos")
+			blog.SaveBinlogPosition(data)
+		}
+		return true
+	})(agentServer)
+
 	// 注册服务
 	blog.RegisterService(httpService)
 	blog.RegisterService(redisService)
