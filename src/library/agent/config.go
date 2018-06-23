@@ -2,10 +2,8 @@ package agent
 
 import (
 	"library/app"
-	"library/service"
 	"library/file"
 	"github.com/BurntSushi/toml"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
