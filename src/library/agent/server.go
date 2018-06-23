@@ -44,7 +44,7 @@ type TcpService struct {
 	ctx *app.Context
 	listener *net.Listener
 	wg *sync.WaitGroup
-	agents tcpClients
+	//agents tcpClients
 	status int
 	conn *net.TCPConn
 	buffer []byte
@@ -61,7 +61,10 @@ type TcpService struct {
 }
 
 func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
-	config, _ := getConfig()
+	config, err := getConfig()
+	if err != nil {
+		log.Panicf("%v", err)
+	}
 	if !config.Enable {
 		s := &TcpService{
 			enable: config.Enable,
@@ -78,7 +81,7 @@ func NewAgentServer(ctx *app.Context, opts ...AgentServerOption) *TcpService {
 		wg:               new(sync.WaitGroup),
 		listener:         nil,
 		ctx:              ctx,
-		agents:           nil,
+		//agents:           nil,
 		status:           0,
 		buffer:           make([]byte, 0),
 		enable:           config.Enable,
@@ -253,7 +256,7 @@ func (tcp *TcpService) Close() {
 	if tcp.listener != nil {
 		(*tcp.listener).Close()
 	}
-	tcp.agents.close()
+	//tcp.agents.close()
 	log.Debugf("tcp service closed.")
 	//tcp.service.Close()
 
